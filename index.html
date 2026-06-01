@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Lacty</title>
+
+    <!-- PWA manifest (Android + navegadores modernos) -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- iOS: añadir a pantalla de inicio -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Lacty" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Color de barra de navegador en Android -->
+    <meta name="theme-color" content="#2563eb" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

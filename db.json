@@ -1,0 +1,125 @@
+{
+  "config": [
+    {
+      "daysOfLifeAtSetup": 11,
+      "setupDate": "2026-05-31",
+      "id": "GcjZ_WdAp0I"
+    }
+  ],
+  "feedings": [
+    {
+      "id": "uKryCqPTKFQ",
+      "timestamp": "2026-05-30T23:57:00.000Z",
+      "hasBreast": false,
+      "hasSupplement": true,
+      "supplementMl": 60
+    },
+    {
+      "id": "K4iu9Ua6Le4",
+      "timestamp": "2026-05-31T02:24:00.000Z",
+      "hasBreast": false,
+      "hasSupplement": true,
+      "supplementMl": 40
+    },
+    {
+      "id": "atRmAve_raY",
+      "timestamp": "2026-05-31T04:40:00.000Z",
+      "hasBreast": false,
+      "hasSupplement": true,
+      "supplementMl": 50
+    },
+    {
+      "id": "AK8jp9EM6ro",
+      "timestamp": "2026-05-31T06:45:00.000Z",
+      "hasBreast": true,
+      "breastMinRight": 20,
+      "hasSupplement": true,
+      "supplementMl": 40
+    },
+    {
+      "id": "bSH9yoCZIVA",
+      "timestamp": "2026-05-31T09:06:00.000Z",
+      "hasBreast": false,
+      "hasSupplement": true,
+      "supplementMl": 45
+    },
+    {
+      "id": "qqK9MBkrnCE",
+      "timestamp": "2026-05-31T09:42:00.000Z",
+      "hasBreast": true,
+      "breastMinLeft": 15,
+      "hasSupplement": false
+    },
+    {
+      "id": "p1SbtwoSvMY",
+      "timestamp": "2026-05-31T12:06:00.000Z",
+      "hasBreast": true,
+      "breastMinRight": 33,
+      "hasSupplement": true,
+      "supplementMl": 35
+    }
+  ],
+  "rests": [
+    {
+      "id": "47sa9yqj3G0",
+      "startTime": "2026-05-31T00:33:00.000Z",
+      "endTime": "2026-05-31T02:24:00.000Z"
+    },
+    {
+      "id": "GMxc1JZuWpY",
+      "startTime": "2026-05-31T02:43:00.000Z",
+      "endTime": "2026-05-31T04:40:00.000Z"
+    },
+    {
+      "id": "o8VZ9o3f8qQ",
+      "startTime": "2026-05-31T05:25:00.000Z",
+      "endTime": "2026-05-31T06:45:00.000Z"
+    },
+    {
+      "id": "745-hdwZeIU",
+      "startTime": "2026-05-31T09:22:00.000Z",
+      "endTime": "2026-05-31T09:35:00.000Z"
+    },
+    {
+      "id": "LSvg9ic7n8A",
+      "startTime": "2026-05-31T09:56:00.000Z",
+      "endTime": "2026-05-31T11:55:00.000Z",
+      "notes": "Paseito"
+    },
+    {
+      "id": "sPZjsBDDgSE",
+      "startTime": "2026-05-31T13:10:00.000Z"
+    }
+  ],
+  "weights": [
+    {
+      "id": "initial-weight",
+      "date": "2026-05-31",
+      "weightKg": 3.2,
+      "notes": "Peso inicial"
+    },
+    {
+      "id": "IGd12-tCMv0",
+      "date": "2026-05-20",
+      "weightKg": 3.1,
+      "notes": "Peso de nacimiento"
+    },
+    {
+      "id": "K9T44tVZeTA",
+      "date": "2026-05-21",
+      "weightKg": 2.89
+    },
+    {
+      "id": "EAvWM3fUvB0",
+      "date": "2026-05-23",
+      "weightKg": 2.98
+    },
+    {
+      "id": "4EcTHlZ7f7c",
+      "date": "2026-05-28",
+      "weightKg": 3.175,
+      "notes": "Primera visita pediatra"
+    }
+  ],
+  "$schema": "./node_modules/json-server/schema.json"
+}
