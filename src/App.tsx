@@ -101,11 +101,38 @@ export default function App() {
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
 
+  // Finaliza automáticamente cualquier toma o descanso que esté en curso.
+  // Se llama antes de crear un nuevo elemento (no al editar).
+  async function finalizeInProgress() {
+    const now = new Date().toISOString();
+
+    // Descansos sin hora de fin
+    const openRests = rests.filter((r) => r.endTime == null);
+    for (const rest of openRests) {
+      const updated = await api.updateRest({ ...rest, endTime: now });
+      setRests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+    }
+
+    // Tomas con pecho iniciado pero sin minutos: calcular tiempo transcurrido
+    const openBreast = feedings.filter(
+      (f) => f.hasBreast && f.breastMinLeft == null && f.breastMinRight == null
+    );
+    for (const feeding of openBreast) {
+      const elapsed = Math.max(
+        0,
+        Math.round((new Date(now).getTime() - new Date(feeding.timestamp).getTime()) / 60000)
+      );
+      const updated = await api.updateFeeding({ ...feeding, breastMinLeft: elapsed });
+      setFeedings((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
+    }
+  }
+
   async function handleSaveFeeding(feeding: Feeding) {
     if (editingFeeding) {
       const updated = await api.updateFeeding(feeding);
       setFeedings((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
     } else {
+      await finalizeInProgress();
       const created = await api.createFeeding(feeding);
       setFeedings((prev) => [...prev, created]);
     }
@@ -123,6 +150,7 @@ export default function App() {
       const updated = await api.updateRest(rest);
       setRests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
     } else {
+      await finalizeInProgress();
       const created = await api.createRest(rest);
       setRests((prev) => [...prev, created]);
     }

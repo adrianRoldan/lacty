@@ -4,6 +4,7 @@ import {
   groupTimelineByDay,
   getTotalSupplementMl,
   getTotalBreastMinutes,
+  getHistorySummary,
 } from '../utils/feedingUtils';
 import FeedingItem from './FeedingItem';
 import RestItem from './RestItem';
@@ -31,6 +32,7 @@ export default function FeedingList({
 }: Props) {
   const groups = groupTimelineByDay(feedings, rests);
   const days = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+  const summary = getHistorySummary(feedings, rests);
 
   if (days.length === 0) {
     return (
@@ -46,7 +48,29 @@ export default function FeedingList({
 
   return (
     <div className="p-4 pb-24">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Historial</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-4">Historial</h1>
+
+      {/* Resumen global */}
+      {summary && (
+        <div className="bg-white rounded-2xl shadow-sm p-4 mb-6">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+            Media global — {summary.totalDays} {summary.totalDays === 1 ? 'día' : 'días'}
+          </p>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+            <SummaryRow icon="🍼" label="Tomas/día" value={String(summary.avgFeedingsPerDay)} />
+            {summary.avgJeringaMlPerDay > 0 && (
+              <SummaryRow icon="💉" label="Jeringa/día" value={`${summary.avgJeringaMlPerDay} ml`} />
+            )}
+            {summary.avgBreastMinPerDay > 0 && (
+              <SummaryRow icon="🤱" label="Pecho/día" value={formatMinutes(summary.avgBreastMinPerDay)} />
+            )}
+            {summary.avgRestMinutes > 0 && (
+              <SummaryRow icon="😴" label="Descanso" value={formatMinutes(summary.avgRestMinutes)} />
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="space-y-6">
         {days.map((day) => {
           const items = groups[day];
@@ -100,6 +124,18 @@ export default function FeedingList({
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function SummaryRow({ icon, label, value }: { icon: string; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-base leading-none">{icon}</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs text-gray-500">{label}</p>
+        <p className="text-sm font-semibold text-gray-900">{value}</p>
       </div>
     </div>
   );

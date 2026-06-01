@@ -124,6 +124,63 @@ export function getRestCorrelation(
     .filter((r) => r.count > 0);
 }
 
+export interface HistorySummary {
+  totalDays: number;
+  avgFeedingsPerDay: number;
+  avgJeringaMlPerDay: number;   // ml de jeringa / días con jeringa
+  avgBreastMinPerDay: number;   // min pecho / días con pecho
+  avgRestMinutes: number;       // media duración de descanso completado
+}
+
+export function getHistorySummary(feedings: Feeding[], rests: Rest[]): HistorySummary | null {
+  if (feedings.length === 0 && rests.length === 0) return null;
+
+  // Unique days with feedings
+  const feedingDays = new Set(feedings.map((f) => localDateOf(f.timestamp)));
+  const totalDays = feedingDays.size || 1;
+
+  const avgFeedingsPerDay = feedingDays.size > 0
+    ? Math.round((feedings.length / feedingDays.size) * 10) / 10
+    : 0;
+
+  // Days with jeringa ml recorded
+  const jeringaDays = new Set(
+    feedings.filter((f) => f.supplementMl != null && f.supplementMl > 0).map((f) => localDateOf(f.timestamp))
+  );
+  const totalJeringaMl = feedings.reduce((s, f) => s + (f.supplementMl ?? 0), 0);
+  const avgJeringaMlPerDay = jeringaDays.size > 0
+    ? Math.round(totalJeringaMl / jeringaDays.size)
+    : 0;
+
+  // Days with breast recorded
+  const breastDays = new Set(
+    feedings
+      .filter((f) => f.hasBreast && ((f.breastMinLeft ?? 0) + (f.breastMinRight ?? 0)) > 0)
+      .map((f) => localDateOf(f.timestamp))
+  );
+  const totalBreastMin = feedings.reduce(
+    (s, f) => s + (f.breastMinLeft ?? 0) + (f.breastMinRight ?? 0), 0
+  );
+  const avgBreastMinPerDay = breastDays.size > 0
+    ? Math.round(totalBreastMin / breastDays.size)
+    : 0;
+
+  // Average completed rest duration
+  const completedRests = rests.filter((r) => r.endTime != null);
+  const avgRestMinutes = completedRests.length > 0
+    ? Math.round(
+        completedRests.reduce((s, r) => {
+          const min = Math.round(
+            (new Date(r.endTime!).getTime() - new Date(r.startTime).getTime()) / 60000
+          );
+          return s + min;
+        }, 0) / completedRests.length
+      )
+    : 0;
+
+  return { totalDays, avgFeedingsPerDay, avgJeringaMlPerDay, avgBreastMinPerDay, avgRestMinutes };
+}
+
 export function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
