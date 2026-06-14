@@ -2,6 +2,7 @@ import type { Feeding, Rest } from '../types';
 import type { FeedingReference } from '../data/referenceTable';
 import {
   getTotalSupplementMl,
+  getTotalEstimatedBreastMl,
   getAvgGapMinutes,
   getAvgSupplementMl,
   getAvgRestMinutes,
@@ -30,7 +31,7 @@ const LEVEL_COLORS: Record<Level, { bar: string; text: string; bg: string }> = {
   low:   { bar: 'bg-red-400',    text: 'text-red-600',    bg: 'bg-red-50'     },
   mid:   { bar: 'bg-amber-400',  text: 'text-amber-600',  bg: 'bg-amber-50'   },
   ok:    { bar: 'bg-green-500',  text: 'text-green-700',  bg: 'bg-green-50'   },
-  over:  { bar: 'bg-blue-500',   text: 'text-blue-700',   bg: 'bg-blue-50'    },
+  over:  { bar: 'bg-sage-500',   text: 'text-sage-700',   bg: 'bg-sage-50'    },
 };
 
 const LEVEL_LABELS: Record<Level, string> = {
@@ -42,7 +43,7 @@ const LEVEL_LABELS: Record<Level, string> = {
 };
 
 export default function DayInsights({ feedings, rests, reference }: Props) {
-  const totalMl = getTotalSupplementMl(feedings);
+  const totalMl = getTotalSupplementMl(feedings) + getTotalEstimatedBreastMl(feedings);
   const totalFeedings = feedings.length;
   const avgGap = getAvgGapMinutes(feedings);
   const avgMl = getAvgSupplementMl(feedings);
@@ -70,7 +71,7 @@ export default function DayInsights({ feedings, rests, reference }: Props) {
           />
 
           <ProgressRow
-            label="Jeringa-dedo registrado"
+            label="Mililitros totales"
             value={totalMl}
             unit="ml"
             refMin={reference.dailyMlMin ?? reference.mlPerFeedMin * reference.feedsPerDayMin}
@@ -79,7 +80,7 @@ export default function DayInsights({ feedings, rests, reference }: Props) {
           />
 
           <p className="text-xs text-gray-400 leading-relaxed">
-            ℹ️ La referencia es de leche total (pecho + jeringa + biberón). La jeringa-dedo registrada es lo medible; la leche de pecho suma aunque no aparezca aquí en ml.
+            ℹ️ Incluye jeringa-dedo (medido) + pecho estimado (~). El estimado de pecho es un promedio orientativo, no una medición real.
           </p>
         </div>
       )}
@@ -95,10 +96,10 @@ export default function DayInsights({ feedings, rests, reference }: Props) {
               <AverageRow icon="⏱" label="Entre tomas" value={formatMinutes(avgGap)} />
             )}
             {avgMl !== null && (
-              <AverageRow icon="💉" label="ml por toma" value={`${avgMl} ml`} />
+              <AverageRow icon="💧" label="ml por toma (total)" value={`${avgMl} ml`} />
             )}
             {avgRest !== null && (
-              <AverageRow icon="😴" label="Duración descanso" value={formatMinutes(avgRest)} />
+              <AverageRow icon="😴" label="Duración sueño" value={formatMinutes(avgRest)} />
             )}
           </div>
         </div>

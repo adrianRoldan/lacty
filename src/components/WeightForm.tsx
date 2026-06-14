@@ -33,7 +33,7 @@ export default function WeightForm({ onSave, onCancel, existing }: Props) {
   return (
     <div className="p-4 pb-24">
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={onCancel} className="text-blue-600 text-lg p-1 touch-manipulation">
+        <button onClick={onCancel} className="text-sage-600 text-lg p-1 touch-manipulation">
           ← Atrás
         </button>
         <h2 className="text-xl font-bold text-gray-900">
@@ -49,7 +49,7 @@ export default function WeightForm({ onSave, onCancel, existing }: Props) {
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-600"
             required
           />
         </div>
@@ -67,7 +67,7 @@ export default function WeightForm({ onSave, onCancel, existing }: Props) {
               placeholder="0.000"
               onChange={(e) => setWeightKg(e.target.value === '' ? '' : Number(e.target.value))}
               onFocus={(e) => e.target.select()}
-              className="flex-1 border border-gray-200 rounded-xl px-3 py-4 text-3xl font-bold text-center text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-300 placeholder:font-normal placeholder:text-xl"
+              className="flex-1 border border-gray-200 rounded-xl px-3 py-4 text-3xl font-bold text-center text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-600 placeholder:text-gray-300 placeholder:font-normal placeholder:text-xl"
             />
             <span className="text-xl font-semibold text-gray-500 shrink-0">kg</span>
           </div>
@@ -83,7 +83,7 @@ export default function WeightForm({ onSave, onCancel, existing }: Props) {
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
             placeholder="Ej: visita pediatra semana 2, alta maternidad..."
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-600 resize-none"
           />
         </div>
 
@@ -91,7 +91,7 @@ export default function WeightForm({ onSave, onCancel, existing }: Props) {
 
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-blue-700 touch-manipulation"
+          className="w-full bg-sage-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-sage-700 touch-manipulation"
         >
           {existing ? 'Guardar cambios' : 'Guardar peso'}
         </button>

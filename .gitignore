@@ -14,6 +14,11 @@ dist-ssr
 
 # Base de datos local (datos privados)
 lacty.db
+lacty.db.backup-*
+
+# Sesiones y secreto (no deben subirse)
+sessions.db
+.session-secret
 
 # Editor directories and files
 .vscode/*

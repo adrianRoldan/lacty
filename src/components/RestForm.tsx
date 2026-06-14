@@ -19,7 +19,7 @@ export default function RestForm({ onSave, onCancel, existing }: Props) {
   const [endTime, setEndTime] = useState(
     existing?.endTime
       ? toLocalDatetimeInputValue(new Date(existing.endTime))
-      : toLocalDatetimeInputValue(new Date(Date.now() + 30 * 60 * 1000))
+      : toLocalDatetimeInputValue(new Date())
   );
   const [notes, setNotes] = useState(existing?.notes ?? '');
   const [error, setError] = useState('');
@@ -49,23 +49,23 @@ export default function RestForm({ onSave, onCancel, existing }: Props) {
   return (
     <div className="p-4 pb-24">
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={onCancel} className="text-blue-600 text-lg p-1 touch-manipulation">
+        <button onClick={onCancel} className="text-sage-600 text-lg p-1 touch-manipulation">
           ← Atrás
         </button>
         <h2 className="text-xl font-bold text-gray-900">
-          {existing ? 'Editar descanso' : 'Nuevo descanso'}
+          {existing ? 'Editar sueño' : 'Nuevo sueño'}
         </h2>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Inicio */}
         <div className="bg-white rounded-2xl p-4 shadow-sm">
-          <label className="block text-sm font-medium text-gray-600 mb-2">Inicio del descanso</label>
+          <label className="block text-sm font-medium text-gray-600 mb-2">Inicio del sueño</label>
           <input
             type="datetime-local"
             value={startTime}
             onChange={(e) => setStartTime(e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-taupe-600"
             required
           />
         </div>
@@ -80,11 +80,11 @@ export default function RestForm({ onSave, onCancel, existing }: Props) {
             <div className="flex items-center gap-3">
               <span className="text-2xl">⏰</span>
               <div className="text-left">
-                <span className="text-base font-semibold text-gray-900">Fin del descanso</span>
+                <span className="text-base font-semibold text-gray-900">Fin del sueño</span>
                 {!hasEnd && <p className="text-xs text-gray-400">Opcional — añádelo cuando despierte</p>}
               </div>
             </div>
-            <div className={`w-12 h-7 rounded-full transition-colors shrink-0 ${hasEnd ? 'bg-purple-600' : 'bg-gray-200'} relative`}>
+            <div className={`w-12 h-7 rounded-full transition-colors shrink-0 ${hasEnd ? 'bg-taupe-600' : 'bg-gray-200'} relative`}>
               <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${hasEnd ? 'translate-x-5' : 'translate-x-0.5'}`} />
             </div>
           </button>
@@ -95,7 +95,7 @@ export default function RestForm({ onSave, onCancel, existing }: Props) {
                 type="datetime-local"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-taupe-600"
               />
             </div>
           )}
@@ -109,7 +109,7 @@ export default function RestForm({ onSave, onCancel, existing }: Props) {
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
             placeholder="Ej: durmió profundo, se despertó varias veces..."
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-taupe-600 resize-none"
           />
         </div>
 
@@ -117,9 +117,9 @@ export default function RestForm({ onSave, onCancel, existing }: Props) {
 
         <button
           type="submit"
-          className="w-full bg-purple-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-purple-700 touch-manipulation"
+          className="w-full bg-taupe-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-taupe-700 touch-manipulation"
         >
-          {existing ? 'Guardar cambios' : 'Guardar descanso'}
+          {existing ? 'Guardar cambios' : 'Guardar sueño'}
         </button>
       </form>
     </div>

@@ -15,7 +15,7 @@ export default function BabyConfigScreen({ onSave, existing }: Props) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-svh p-6 bg-gray-50">
+    <div className="flex flex-col items-center justify-center min-h-svh p-6 bg-cream-50">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm p-8">
         <div className="text-center mb-8">
           <div className="text-5xl mb-3">👶</div>
@@ -36,7 +36,7 @@ export default function BabyConfigScreen({ onSave, existing }: Props) {
               value={days}
               onChange={(e) => setDays(Number(e.target.value))}
               onFocus={(e) => e.target.select()}
-              className="w-full border border-gray-300 rounded-xl px-4 py-4 text-3xl font-bold text-center text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-xl px-4 py-4 text-3xl font-bold text-center text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-600"
               required
             />
             <p className="text-xs text-gray-400 mt-2 text-center">
@@ -46,7 +46,7 @@ export default function BabyConfigScreen({ onSave, existing }: Props) {
 
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-blue-700 touch-manipulation"
+            className="w-full bg-sage-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-sage-700 touch-manipulation"
           >
             {existing ? 'Guardar cambios' : 'Empezar'}
           </button>

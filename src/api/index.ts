@@ -1,45 +1,174 @@
-import type { BabyConfig, Feeding, Rest, WeightEntry } from '../types';
+import type { BabyConfig, Feeding, Rest, WeightEntry, VitaminDLog, ProbioticLog, MassageLog, Consultation, CalendarEvent } from '../types';
 
 const BASE = '/api';
 
+// Identificador único de esta pestaña/dispositivo. Se envía en cada mutación
+// para que el servidor lo reenvíe por SSE y este cliente pueda ignorar sus propios eventos.
+export const CLIENT_ID = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+// Bebé activo: se envía en cada petición de datos para que el servidor aísle por bebé.
+let activeBabyId = '';
+export function setActiveBaby(id: string) { activeBabyId = id; }
+
+function mutHeaders(): HeadersInit {
+  return { 'Content-Type': 'application/json', 'X-Client-Id': CLIENT_ID, 'X-Baby-Id': activeBabyId };
+}
+
+function babyHeaders(): HeadersInit {
+  return { 'X-Baby-Id': activeBabyId };
+}
+
 async function json<T>(res: Response): Promise<T> {
+  if (res.status === 401) {
+    window.location.reload();
+    throw new Error('Unauthorized');
+  }
   if (!res.ok) throw new Error(`API error ${res.status}`);
   return res.json();
 }
 
-// ── Config ────────────────────────────────────────────────────────────────────
+// ── Auth ──────────────────────────────────────────────────────────────────────
 
-export async function getConfig(): Promise<BabyConfig | null> {
-  const list = await json<BabyConfig[]>(await fetch(`${BASE}/config`));
-  return list[0] ?? null;
+export interface AuthUser { username: string; accountId: string; }
+
+export async function checkAuth(): Promise<AuthUser | null> {
+  try {
+    const res = await fetch(`${BASE}/auth/me`, { credentials: 'include' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return { username: data.username, accountId: data.accountId };
+  } catch {
+    return null;
+  }
 }
 
-export async function saveConfig(config: Omit<BabyConfig, 'id'>): Promise<BabyConfig> {
-  const existing = await getConfig();
-  if (existing) {
-    return json(await fetch(`${BASE}/config/${existing.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...config, id: existing.id }),
-    }));
-  }
-  return json(await fetch(`${BASE}/config`, {
+export async function login(username: string, password: string): Promise<AuthUser> {
+  const res = await fetch(`${BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...config, id: '1' }),
+    credentials: 'include',
+    body: JSON.stringify({ username, password }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Error al iniciar sesión');
+  }
+  const data = await res.json();
+  return { username: data.username, accountId: data.accountId };
+}
+
+export async function signup(opts: { username: string; password: string; babyName?: string; inviteCode?: string }): Promise<AuthUser> {
+  const res = await fetch(`${BASE}/auth/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(opts),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Error al crear la cuenta');
+  }
+  const data = await res.json();
+  return { username: data.username, accountId: data.accountId };
+}
+
+export interface AccountMember { id: string; username: string; isAdmin: boolean; isMe: boolean; }
+export interface AccountInfo {
+  id: string;
+  name: string | null;
+  inviteCode: string | null;
+  isAdmin: boolean;
+  members: AccountMember[];
+}
+
+export async function getAccount(): Promise<AccountInfo> {
+  return json(await fetch(`${BASE}/account`, { headers: { 'X-Client-Id': CLIENT_ID } }));
+}
+
+export async function updateAccountName(name: string): Promise<void> {
+  await fetch(`${BASE}/account`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Client-Id': CLIENT_ID },
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function removeMember(userId: string): Promise<void> {
+  const res = await fetch(`${BASE}/account/members/${userId}`, { method: 'DELETE', headers: { 'X-Client-Id': CLIENT_ID } });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Error');
+}
+
+export async function leaveAccount(): Promise<void> {
+  const res = await fetch(`${BASE}/account/leave`, { method: 'POST', headers: { 'X-Client-Id': CLIENT_ID } });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Error');
+}
+
+export async function logout(): Promise<void> {
+  await fetch(`${BASE}/auth/logout`, { method: 'POST', credentials: 'include' });
+}
+
+// ── Realtime (SSE) ──────────────────────────────────────────────────────────────
+
+export type ChangeEvent = { resource: string; originId?: string };
+export type Revs = Record<string, number>;
+
+export async function getVersions(): Promise<Revs> {
+  return json(await fetch(`${BASE}/version`));
+}
+
+/**
+ * Abre el stream de eventos en tiempo real. Llama a onChange cuando otro
+ * dispositivo modifica un recurso (ignora los cambios originados por este cliente).
+ * Devuelve una función para cerrar la conexión.
+ */
+export function subscribeToChanges(onChange: (resource: string) => void): () => void {
+  const es = new EventSource(`${BASE}/events`, { withCredentials: true });
+  es.addEventListener('change', (e) => {
+    try {
+      const data: ChangeEvent = JSON.parse((e as MessageEvent).data);
+      if (data.originId === CLIENT_ID) return; // mi propio cambio, ya está reflejado
+      onChange(data.resource);
+    } catch { /* noop */ }
+  });
+  return () => es.close();
+}
+
+// ── Bebés (la config de cada bebé vive en su propio registro) ───────────────────
+
+export async function getBabies(): Promise<BabyConfig[]> {
+  return json(await fetch(`${BASE}/babies`, { headers: { 'X-Client-Id': CLIENT_ID } }));
+}
+
+export async function createBaby(baby: Omit<BabyConfig, 'id'>): Promise<BabyConfig> {
+  return json(await fetch(`${BASE}/babies`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Client-Id': CLIENT_ID },
+    body: JSON.stringify(baby),
   }));
+}
+
+export async function updateBaby(baby: BabyConfig): Promise<BabyConfig> {
+  return json(await fetch(`${BASE}/babies/${baby.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Client-Id': CLIENT_ID },
+    body: JSON.stringify(baby),
+  }));
+}
+
+export async function deleteBaby(id: string): Promise<void> {
+  await fetch(`${BASE}/babies/${id}`, { method: 'DELETE', headers: { 'X-Client-Id': CLIENT_ID } });
 }
 
 // ── Feedings ──────────────────────────────────────────────────────────────────
 
 export async function getFeedings(): Promise<Feeding[]> {
-  return json(await fetch(`${BASE}/feedings`));
+  return json(await fetch(`${BASE}/feedings`, { headers: babyHeaders() }));
 }
 
 export async function createFeeding(feeding: Feeding): Promise<Feeding> {
   return json(await fetch(`${BASE}/feedings`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: mutHeaders(),
     body: JSON.stringify(feeding),
   }));
 }
@@ -47,25 +176,25 @@ export async function createFeeding(feeding: Feeding): Promise<Feeding> {
 export async function updateFeeding(feeding: Feeding): Promise<Feeding> {
   return json(await fetch(`${BASE}/feedings/${feeding.id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: mutHeaders(),
     body: JSON.stringify(feeding),
   }));
 }
 
 export async function deleteFeeding(id: string): Promise<void> {
-  await fetch(`${BASE}/feedings/${id}`, { method: 'DELETE' });
+  await fetch(`${BASE}/feedings/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 // ── Rests ─────────────────────────────────────────────────────────────────────
 
 export async function getRests(): Promise<Rest[]> {
-  return json(await fetch(`${BASE}/rests`));
+  return json(await fetch(`${BASE}/rests`, { headers: babyHeaders() }));
 }
 
 export async function createRest(rest: Rest): Promise<Rest> {
   return json(await fetch(`${BASE}/rests`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: mutHeaders(),
     body: JSON.stringify(rest),
   }));
 }
@@ -73,25 +202,25 @@ export async function createRest(rest: Rest): Promise<Rest> {
 export async function updateRest(rest: Rest): Promise<Rest> {
   return json(await fetch(`${BASE}/rests/${rest.id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: mutHeaders(),
     body: JSON.stringify(rest),
   }));
 }
 
 export async function deleteRest(id: string): Promise<void> {
-  await fetch(`${BASE}/rests/${id}`, { method: 'DELETE' });
+  await fetch(`${BASE}/rests/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 // ── Weights ───────────────────────────────────────────────────────────────────
 
 export async function getWeights(): Promise<WeightEntry[]> {
-  return json(await fetch(`${BASE}/weights`));
+  return json(await fetch(`${BASE}/weights`, { headers: babyHeaders() }));
 }
 
 export async function createWeight(entry: WeightEntry): Promise<WeightEntry> {
   return json(await fetch(`${BASE}/weights`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: mutHeaders(),
     body: JSON.stringify(entry),
   }));
 }
@@ -99,11 +228,124 @@ export async function createWeight(entry: WeightEntry): Promise<WeightEntry> {
 export async function updateWeight(entry: WeightEntry): Promise<WeightEntry> {
   return json(await fetch(`${BASE}/weights/${entry.id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: mutHeaders(),
     body: JSON.stringify(entry),
   }));
 }
 
 export async function deleteWeight(id: string): Promise<void> {
-  await fetch(`${BASE}/weights/${id}`, { method: 'DELETE' });
+  await fetch(`${BASE}/weights/${id}`, { method: 'DELETE', headers: mutHeaders() });
+}
+
+// ── Vitamina D3 ───────────────────────────────────────────────────────────────
+
+export async function getVitaminDLogs(): Promise<VitaminDLog[]> {
+  return json(await fetch(`${BASE}/vitamind`, { headers: babyHeaders() }));
+}
+
+export async function giveVitaminD(date: string): Promise<VitaminDLog> {
+  const log: VitaminDLog = { id: date, date, givenAt: new Date().toISOString() };
+  return json(await fetch(`${BASE}/vitamind`, {
+    method: 'POST',
+    headers: mutHeaders(),
+    body: JSON.stringify(log),
+  }));
+}
+
+export async function removeVitaminD(date: string): Promise<void> {
+  await fetch(`${BASE}/vitamind/${date}`, { method: 'DELETE', headers: mutHeaders() });
+}
+
+// ── Probiótico ────────────────────────────────────────────────────────────────
+
+export async function getProbioticLogs(): Promise<ProbioticLog[]> {
+  return json(await fetch(`${BASE}/probiotics`, { headers: babyHeaders() }));
+}
+
+export async function giveProbiotic(date: string): Promise<ProbioticLog> {
+  const log: ProbioticLog = { id: date, date, givenAt: new Date().toISOString() };
+  return json(await fetch(`${BASE}/probiotics`, {
+    method: 'POST',
+    headers: mutHeaders(),
+    body: JSON.stringify(log),
+  }));
+}
+
+export async function removeProbiotic(date: string): Promise<void> {
+  await fetch(`${BASE}/probiotics/${date}`, { method: 'DELETE', headers: mutHeaders() });
+}
+
+// ── Masajes frenectomía ───────────────────────────────────────────────────────
+
+export async function getMassageLogs(): Promise<MassageLog[]> {
+  return json(await fetch(`${BASE}/massages`, { headers: babyHeaders() }));
+}
+
+export async function createMassageLog(date: string): Promise<MassageLog> {
+  const log: MassageLog = {
+    id: `${Date.now()}-massage`,
+    date,
+    performedAt: new Date().toISOString(),
+  };
+  return json(await fetch(`${BASE}/massages`, {
+    method: 'POST',
+    headers: mutHeaders(),
+    body: JSON.stringify(log),
+  }));
+}
+
+export async function deleteMassageLog(id: string): Promise<void> {
+  await fetch(`${BASE}/massages/${id}`, { method: 'DELETE', headers: mutHeaders() });
+}
+
+// ── Consultas ─────────────────────────────────────────────────────────────────
+
+export async function getConsultations(): Promise<Consultation[]> {
+  return json(await fetch(`${BASE}/consultations`, { headers: babyHeaders() }));
+}
+
+export async function createConsultation(c: Consultation): Promise<Consultation> {
+  return json(await fetch(`${BASE}/consultations`, {
+    method: 'POST',
+    headers: mutHeaders(),
+    body: JSON.stringify(c),
+  }));
+}
+
+export async function updateConsultation(c: Consultation): Promise<Consultation> {
+  return json(await fetch(`${BASE}/consultations/${c.id}`, {
+    method: 'PUT',
+    headers: mutHeaders(),
+    body: JSON.stringify(c),
+  }));
+}
+
+export async function deleteConsultation(id: string): Promise<void> {
+  await fetch(`${BASE}/consultations/${id}`, { method: 'DELETE', headers: mutHeaders() });
+}
+
+// ── Calendario / Agenda ─────────────────────────────────────────────────────────
+
+export async function getCalendarEvents(): Promise<CalendarEvent[]> {
+  return json(await fetch(`${BASE}/calendar`, { headers: babyHeaders() }));
+}
+
+export async function createCalendarEvent(e: CalendarEvent): Promise<CalendarEvent> {
+  return json(await fetch(`${BASE}/calendar`, {
+    method: 'POST',
+    headers: mutHeaders(),
+    body: JSON.stringify(e),
+  }));
+}
+
+export async function updateCalendarEvent(e: CalendarEvent): Promise<CalendarEvent> {
+  return json(await fetch(`${BASE}/calendar/${e.id}`, {
+    method: 'PUT',
+    headers: mutHeaders(),
+    body: JSON.stringify(e),
+  }));
+}
+
+export async function deleteCalendarEvent(id: string): Promise<void> {
+  await fetch(`${BASE}/calendar/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }

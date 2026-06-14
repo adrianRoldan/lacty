@@ -56,7 +56,7 @@ export default function FeedingForm({ onSave, onCancel, existing }: Props) {
   return (
     <div className="p-4 pb-24">
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={onCancel} className="text-blue-600 text-lg p-1 touch-manipulation">
+        <button onClick={onCancel} className="text-sage-600 text-lg p-1 touch-manipulation">
           ← Atrás
         </button>
         <h2 className="text-xl font-bold text-gray-900">
@@ -72,7 +72,7 @@ export default function FeedingForm({ onSave, onCancel, existing }: Props) {
             type="datetime-local"
             value={timestamp}
             onChange={(e) => setTimestamp(e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-600"
             required
           />
         </div>
@@ -99,7 +99,7 @@ export default function FeedingForm({ onSave, onCancel, existing }: Props) {
                     placeholder="—"
                     onChange={(e) => setBreastMinLeft(e.target.value === '' ? '' : Number(e.target.value))}
                     onFocus={(e) => e.target.select()}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-3 text-2xl font-bold text-center text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-300 placeholder:font-normal placeholder:text-xl"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-3 text-2xl font-bold text-center text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-600 placeholder:text-gray-300 placeholder:font-normal placeholder:text-xl"
                   />
                   <button
                     type="button"
@@ -121,7 +121,7 @@ export default function FeedingForm({ onSave, onCancel, existing }: Props) {
                     placeholder="—"
                     onChange={(e) => setBreastMinRight(e.target.value === '' ? '' : Number(e.target.value))}
                     onFocus={(e) => e.target.select()}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-3 text-2xl font-bold text-center text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-300 placeholder:font-normal placeholder:text-xl"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-3 text-2xl font-bold text-center text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-600 placeholder:text-gray-300 placeholder:font-normal placeholder:text-xl"
                   />
                   <button
                     type="button"
@@ -165,7 +165,7 @@ export default function FeedingForm({ onSave, onCancel, existing }: Props) {
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
             placeholder="Ej: estaba muy activo, mal agarre..."
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-600 resize-none"
           />
         </div>
 
@@ -173,7 +173,7 @@ export default function FeedingForm({ onSave, onCancel, existing }: Props) {
 
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-blue-700 touch-manipulation"
+          className="w-full bg-sage-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-sage-700 touch-manipulation"
         >
           {existing ? 'Guardar cambios' : 'Guardar toma'}
         </button>
@@ -197,7 +197,7 @@ function ToggleRow({
         <span className="text-2xl">{emoji}</span>
         <span className="text-base font-semibold text-gray-900">{label}</span>
       </div>
-      <div className={`w-12 h-7 rounded-full transition-colors shrink-0 ${on ? 'bg-blue-600' : 'bg-gray-200'} relative`}>
+      <div className={`w-12 h-7 rounded-full transition-colors shrink-0 ${on ? 'bg-sage-600' : 'bg-gray-200'} relative`}>
         <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${on ? 'translate-x-5' : 'translate-x-0.5'}`} />
       </div>
     </button>
@@ -220,7 +220,7 @@ function NumInput({
         placeholder="—"
         onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value))}
         onFocus={(e) => e.target.select()}
-        className="w-full border border-gray-200 rounded-xl px-3 py-3 text-2xl font-bold text-center text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-300 placeholder:font-normal placeholder:text-xl"
+        className="w-full border border-gray-200 rounded-xl px-3 py-3 text-2xl font-bold text-center text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-600 placeholder:text-gray-300 placeholder:font-normal placeholder:text-xl"
       />
     </div>
   );

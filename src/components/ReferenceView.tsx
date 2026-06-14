@@ -10,6 +10,13 @@ interface Props {
   currentWeightKg?: number;
 }
 
+function formatGap(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m > 0 ? `${h}h ${m}min` : `${h}h`;
+}
+
 const FIRST_WEEK = FEEDING_REFERENCE.filter(r => r.dayTo <= 7);
 const AFTER_WEEK_ONE = FEEDING_REFERENCE.filter(r => r.dayFrom >= 8);
 
@@ -34,15 +41,15 @@ export default function ReferenceView({ config, feedings, rests, currentWeightKg
 
       {/* ── Referencia de hoy ────────────────────────────────────────────── */}
       {ref ? (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 mb-6">
+        <div className="bg-sage-50 border border-sage-100 rounded-2xl p-4 mb-6">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-blue-800">Leche total orientativa</h2>
+            <h2 className="text-sm font-semibold text-sage-800">Leche total orientativa</h2>
             {ref.isWeightBased ? (
               <span className="text-xs bg-green-100 text-green-700 font-medium px-2 py-0.5 rounded-full">
                 ⚖️ Por peso ({currentWeightKg} kg)
               </span>
             ) : (
-              <span className="text-xs bg-blue-100 text-blue-600 font-medium px-2 py-0.5 rounded-full">
+              <span className="text-xs bg-sage-100 text-sage-600 font-medium px-2 py-0.5 rounded-full">
                 📅 Por días de vida
               </span>
             )}
@@ -92,6 +99,55 @@ export default function ReferenceView({ config, feedings, rests, currentWeightKg
         </div>
       )}
 
+      {/* ── Tiempo entre tomas ──────────────────────────────────────────── */}
+      <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
+        Tiempo máximo entre tomas
+      </h2>
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-6">
+        {ref && (
+          <div className="px-4 py-3 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
+            <span className="text-sm text-blue-800">
+              Hoy (día {daysOfLife}): máx.
+            </span>
+            <span className="text-base font-bold text-blue-700">
+              {formatGap(Math.round((24 * 60) / ref.feedsPerDayMin))}
+            </span>
+          </div>
+        )}
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 bg-gray-50">
+              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500">Días de vida</th>
+              <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500">Tomas/día mín.</th>
+              <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500">Máx. entre tomas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {FEEDING_REFERENCE.map((r, i) => {
+              const isCurrent = daysOfLife >= r.dayFrom && daysOfLife <= r.dayTo;
+              const maxGap = Math.round((24 * 60) / r.feedsPerDayMin);
+              return (
+                <tr key={i} className={`border-b border-gray-50 ${isCurrent ? 'bg-blue-50' : ''}`}>
+                  <td className={`px-4 py-3 font-medium ${isCurrent ? 'text-blue-800' : 'text-gray-700'}`}>
+                    {r.dayFrom === r.dayTo ? `Día ${r.dayFrom}` : `Días ${r.dayFrom}–${r.dayTo}`}
+                    {isCurrent && <span className="ml-2 text-xs text-blue-500">← hoy</span>}
+                  </td>
+                  <td className={`px-4 py-3 text-right ${isCurrent ? 'text-blue-700 font-semibold' : 'text-gray-500'}`}>
+                    {r.feedsPerDayMin}
+                  </td>
+                  <td className={`px-4 py-3 text-right font-semibold ${isCurrent ? 'text-blue-800' : 'text-gray-700'}`}>
+                    {formatGap(maxGap)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <p className="text-xs text-gray-400 px-4 py-3">
+          Calculado como 24h ÷ tomas mínimas recomendadas (AAP/OMS). El banner de alerta en "Hoy" usa este valor.
+        </p>
+      </div>
+
       {/* ── Cómo se calcula ─────────────────────────────────────────────── */}
       <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
         Cómo se calcula
@@ -117,15 +173,15 @@ export default function ReferenceView({ config, feedings, rests, currentWeightKg
               {FIRST_WEEK.map((r, i) => {
                 const isCurrent = daysOfLife >= r.dayFrom && daysOfLife <= r.dayTo;
                 return (
-                  <tr key={i} className={`border-b border-gray-50 ${isCurrent ? 'bg-blue-50' : ''}`}>
-                    <td className={`px-4 py-3 font-medium ${isCurrent ? 'text-blue-800' : 'text-gray-700'}`}>
+                  <tr key={i} className={`border-b border-gray-50 ${isCurrent ? 'bg-sage-50' : ''}`}>
+                    <td className={`px-4 py-3 font-medium ${isCurrent ? 'text-sage-800' : 'text-gray-700'}`}>
                       {r.dayFrom === r.dayTo ? `Día ${r.dayFrom}` : `Días ${r.dayFrom}–${r.dayTo}`}
-                      {isCurrent && <span className="ml-2 text-xs text-blue-600">← hoy</span>}
+                      {isCurrent && <span className="ml-2 text-xs text-sage-600">← hoy</span>}
                     </td>
-                    <td className={`px-4 py-3 text-right ${isCurrent ? 'text-blue-800 font-semibold' : 'text-gray-600'}`}>
+                    <td className={`px-4 py-3 text-right ${isCurrent ? 'text-sage-800 font-semibold' : 'text-gray-600'}`}>
                       {r.mlPerFeedMin}–{r.mlPerFeedMax}
                     </td>
-                    <td className={`px-4 py-3 text-right ${isCurrent ? 'text-blue-800 font-semibold' : 'text-gray-600'}`}>
+                    <td className={`px-4 py-3 text-right ${isCurrent ? 'text-sage-800 font-semibold' : 'text-gray-600'}`}>
                       {r.feedsPerDayMin}–{r.feedsPerDayMax}
                     </td>
                   </tr>
@@ -187,15 +243,15 @@ export default function ReferenceView({ config, feedings, rests, currentWeightKg
                 {AFTER_WEEK_ONE.map((r, i) => {
                   const isCurrent = daysOfLife >= r.dayFrom && daysOfLife <= r.dayTo;
                   return (
-                    <tr key={i} className={`border-b border-gray-50 ${isCurrent ? 'bg-blue-50' : ''}`}>
-                      <td className={`px-4 py-3 font-medium ${isCurrent ? 'text-blue-800' : 'text-gray-700'}`}>
+                    <tr key={i} className={`border-b border-gray-50 ${isCurrent ? 'bg-sage-50' : ''}`}>
+                      <td className={`px-4 py-3 font-medium ${isCurrent ? 'text-sage-800' : 'text-gray-700'}`}>
                         Días {r.dayFrom}–{r.dayTo}
-                        {isCurrent && <span className="ml-2 text-xs text-blue-600">← hoy</span>}
+                        {isCurrent && <span className="ml-2 text-xs text-sage-600">← hoy</span>}
                       </td>
-                      <td className={`px-4 py-3 text-right ${isCurrent ? 'text-blue-800 font-semibold' : 'text-gray-600'}`}>
+                      <td className={`px-4 py-3 text-right ${isCurrent ? 'text-sage-800 font-semibold' : 'text-gray-600'}`}>
                         {r.mlPerFeedMin}–{r.mlPerFeedMax}
                       </td>
-                      <td className={`px-4 py-3 text-right ${isCurrent ? 'text-blue-800 font-semibold' : 'text-gray-600'}`}>
+                      <td className={`px-4 py-3 text-right ${isCurrent ? 'text-sage-800 font-semibold' : 'text-gray-600'}`}>
                         {r.feedsPerDayMin}–{r.feedsPerDayMax}
                       </td>
                     </tr>
@@ -207,15 +263,15 @@ export default function ReferenceView({ config, feedings, rests, currentWeightKg
         </div>
       )}
 
-      {/* ── Correlación suplemento → descanso ───────────────────────────── */}
+      {/* ── Correlación suplemento → sueño ───────────────────────────── */}
       <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
-        Jeringa-dedo → descanso
+        Jeringa-dedo → sueño
       </h2>
       {correlation.length === 0 ? (
         <div className="bg-white rounded-2xl p-5 shadow-sm mb-6 text-center text-gray-400 text-sm">
           <p className="text-2xl mb-2">😴</p>
           <p>Aún no hay datos suficientes.</p>
-          <p className="text-xs mt-1">Registra el descanso tras las tomas con jeringa-dedo para ver patrones aquí.</p>
+          <p className="text-xs mt-1">Registra el sueño tras las tomas con jeringa-dedo para ver patrones aquí.</p>
         </div>
       ) : (
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-6">
@@ -224,7 +280,7 @@ export default function ReferenceView({ config, feedings, rests, currentWeightKg
               <tr className="bg-gray-50 border-b border-gray-100">
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Jeringa-dedo</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">Tomas</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">Media descanso</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">Media sueño</th>
               </tr>
             </thead>
             <tbody>
@@ -232,7 +288,7 @@ export default function ReferenceView({ config, feedings, rests, currentWeightKg
                 <tr key={i} className="border-b border-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-700">{row.label}</td>
                   <td className="px-4 py-3 text-right text-gray-500">{row.count}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-purple-700">
+                  <td className="px-4 py-3 text-right font-semibold text-taupe-700">
                     {row.avgRestMinutes} min
                   </td>
                 </tr>
@@ -240,10 +296,16 @@ export default function ReferenceView({ config, feedings, rests, currentWeightKg
             </tbody>
           </table>
           <p className="text-xs text-gray-400 px-4 py-3">
-            Media de descanso por rango de ml con jeringa-dedo.
+            Media de sueño por rango de ml con jeringa-dedo.
           </p>
         </div>
       )}
+
+      {/* ── Estimación leche al pecho ───────────────────────────────────── */}
+      <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
+        Estimación leche al pecho
+      </h2>
+      <BreastEstimationExplainer feedings={feedings} daysOfLife={daysOfLife} />
 
       {/* ── Aviso médico ─────────────────────────────────────────────────── */}
       <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
@@ -252,6 +314,88 @@ export default function ReferenceView({ config, feedings, rests, currentWeightKg
           No son diagnóstico médico ni pauta personalizada.
           Consulta con tu <strong>pediatra, matrona o asesora de lactancia</strong> si tienes dudas.
         </p>
+      </div>
+    </div>
+  );
+}
+
+function BreastEstimationExplainer({ feedings, daysOfLife }: { feedings: Feeding[]; daysOfLife: number }) {
+  const mlBase = (502 + 725) / 2; // 613.5 ml/día promedio
+  const mlPerAvgFeed8_14 = Math.round(mlBase / 10);  // 10 tomas/día media días 8-14
+  const mlPerAvgFeed15_28 = Math.round(mlBase / 9);  // 9 tomas/día media días 15-28
+  const maxMlPerFeed = Math.round(725 / 8);           // tope máximo por toma
+
+  // Media histórica de minutos del bebé
+  const completedBreast = feedings.filter(
+    (f) => f.hasBreast && ((f.breastMinLeft ?? 0) + (f.breastMinRight ?? 0)) > 0
+  );
+  const avgMin = completedBreast.length > 0
+    ? Math.round(completedBreast.reduce(
+        (s, f) => s + (f.breastMinLeft ?? 0) + (f.breastMinRight ?? 0), 0
+      ) / completedBreast.length)
+    : null;
+  const hasDynamic = completedBreast.length >= 3;
+
+  // Ejemplos con la media del bebé o con 15 min si no hay datos aún
+  const exampleAvg = avgMin ?? 15;
+  const mlPerAvgFeedCurrent = daysOfLife >= 15 ? mlPerAvgFeed15_28 : mlPerAvgFeed8_14;
+
+  return (
+    <div className="bg-pink-50 border border-pink-100 rounded-2xl p-4 mb-6 space-y-4">
+      {/* Paso 1: referencia base */}
+      <div>
+        <p className="text-sm text-pink-900 font-semibold mb-1">Paso 1 — Referencia base de ml por toma</p>
+        <p className="text-xs text-pink-800 leading-relaxed mb-2">
+          Para días 8–28, la referencia es 502–725 ml/día. Dividiendo entre la media de tomas:
+        </p>
+        <div className="bg-white rounded-xl p-3 font-mono text-xs text-gray-700 text-center mb-2">
+          (502 + 725) ÷ 2 ÷ media_tomas_día = ml_base/toma
+        </div>
+        <div className="space-y-1 text-xs text-pink-800">
+          <p>· Días 8–14 (media 10 tomas/día): <strong>~{mlPerAvgFeed8_14} ml/toma base</strong></p>
+          <p>· Días 15–28 (media 9 tomas/día): <strong>~{mlPerAvgFeed15_28} ml/toma base</strong></p>
+        </div>
+      </div>
+
+      {/* Paso 2: ajuste por minutos */}
+      <div>
+        <p className="text-sm text-pink-900 font-semibold mb-1">Paso 2 — Ajuste por duración real de la toma</p>
+        <p className="text-xs text-pink-800 leading-relaxed mb-2">
+          El estimado se escala proporcionalmente a los minutos reales respecto a la media histórica del bebé:
+        </p>
+        <div className="bg-white rounded-xl p-3 font-mono text-xs text-gray-700 text-center mb-2">
+          ml_est = ml_base × (min_esta_toma ÷ media_min_historial)
+        </div>
+
+        {/* Estado del historial */}
+        {hasDynamic ? (
+          <div className="bg-green-50 border border-green-200 rounded-xl p-3 space-y-2">
+            <p className="text-xs text-green-800 font-medium">
+              ✓ Historial activo — {completedBreast.length} tomas de pecho registradas
+            </p>
+            <p className="text-xs text-green-700">
+              Media actual del bebé: <strong>{avgMin} min/toma</strong>
+            </p>
+            <div className="space-y-1 text-xs text-green-700">
+              <p>· Toma de 5 min → <strong>~{Math.max(1, Math.min(Math.round(mlPerAvgFeedCurrent * 5 / exampleAvg), maxMlPerFeed))} ml</strong></p>
+              <p>· Toma de {avgMin} min → <strong>~{mlPerAvgFeedCurrent} ml</strong></p>
+              <p>· Toma de {Math.round(exampleAvg * 1.8)} min → <strong>~{Math.max(1, Math.min(Math.round(mlPerAvgFeedCurrent * Math.round(exampleAvg * 1.8) / exampleAvg), maxMlPerFeed))} ml</strong></p>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+            <strong>Sin historial suficiente</strong> ({completedBreast.length}/3 tomas mínimas).
+            Hasta tener 3 tomas de pecho completadas se usa el estimado fijo de ~{mlPerAvgFeedCurrent} ml/toma.
+          </div>
+        )}
+
+        <p className="text-xs text-pink-700 mt-2">
+          Tope máximo: <strong>{maxMlPerFeed} ml/toma</strong> (725 ml/día ÷ 8 tomas mínimas).
+        </p>
+      </div>
+
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 leading-relaxed">
+        <strong>⚠️ Estimación, no medición.</strong> La fórmula asume que más tiempo = más leche, lo cual es orientativo pero no siempre correcto. La única medición real es el pesaje de control (antes/después de la toma).
       </div>
     </div>
   );

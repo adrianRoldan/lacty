@@ -1,11 +1,17 @@
 import type { Feeding, Rest, TimelineItem } from '../types';
 import { isSameDay, todayIso, localDateOf } from './dateUtils';
+import { getReferenceForDay } from '../data/referenceTable';
+
+function isFeedingInProgress(f: Feeding): boolean {
+  return (f.hasBreast && f.breastMinLeft == null && f.breastMinRight == null) ||
+         (f.hasSupplement && f.supplementMl == null);
+}
 
 export function getTodayFeedings(feedings: Feeding[]): Feeding[] {
   const today = todayIso();
   return feedings
-    .filter((f) => isSameDay(f.timestamp, today))
-    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    .filter((f) => isSameDay(f.timestamp, today) || isFeedingInProgress(f))
+    .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 }
 
 export function getTotalSupplementMl(feedings: Feeding[]): number {
@@ -17,6 +23,45 @@ export function getTotalBreastMinutes(feedings: Feeding[]): number {
     (sum, f) => sum + (f.breastMinLeft ?? 0) + (f.breastMinRight ?? 0),
     0
   );
+}
+
+export function getTotalEstimatedBreastMl(feedings: Feeding[]): number {
+  return feedings.reduce((sum, f) => sum + (f.breastEstimatedMl ?? 0), 0);
+}
+
+/**
+ * Estima los ml transferidos en una toma de pecho según su duración real.
+ * Usa la media histórica de minutos por toma del propio bebé como referencia.
+ * Con < 3 tomas completadas en el historial cae al estimado fijo de la referencia.
+ * Devuelve null si no hay datos de referencia para ese rango de edad.
+ */
+export function calcBreastEstimatedMl(
+  daysOfLife: number,
+  currentMinutes: number,
+  historicalFeedings: Feeding[]
+): number | null {
+  if (currentMinutes <= 0) return null;
+  const ref = getReferenceForDay(daysOfLife);
+  if (!ref?.breastDailyMlMin || !ref?.breastDailyMlMax) return null;
+
+  const mlPerAvgFeed = (ref.breastDailyMlMin + ref.breastDailyMlMax) / 2
+    / ((ref.feedsPerDayMin + ref.feedsPerDayMax) / 2);
+  const maxMlPerFeed = Math.round(ref.breastDailyMlMax / ref.feedsPerDayMin);
+
+  const completedBreast = historicalFeedings.filter(
+    (f) => f.hasBreast && ((f.breastMinLeft ?? 0) + (f.breastMinRight ?? 0)) > 0
+  );
+
+  if (completedBreast.length < 3) {
+    return Math.round(mlPerAvgFeed);
+  }
+
+  const avgMin = completedBreast.reduce(
+    (s, f) => s + (f.breastMinLeft ?? 0) + (f.breastMinRight ?? 0), 0
+  ) / completedBreast.length;
+
+  const estimated = Math.round(mlPerAvgFeed * (currentMinutes / avgMin));
+  return Math.max(1, Math.min(estimated, maxMlPerFeed));
 }
 
 // Average gap in minutes between consecutive feedings (sorted). Returns null if < 2 feedings.
@@ -32,9 +77,12 @@ export function getAvgGapMinutes(feedings: Feeding[]): number | null {
 
 // Average ml per feeding (only feedings that recorded supplement ml).
 export function getAvgSupplementMl(feedings: Feeding[]): number | null {
-  const withMl = feedings.filter((f) => f.supplementMl != null && f.supplementMl > 0);
+  const withMl = feedings.filter(
+    (f) => (f.supplementMl != null && f.supplementMl > 0) || (f.breastEstimatedMl != null && f.breastEstimatedMl > 0)
+  );
   if (withMl.length === 0) return null;
-  return Math.round(withMl.reduce((s, f) => s + (f.supplementMl ?? 0), 0) / withMl.length);
+  const total = withMl.reduce((s, f) => s + (f.supplementMl ?? 0) + (f.breastEstimatedMl ?? 0), 0);
+  return Math.round(total / withMl.length);
 }
 
 // Average completed rest duration in minutes. Returns null if no completed rests.
@@ -58,7 +106,7 @@ export function getRestDurationMinutes(rest: Rest): number | null {
 export function getTodayRestMinutes(rests: Rest[]): number {
   const today = todayIso();
   return rests
-    .filter((r) => isSameDay(r.startTime, today))
+    .filter((r) => isSameDay(r.startTime, today) || r.endTime == null)
     .reduce((sum, r) => sum + (getRestDurationMinutes(r) ?? 0), 0);
 }
 
@@ -70,13 +118,13 @@ export function buildTimeline(
   const day = dayFilter ?? todayIso();
   const items: TimelineItem[] = [
     ...feedings
-      .filter((f) => isSameDay(f.timestamp, day))
+      .filter((f) => isSameDay(f.timestamp, day) || (!dayFilter && isFeedingInProgress(f)))
       .map((f) => ({ type: 'feeding' as const, data: f, sortKey: f.timestamp })),
     ...rests
-      .filter((r) => isSameDay(r.startTime, day))
+      .filter((r) => isSameDay(r.startTime, day) || (!dayFilter && r.endTime == null))
       .map((r) => ({ type: 'rest' as const, data: r, sortKey: r.startTime })),
   ];
-  return items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  return items.sort((a, b) => b.sortKey.localeCompare(a.sortKey));
 }
 
 export interface RestCorrelationRow {
@@ -127,9 +175,12 @@ export function getRestCorrelation(
 export interface HistorySummary {
   totalDays: number;
   avgFeedingsPerDay: number;
-  avgJeringaMlPerDay: number;   // ml de jeringa / días con jeringa
-  avgBreastMinPerDay: number;   // min pecho / días con pecho
-  avgRestMinutes: number;       // media duración de descanso completado
+  avgBreastFeedsPerDay: number;  // tomas de pecho / días con pecho
+  avgSyringeFeedsPerDay: number; // tomas de jeringa / días con jeringa
+  avgTotalMlPerDay: number;
+  avgTotalMlPerFeeding: number;
+  avgBreastMinPerDay: number;
+  avgRestMinutes: number;
 }
 
 export function getHistorySummary(feedings: Feeding[], rests: Rest[]): HistorySummary | null {
@@ -143,13 +194,29 @@ export function getHistorySummary(feedings: Feeding[], rests: Rest[]): HistorySu
     ? Math.round((feedings.length / feedingDays.size) * 10) / 10
     : 0;
 
-  // Days with jeringa ml recorded
-  const jeringaDays = new Set(
-    feedings.filter((f) => f.supplementMl != null && f.supplementMl > 0).map((f) => localDateOf(f.timestamp))
+  // Days with any ml recorded (jeringa or breast estimated)
+  const mlFeedings = feedings.filter(
+    (f) => (f.supplementMl != null && f.supplementMl > 0) || (f.breastEstimatedMl != null && f.breastEstimatedMl > 0)
   );
-  const totalJeringaMl = feedings.reduce((s, f) => s + (f.supplementMl ?? 0), 0);
-  const avgJeringaMlPerDay = jeringaDays.size > 0
-    ? Math.round(totalJeringaMl / jeringaDays.size)
+  const mlDays = new Set(mlFeedings.map((f) => localDateOf(f.timestamp)));
+  const totalMl = mlFeedings.reduce((s, f) => s + (f.supplementMl ?? 0) + (f.breastEstimatedMl ?? 0), 0);
+  const avgTotalMlPerDay = mlDays.size > 0
+    ? Math.round(totalMl / mlDays.size)
+    : 0;
+  const avgTotalMlPerFeeding = mlFeedings.length > 0
+    ? Math.round(totalMl / mlFeedings.length)
+    : 0;
+
+  // Breast vs syringe feed counts
+  const breastFeedings = feedings.filter((f) => f.hasBreast);
+  const syringeFeedings = feedings.filter((f) => f.hasSupplement && (f.supplementMl ?? 0) > 0);
+  const breastFeedDays = new Set(breastFeedings.map((f) => localDateOf(f.timestamp)));
+  const syringeFeedDays = new Set(syringeFeedings.map((f) => localDateOf(f.timestamp)));
+  const avgBreastFeedsPerDay = breastFeedDays.size > 0
+    ? Math.round((breastFeedings.length / breastFeedDays.size) * 10) / 10
+    : 0;
+  const avgSyringeFeedsPerDay = syringeFeedDays.size > 0
+    ? Math.round((syringeFeedings.length / syringeFeedDays.size) * 10) / 10
     : 0;
 
   // Days with breast recorded
@@ -178,7 +245,7 @@ export function getHistorySummary(feedings: Feeding[], rests: Rest[]): HistorySu
       )
     : 0;
 
-  return { totalDays, avgFeedingsPerDay, avgJeringaMlPerDay, avgBreastMinPerDay, avgRestMinutes };
+  return { totalDays, avgFeedingsPerDay, avgBreastFeedsPerDay, avgSyringeFeedsPerDay, avgTotalMlPerDay, avgTotalMlPerFeeding, avgBreastMinPerDay, avgRestMinutes };
 }
 
 export function generateId(): string {
@@ -203,7 +270,7 @@ export function groupTimelineByDay(
   }
 
   for (const day of Object.keys(groups)) {
-    groups[day].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+    groups[day].sort((a, b) => b.sortKey.localeCompare(a.sortKey));
   }
 
   return groups;

@@ -1,13 +1,15 @@
 import type { Feeding } from '../types';
-import { formatTime } from '../utils/dateUtils';
+import { formatTime, formatMinutes } from '../utils/dateUtils';
+import { useElapsedTime } from '../hooks/useElapsedMinutes';
 
 interface Props {
   feeding: Feeding;
   onEdit: (feeding: Feeding) => void;
   onDelete: (id: string) => void;
+  onStop?: (feeding: Feeding) => void;
 }
 
-export default function FeedingItem({ feeding, onEdit, onDelete }: Props) {
+export default function FeedingItem({ feeding, onEdit, onDelete, onStop }: Props) {
   const totalBreastMin = (feeding.breastMinLeft ?? 0) + (feeding.breastMinRight ?? 0);
 
   const breastInProgress =
@@ -19,6 +21,7 @@ export default function FeedingItem({ feeding, onEdit, onDelete }: Props) {
     feeding.hasSupplement && feeding.supplementMl == null;
 
   const isInProgress = breastInProgress || supplementInProgress;
+  const elapsed = useElapsedTime(feeding.timestamp);
 
   function handleDelete(e: React.MouseEvent) {
     e.stopPropagation();
@@ -47,7 +50,10 @@ export default function FeedingItem({ feeding, onEdit, onDelete }: Props) {
                 </span>
               ) : (
                 <span className="bg-pink-100 text-pink-700 text-xs font-medium px-2 py-0.5 rounded-full">
-                  🤱 {totalBreastMin} min
+                  🤱 {formatMinutes(totalBreastMin)}
+                  {feeding.breastEstimatedMl != null && (
+                    <span className="text-pink-400 ml-1">· ~{feeding.breastEstimatedMl}ml</span>
+                  )}
                 </span>
               )
             )}
@@ -55,11 +61,11 @@ export default function FeedingItem({ feeding, onEdit, onDelete }: Props) {
             {/* Supplement badge */}
             {feeding.hasSupplement && (
               supplementInProgress ? (
-                <span className="bg-blue-100 text-blue-600 text-xs font-medium px-2 py-0.5 rounded-full animate-pulse">
+                <span className="bg-sage-100 text-sage-600 text-xs font-medium px-2 py-0.5 rounded-full animate-pulse">
                   💉 En curso…
                 </span>
               ) : (
-                <span className="bg-blue-100 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                <span className="bg-sage-100 text-sage-700 text-xs font-medium px-2 py-0.5 rounded-full">
                   💉 {feeding.supplementMl} ml
                 </span>
               )
@@ -88,6 +94,23 @@ export default function FeedingItem({ feeding, onEdit, onDelete }: Props) {
           )}
         </div>
 
+        {isInProgress && (
+          <span className="text-xs text-gray-400 tabular-nums self-center shrink-0">
+            {elapsed}
+          </span>
+        )}
+
+        {breastInProgress && onStop && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onStop(feeding); }}
+            className="text-red-500 active:text-red-600 p-2 shrink-0 touch-manipulation self-center"
+            aria-label="Finalizar toma"
+            title="Finalizar toma"
+          >
+            <StopIcon />
+          </button>
+        )}
+
         <button
           onClick={handleDelete}
           className="text-gray-300 hover:text-red-400 active:text-red-500 p-2 shrink-0 touch-manipulation"
@@ -97,6 +120,14 @@ export default function FeedingItem({ feeding, onEdit, onDelete }: Props) {
         </button>
       </div>
     </div>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+      <rect x="5" y="5" width="14" height="14" rx="3" />
+    </svg>
   );
 }
 

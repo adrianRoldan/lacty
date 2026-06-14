@@ -15,6 +15,10 @@ export interface FeedingReference {
   isWeightBased?: boolean;
   dailyMlMin?: number;
   dailyMlMax?: number;
+  // Referencia de leche materna al pecho (ml/día) para estimación orientativa
+  // Fuente: datos de trabajo 502–725 ml/día para días 8–28
+  breastDailyMlMin?: number;
+  breastDailyMlMax?: number;
 }
 
 export const FEEDING_REFERENCE: FeedingReference[] = [
@@ -22,8 +26,8 @@ export const FEEDING_REFERENCE: FeedingReference[] = [
   { dayFrom: 2,  dayTo: 2,  mlPerFeedMin: 10,  mlPerFeedMax: 20,  feedsPerDayMin: 8, feedsPerDayMax: 12 },
   { dayFrom: 3,  dayTo: 3,  mlPerFeedMin: 20,  mlPerFeedMax: 30,  feedsPerDayMin: 8, feedsPerDayMax: 12 },
   { dayFrom: 4,  dayTo: 7,  mlPerFeedMin: 30,  mlPerFeedMax: 60,  feedsPerDayMin: 8, feedsPerDayMax: 12 },
-  { dayFrom: 8,  dayTo: 14, mlPerFeedMin: 60,  mlPerFeedMax: 90,  feedsPerDayMin: 8, feedsPerDayMax: 12 },
-  { dayFrom: 15, dayTo: 28, mlPerFeedMin: 80,  mlPerFeedMax: 120, feedsPerDayMin: 8, feedsPerDayMax: 10 },
+  { dayFrom: 8,  dayTo: 14, mlPerFeedMin: 60,  mlPerFeedMax: 90,  feedsPerDayMin: 8, feedsPerDayMax: 12, breastDailyMlMin: 502, breastDailyMlMax: 725 },
+  { dayFrom: 15, dayTo: 28, mlPerFeedMin: 80,  mlPerFeedMax: 120, feedsPerDayMin: 8, feedsPerDayMax: 10, breastDailyMlMin: 502, breastDailyMlMax: 725 },
   { dayFrom: 29, dayTo: 60, mlPerFeedMin: 100, mlPerFeedMax: 150, feedsPerDayMin: 7, feedsPerDayMax: 9  },
   { dayFrom: 61, dayTo: 90, mlPerFeedMin: 120, mlPerFeedMax: 180, feedsPerDayMin: 6, feedsPerDayMax: 8  },
 ];
@@ -32,6 +36,19 @@ export function getReferenceForDay(daysOfLife: number): FeedingReference | null 
   return FEEDING_REFERENCE.find(
     (r) => daysOfLife >= r.dayFrom && daysOfLife <= r.dayTo
   ) ?? null;
+}
+
+/**
+ * Calcula los ml estimados por toma al pecho para un día de vida dado.
+ * Usa los datos de referencia breastDailyMl divididos entre la media de tomas/día.
+ * Devuelve null si no hay datos de referencia para ese rango de edad.
+ */
+export function getEstimatedBreastMlPerFeed(daysOfLife: number): number | null {
+  const ref = getReferenceForDay(daysOfLife);
+  if (!ref?.breastDailyMlMin || !ref?.breastDailyMlMax) return null;
+  const dailyAvg = (ref.breastDailyMlMin + ref.breastDailyMlMax) / 2;
+  const feedsAvg = (ref.feedsPerDayMin + ref.feedsPerDayMax) / 2;
+  return Math.round(dailyAvg / feedsAvg);
 }
 
 /**
@@ -73,5 +90,8 @@ export function getEffectiveReference(
     isWeightBased: true,
     dailyMlMin,
     dailyMlMax,
+    // Mantener datos de referencia de pecho del rango de días base
+    breastDailyMlMin: dayRef?.breastDailyMlMin,
+    breastDailyMlMax: dayRef?.breastDailyMlMax,
   };
 }

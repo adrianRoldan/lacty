@@ -1,14 +1,31 @@
 import type { BabyConfig } from '../types';
 
 export function getCurrentDaysOfLife(config: BabyConfig): number {
-  const setup = new Date(config.setupDate);
   const today = new Date();
-  // Compare only calendar dates, ignoring time
-  const setupDay = new Date(setup.getFullYear(), setup.getMonth(), setup.getDate());
   const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const diffMs = todayDay.getTime() - setupDay.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  // Preferir la fecha de nacimiento si está disponible (día de nacimiento = día 1)
+  if (config.birthDate) {
+    const birth = new Date(config.birthDate + 'T00:00:00');
+    const birthDay = new Date(birth.getFullYear(), birth.getMonth(), birth.getDate());
+    const diffDays = Math.floor((todayDay.getTime() - birthDay.getTime()) / 86400000);
+    return diffDays + 1;
+  }
+
+  // Legacy: días de vida al configurar + días transcurridos
+  const setup = new Date(config.setupDate);
+  const setupDay = new Date(setup.getFullYear(), setup.getMonth(), setup.getDate());
+  const diffDays = Math.floor((todayDay.getTime() - setupDay.getTime()) / 86400000);
   return config.daysOfLifeAtSetup + diffDays;
+}
+
+// Deriva la fecha de nacimiento (YYYY-MM-DD) de un bebé, ya sea de birthDate
+// o calculándola desde el método legacy (setupDate - díasAlConfigurar).
+export function getBirthDate(config: BabyConfig): string {
+  if (config.birthDate) return config.birthDate;
+  const setup = new Date(config.setupDate + 'T00:00:00');
+  setup.setDate(setup.getDate() - (config.daysOfLifeAtSetup - 1));
+  return setup.toISOString().slice(0, 10);
 }
 
 export function toLocalDatetimeInputValue(date: Date): string {
@@ -57,11 +74,11 @@ export function todayIso(): string {
 
 // Formats a minute count as "X min" (<60) or "Xh Ym" (≥60).
 export function formatMinutes(totalMin: number): string {
-  if (totalMin === 0) return '0';
-  if (totalMin < 60) return `${totalMin} min`;
+  if (totalMin === 0) return '0m';
+  if (totalMin < 60) return `${totalMin}m`;
   const h = Math.floor(totalMin / 60);
   const m = totalMin % 60;
-  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+  return m === 0 ? `${h}h 0m` : `${h}h ${m}m`;
 }
 
 // Minutes elapsed between two ISO timestamps. Returns null if negative or unknown.
