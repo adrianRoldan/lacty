@@ -9,6 +9,7 @@ interface Props {
   probioticLogs: ProbioticLog[];
   massageLogs: MassageLog[];
   onOpenFamily: () => void;
+  onOpenReference: () => void;
   onNewWeight: () => void;
   onEditWeight: (w: WeightEntry) => void;
   onDeleteWeight: (id: string) => void;
@@ -17,7 +18,7 @@ interface Props {
 
 export default function BabyProfile({
   config, weights, vitaminDLogs, probioticLogs, massageLogs,
-  onOpenFamily, onNewWeight, onEditWeight, onDeleteWeight, onUpdateConfig,
+  onOpenFamily, onOpenReference, onNewWeight, onEditWeight, onDeleteWeight, onUpdateConfig,
 }: Props) {
   const daysOfLife = getCurrentDaysOfLife(config);
   const sorted = [...weights].sort((a, b) => b.date.localeCompare(a.date));
@@ -42,18 +43,7 @@ export default function BabyProfile({
     <div className="p-4 pb-24">
       <h1 className="text-2xl font-bold text-gray-900 mb-4">{config.name ?? 'Mi bebé'}</h1>
 
-      {/* Acceso a Familia (solo móvil; en desktop es una pestaña aparte) */}
-      <button
-        onClick={onOpenFamily}
-        className="lg:hidden w-full flex items-center justify-between bg-white rounded-2xl shadow-sm px-4 py-3 mb-4 active:bg-gray-50 touch-manipulation"
-      >
-        <span className="flex items-center gap-2 text-sm font-medium text-gray-900">
-          <span className="text-lg">👨‍👩‍👧</span> Mi familia
-        </span>
-        <span className="text-gray-300">›</span>
-      </button>
-
-      {/* Info del bebé */}
+      {/* Info del bebé — nombre, fecha de nacimiento y resumen de peso */}
       <div className="bg-white rounded-2xl p-4 shadow-sm mb-4">
         {/* Nombre */}
         <div className="mb-4 pb-4 border-b border-gray-100">
@@ -94,6 +84,35 @@ export default function BabyProfile({
         </div>
       </div>
 
+      {/* Acceso a Familia (solo móvil; en desktop es una pestaña aparte) */}
+      <button
+        onClick={onOpenFamily}
+        className="lg:hidden w-full flex items-center justify-between bg-white rounded-2xl shadow-sm px-4 py-3 mb-6 active:bg-gray-50 touch-manipulation"
+      >
+        <span className="flex items-center gap-2 text-sm font-medium text-gray-900">
+          <span className="text-lg">👨‍👩‍👧</span> Mi familia
+        </span>
+        <span className="text-gray-300">›</span>
+      </button>
+
+      {/* Referencia orientativa — disponible en móvil y escritorio */}
+      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Salud</h2>
+      <button
+        onClick={onOpenReference}
+        className="w-full flex items-center justify-between bg-white rounded-2xl shadow-sm px-4 py-3 mb-6 active:bg-gray-50 touch-manipulation text-left"
+      >
+        <span className="flex items-start gap-3 min-w-0">
+          <span className="text-xl shrink-0">📊</span>
+          <span className="min-w-0">
+            <span className="block text-sm font-medium text-gray-900">Valores de referencia</span>
+            <span className="block text-xs text-gray-500 mt-0.5">
+              Tomas, leche y sueño orientativos para su edad y peso. Abre la página de Referencia.
+            </span>
+          </span>
+        </span>
+        <span className="text-gray-300 shrink-0 self-center">›</span>
+      </button>
+
       {/* Historial de peso */}
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Historial de peso</h2>
@@ -118,6 +137,11 @@ export default function BabyProfile({
           {sorted.map((entry, i) => {
             const prev = sorted[i + 1];
             const diff = prev ? Math.round((entry.weightKg - prev.weightKg) * 1000) : null;
+            const daysBetween = prev
+              ? Math.round(
+                  (new Date(entry.date + 'T12:00:00').getTime() - new Date(prev.date + 'T12:00:00').getTime()) / 86400000
+                )
+              : null;
             return (
               <div
                 key={entry.id}
@@ -141,6 +165,9 @@ export default function BabyProfile({
                       {diff !== null && (
                         <span className={`text-sm font-medium ${diff >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                           {diff >= 0 ? '+' : ''}{diff} g
+                          {daysBetween != null && daysBetween > 0 && (
+                            <span className="text-gray-400 font-normal"> en {daysBetween} {daysBetween === 1 ? 'día' : 'días'}</span>
+                          )}
                         </span>
                       )}
                     </div>

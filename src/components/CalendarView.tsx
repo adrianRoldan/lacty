@@ -65,9 +65,10 @@ export default function CalendarView({ events, consultations, onCreate, onUpdate
     .sort((a, b) => (a.date + (a.time ?? '99')).localeCompare(b.date + (b.time ?? '99')))
     .slice(0, 6);
 
-  function startCreate() {
+  function startCreate(date: string = selected) {
+    setSelected(date);
     setEditing({
-      id: generateId(), date: selected, title: '', category: 'pediatra',
+      id: generateId(), date, title: '', category: 'pediatra',
       createdAt: new Date().toISOString(),
     });
     setCreating(true);
@@ -101,6 +102,8 @@ export default function CalendarView({ events, consultations, onCreate, onUpdate
               <button
                 key={i}
                 onClick={() => setSelected(iso)}
+                onDoubleClick={() => startCreate(iso)}
+                title="Doble clic para añadir un evento"
                 className={`min-h-[58px] rounded-lg p-1 flex flex-col items-stretch gap-0.5 touch-manipulation transition-colors overflow-hidden
                   ${isSelected ? 'bg-gray-800' : isToday ? 'bg-gray-100' : 'active:bg-gray-50'}`}
               >
@@ -130,6 +133,7 @@ export default function CalendarView({ events, consultations, onCreate, onUpdate
             );
           })}
         </div>
+        <p className="text-[11px] text-gray-400 text-center mt-2">Doble clic en un día para añadir un evento</p>
       </div>
 
       {/* Día seleccionado */}
@@ -164,7 +168,7 @@ export default function CalendarView({ events, consultations, onCreate, onUpdate
       {/* FAB — nuevo evento (en el día seleccionado) */}
       {!editing && (
         <button
-          onClick={startCreate}
+          onClick={() => startCreate()}
           aria-label="Nuevo evento"
           className="fixed right-5 bottom-20 lg:bottom-6 z-20 w-14 h-14 rounded-full bg-sage-600 text-white shadow-lg shadow-sage-600/30 flex items-center justify-center text-3xl leading-none pb-1 active:scale-95 active:bg-sage-700 transition-transform touch-manipulation"
         >

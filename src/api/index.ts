@@ -349,3 +349,49 @@ export async function updateCalendarEvent(e: CalendarEvent): Promise<CalendarEve
 export async function deleteCalendarEvent(id: string): Promise<void> {
   await fetch(`${BASE}/calendar/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
+
+// ── Push notifications ─────────────────────────────────────────────────────────
+
+export async function getPushVapidKey(): Promise<string> {
+  const res = await fetch(`${BASE}/push/vapid-key`);
+  const data = await res.json();
+  return data.publicKey;
+}
+
+export async function savePushSubscription(subscription: PushSubscription): Promise<void> {
+  await fetch(`${BASE}/push/subscribe`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(subscription),
+  });
+}
+
+export async function deletePushSubscription(endpoint: string): Promise<void> {
+  await fetch(`${BASE}/push/subscribe`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ endpoint }),
+  });
+}
+
+export interface NotificationPrefs {
+  feedingThresholdMins: number | null;
+  restThresholdMins: number | null;
+  massageThresholdMins: number | null;
+}
+
+export async function getNotificationPrefs(babyId: string): Promise<NotificationPrefs> {
+  const res = await fetch(`${BASE}/push/prefs/${babyId}`, { credentials: 'include' });
+  return res.json();
+}
+
+export async function updateNotificationPrefs(babyId: string, prefs: NotificationPrefs): Promise<void> {
+  await fetch(`${BASE}/push/prefs/${babyId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(prefs),
+  });
+}

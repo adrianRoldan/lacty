@@ -1,7 +1,7 @@
 import type { BabyConfig, Feeding, Rest } from '../types';
 import { getCurrentDaysOfLife } from '../utils/dateUtils';
 import { getTodayFeedings, getTotalSupplementMl, getTotalBreastMinutes, getRestCorrelation } from '../utils/feedingUtils';
-import { FEEDING_REFERENCE, getEffectiveReference } from '../data/referenceTable';
+import { FEEDING_REFERENCE, getEffectiveReference, getSleepReference } from '../data/referenceTable';
 
 interface Props {
   config: BabyConfig;
@@ -23,6 +23,7 @@ const AFTER_WEEK_ONE = FEEDING_REFERENCE.filter(r => r.dayFrom >= 8);
 export default function ReferenceView({ config, feedings, rests, currentWeightKg }: Props) {
   const daysOfLife = getCurrentDaysOfLife(config);
   const ref = getEffectiveReference(daysOfLife, currentWeightKg);
+  const sleep = getSleepReference(daysOfLife);
   const todayFeedings = getTodayFeedings(feedings);
   const todayMl = getTotalSupplementMl(todayFeedings);
   const todayBreastMin = getTotalBreastMinutes(todayFeedings);
@@ -98,6 +99,74 @@ export default function ReferenceView({ config, feedings, rests, currentWeightKg
           No hay referencia disponible para el día {daysOfLife}. Consulta con tu pediatra o matrona.
         </div>
       )}
+
+      {/* ── Sueño orientativo ───────────────────────────────────────────── */}
+      <div className="bg-taupe-50 border border-taupe-100 rounded-2xl p-4 mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-taupe-800">Sueño orientativo</h2>
+          <span className="text-xs bg-taupe-100 text-taupe-600 font-medium px-2 py-0.5 rounded-full">
+            📅 Por edad
+          </span>
+        </div>
+
+        <div className="bg-white rounded-xl p-4 text-center mb-3">
+          <p className="text-3xl font-bold text-gray-900">
+            {sleep.sleepHoursMin}–{sleep.sleepHoursMax}{' '}
+            <span className="text-xl font-semibold text-gray-500">h/día</span>
+          </p>
+          <p className="text-xs text-gray-400 mt-1">sueño total en 24 h (siestas + noche)</p>
+        </div>
+
+        <div className="bg-white rounded-xl p-3 text-center mb-3">
+          <p className="text-lg font-bold text-gray-900">{formatGap(sleep.awakeWindowMaxMin)}</p>
+          <p className="text-xs text-gray-500 mt-0.5">vigilia máx. (despierto antes de la siguiente siesta)</p>
+        </div>
+
+        <div className="bg-white rounded-xl p-3 mb-3">
+          <p className="text-xs text-gray-600 leading-relaxed">
+            🔄 <strong>Ciclo de sueño:</strong> en bebés dura ~45–50 min. Es normal que se despierten al terminar un ciclo, así que las siestas cortas no son un problema en sí. Por eso no marcamos una duración "ideal" por siesta: lo que importa es el sueño total del día y la ventana de vigilia.
+          </p>
+        </div>
+
+        <p className="text-xs text-taupe-700">
+          El sueño se guía por la edad, no por el peso. Valores orientativos (NSF/AASM); cada bebé varía. El banner de "Hoy" avisa al superar la ventana de vigilia.
+        </p>
+      </div>
+
+      {/* ── Sueño por edad ──────────────────────────────────────────────── */}
+      <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
+        Sueño por edad
+      </h2>
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-6">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 bg-gray-50">
+              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500">Días de vida</th>
+              <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500">Sueño/día</th>
+              <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500">Vigilia máx.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {FEEDING_REFERENCE.map((r, i) => {
+              const isCurrent = daysOfLife >= r.dayFrom && daysOfLife <= r.dayTo;
+              return (
+                <tr key={i} className={`border-b border-gray-50 ${isCurrent ? 'bg-blue-50' : ''}`}>
+                  <td className={`px-4 py-3 font-medium ${isCurrent ? 'text-blue-800' : 'text-gray-700'}`}>
+                    {r.dayFrom === r.dayTo ? `Día ${r.dayFrom}` : `Días ${r.dayFrom}–${r.dayTo}`}
+                    {isCurrent && <span className="ml-2 text-xs text-blue-500">← hoy</span>}
+                  </td>
+                  <td className={`px-4 py-3 text-right ${isCurrent ? 'text-blue-700 font-semibold' : 'text-gray-500'}`}>
+                    {r.sleepHoursMin}–{r.sleepHoursMax} h
+                  </td>
+                  <td className={`px-4 py-3 text-right font-semibold ${isCurrent ? 'text-blue-800' : 'text-gray-700'}`}>
+                    {r.awakeWindowMaxMin != null ? formatGap(r.awakeWindowMaxMin) : '—'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
       {/* ── Tiempo entre tomas ──────────────────────────────────────────── */}
       <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">

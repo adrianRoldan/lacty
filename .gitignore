@@ -19,6 +19,7 @@ lacty.db.backup-*
 # Sesiones y secreto (no deben subirse)
 sessions.db
 .session-secret
+.vapid-keys.json
 
 # Editor directories and files
 .vscode/*

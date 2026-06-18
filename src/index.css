@@ -28,6 +28,117 @@
   --color-taupe-800: #4A3F3A;
 }
 
+/* ── Modo noche ──────────────────────────────────────────────────────────────
+   Se activa con la clase `.dark` en <html>. En Tailwind v4 cada utilidad de
+   color (`bg-gray-100`, `text-sage-700`, …) referencia su variable `--color-*`,
+   así que redefiniéndolas aquí cambia toda la app de golpe.
+
+   La paleta separa roles: los tintes claros (-50/-100) solo se usan de FONDO y
+   los saturados (-600/-700/-800) solo de TEXTO. En oscuro: tintes claros →
+   fondos oscuros tintados; textos oscuros → claros. Los tonos medios vivos
+   (botones, barras) se dejan intactos para que el texto blanco siga legible. */
+.dark {
+  color-scheme: dark;
+
+  /* Gris invertido: texto (900→claro) y superficies (50/100→oscuro) */
+  --color-gray-50:  #1e201c;
+  --color-gray-100: #272a25;
+  --color-gray-200: #363a33;
+  --color-gray-300: #4a4f47;
+  --color-gray-400: #7d8374;
+  --color-gray-500: #9aa392;
+  --color-gray-600: #b8bfae;
+  --color-gray-700: #d2d7c9;
+  --color-gray-800: #e7eae0;
+  --color-gray-900: #f4f6ef;
+
+  /* Cream cálido → fondo de página oscuro cálido */
+  --color-cream-50:  #14140f;
+  --color-cream-100: #1d1b15;
+  --color-cream-200: #2a261d;
+
+  /* Sage: botón (-600) intacto; tintes (-50/100/200/300) oscuros; texto (-700/800) claro */
+  --color-sage-50:  #18241a;
+  --color-sage-100: #1f3022;
+  --color-sage-200: #2f4733;
+  --color-sage-300: #3f5e45;
+  --color-sage-700: #a7d0ad;
+  --color-sage-800: #c2e0c6;
+
+  /* Taupe: botón (-600) intacto; tintes oscuros; texto claro */
+  --color-taupe-50:  #211c19;
+  --color-taupe-100: #2b2520;
+  --color-taupe-200: #3d352f;
+  --color-taupe-700: #c2b4ab;
+  --color-taupe-800: #d8ccc4;
+
+  /* Acentos por defecto de Tailwind: tintes (-50/100) oscuros, texto (-600/700/800) claro */
+  --color-pink-50:  #2a141d;
+  --color-pink-100: #371a26;
+  --color-pink-200: #4d2536;
+  --color-pink-600: #f472a6;
+  --color-pink-700: #f9a8c8;
+  --color-pink-800: #fbcfe1;
+  --color-pink-900: #fde7ee;
+
+  --color-green-50:  #11241a;
+  --color-green-100: #16301f;
+  --color-green-200: #1f4a30;
+  --color-green-600: #4ade80;
+  --color-green-700: #86efac;
+  --color-green-800: #bbf7d0;
+
+  --color-red-50:  #2a1416;
+  --color-red-100: #371a1c;
+  --color-red-600: #f87171;
+  --color-red-700: #fca5a5;
+
+  --color-amber-50:  #271c0c;
+  --color-amber-100: #332611;
+  --color-amber-200: #4d3a1a;
+  --color-amber-300: #6b5424;
+  --color-amber-600: #fbbf24;
+  --color-amber-700: #fcd34d;
+  --color-amber-800: #fde68a;
+  --color-amber-900: #fef3c7;
+
+  --color-blue-50:  #122031;
+  --color-blue-100: #182a40;
+  --color-blue-200: #1f3a5c;
+  --color-blue-300: #2b5184;
+  --color-blue-600: #60a5fa;
+  --color-blue-700: #93c5fd;
+  --color-blue-800: #bfdbfe;
+
+  --color-orange-50:  #2a1709;
+  --color-orange-100: #38200d;
+  --color-orange-300: #7a4a24;
+  --color-orange-600: #fb923c;
+  --color-orange-800: #fed7aa;
+
+  --color-purple-100: #241433;
+  --color-purple-300: #6b3a9e;
+  --color-purple-700: #c084fc;
+}
+
+/* Superficies blancas (tarjetas, barras, formularios) → superficie oscura,
+   un punto más clara que el fondo de página para separarse visualmente. */
+.dark .bg-white {
+  background-color: #1e211c;
+}
+
+/* Pills "activo/seleccionado" (bg-gray-800 + text-white, incluido el número del
+   día en el calendario): solo cambiamos el FONDO a sage, sin tocar el texto
+   blanco de los elementos hijos. */
+.dark .bg-gray-800 {
+  background-color: var(--color-sage-600);
+}
+
+/* El toast se mantiene oscuro con texto blanco. */
+.dark .bg-gray-900\/90 {
+  background-color: rgba(20, 22, 19, 0.92);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -38,6 +149,11 @@ body {
   background-color: #F5F4F2;
   color: #3A3228;
   -webkit-font-smoothing: antialiased;
+}
+
+.dark body {
+  background-color: #14140f;
+  color: #f4f6ef;
 }
 
 #root {

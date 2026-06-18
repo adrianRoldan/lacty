@@ -103,11 +103,58 @@ export function getRestDurationMinutes(rest: Rest): number | null {
   );
 }
 
+/**
+ * Minutos de un sueño que caen DENTRO de un día concreto (ISO local "YYYY-MM-DD").
+ * Reparte los sueños que cruzan la medianoche: cada día recibe solo su parte.
+ * Si el sueño no ha terminado, usa `now` como fin.
+ */
+export function restMinutesOnDay(rest: Rest, isoDay: string, now: number = Date.now()): number {
+  const start = new Date(rest.startTime).getTime();
+  const end = rest.endTime ? new Date(rest.endTime).getTime() : now;
+  const dayStart = new Date(isoDay + 'T00:00:00').getTime();
+  const dayEnd = dayStart + 24 * 60 * 60 * 1000;
+  const overlapStart = Math.max(start, dayStart);
+  const overlapEnd = Math.min(end, dayEnd);
+  if (overlapEnd <= overlapStart) return 0;
+  return Math.round((overlapEnd - overlapStart) / 60000);
+}
+
+/**
+ * Lista de días locales ("YYYY-MM-DD") que abarca un sueño, de inicio a fin.
+ * Para sueños en curso, hasta `now`.
+ */
+export function restSpanDays(rest: Rest, now: number = Date.now()): string[] {
+  const startDay = localDateOf(rest.startTime);
+  const endDay = localDateOf(rest.endTime ?? new Date(now).toISOString());
+  const days = [startDay];
+  const cursor = new Date(startDay + 'T12:00:00');
+  while (localDateOf(cursor.toISOString()) < endDay) {
+    cursor.setDate(cursor.getDate() + 1);
+    days.push(localDateOf(cursor.toISOString()));
+  }
+  return days;
+}
+
+/**
+ * Minutos que el bebé lleva despierto desde que terminó la última siesta.
+ * Devuelve null si está durmiendo ahora (siesta en curso) o si no hay siestas
+ * completadas registradas (en ambos casos no procede avisar).
+ */
+export function getAwakeMinutes(rests: Rest[]): number | null {
+  if (rests.some((r) => r.endTime == null)) return null;
+  const endedTimes = rests
+    .filter((r) => r.endTime != null)
+    .map((r) => new Date(r.endTime!).getTime());
+  if (endedTimes.length === 0) return null;
+  const lastEnded = Math.max(...endedTimes);
+  return Math.floor((Date.now() - lastEnded) / 60000);
+}
+
 export function getTodayRestMinutes(rests: Rest[]): number {
   const today = todayIso();
-  return rests
-    .filter((r) => isSameDay(r.startTime, today) || r.endTime == null)
-    .reduce((sum, r) => sum + (getRestDurationMinutes(r) ?? 0), 0);
+  // Cuenta solo la parte de cada sueño que cae en el día de hoy (los que
+  // cruzan medianoche aportan únicamente su tramo de hoy).
+  return rests.reduce((sum, r) => sum + restMinutesOnDay(r, today), 0);
 }
 
 export function buildTimeline(
@@ -181,6 +228,8 @@ export interface HistorySummary {
   avgTotalMlPerFeeding: number;
   avgBreastMinPerDay: number;
   avgRestMinutes: number;
+  avgRestMinPerDay: number;
+  avgSleepsPerDay: number; // nº de sueños/siestas por día con sueño
 }
 
 export function getHistorySummary(feedings: Feeding[], rests: Rest[]): HistorySummary | null {
@@ -232,20 +281,37 @@ export function getHistorySummary(feedings: Feeding[], rests: Rest[]): HistorySu
     ? Math.round(totalBreastMin / breastDays.size)
     : 0;
 
-  // Average completed rest duration
+  // Sueño: duración media por siesta (completa) y media por día.
+  // Los sueños que cruzan medianoche reparten sus minutos en cada día.
   const completedRests = rests.filter((r) => r.endTime != null);
+  const totalRestMin = completedRests.reduce(
+    (s, r) => s + (getRestDurationMinutes(r) ?? 0), 0
+  );
   const avgRestMinutes = completedRests.length > 0
-    ? Math.round(
-        completedRests.reduce((s, r) => {
-          const min = Math.round(
-            (new Date(r.endTime!).getTime() - new Date(r.startTime).getTime()) / 60000
-          );
-          return s + min;
-        }, 0) / completedRests.length
-      )
+    ? Math.round(totalRestMin / completedRests.length)
+    : 0;
+  // Minutos y nº de sueños atribuidos a cada día (partiendo en medianoche).
+  const restMinByDay = new Map<string, number>();
+  const restCountByDay = new Map<string, number>();
+  for (const r of completedRests) {
+    for (const day of restSpanDays(r)) {
+      const mins = restMinutesOnDay(r, day);
+      if (mins <= 0) continue;
+      restMinByDay.set(day, (restMinByDay.get(day) ?? 0) + mins);
+      restCountByDay.set(day, (restCountByDay.get(day) ?? 0) + 1);
+    }
+  }
+  const restDayCount = restMinByDay.size;
+  const totalRestMinByDay = [...restMinByDay.values()].reduce((s, m) => s + m, 0);
+  const avgRestMinPerDay = restDayCount > 0
+    ? Math.round(totalRestMinByDay / restDayCount)
+    : 0;
+  const totalSleepsByDay = [...restCountByDay.values()].reduce((s, n) => s + n, 0);
+  const avgSleepsPerDay = restDayCount > 0
+    ? Math.round((totalSleepsByDay / restDayCount) * 10) / 10
     : 0;
 
-  return { totalDays, avgFeedingsPerDay, avgBreastFeedsPerDay, avgSyringeFeedsPerDay, avgTotalMlPerDay, avgTotalMlPerFeeding, avgBreastMinPerDay, avgRestMinutes };
+  return { totalDays, avgFeedingsPerDay, avgBreastFeedsPerDay, avgSyringeFeedsPerDay, avgTotalMlPerDay, avgTotalMlPerFeeding, avgBreastMinPerDay, avgRestMinutes, avgRestMinPerDay, avgSleepsPerDay };
 }
 
 export function generateId(): string {

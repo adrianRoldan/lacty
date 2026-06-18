@@ -7,9 +7,10 @@ import {
   getTotalBreastMinutes,
   getTotalEstimatedBreastMl,
   getTodayRestMinutes,
+  getAwakeMinutes,
   buildTimeline,
 } from '../utils/feedingUtils';
-import { getEffectiveReference } from '../data/referenceTable';
+import { getEffectiveReference, getSleepReference } from '../data/referenceTable';
 import FeedingItem from './FeedingItem';
 import RestItem from './RestItem';
 import DayInsights from './DayInsights';
@@ -74,6 +75,7 @@ export default function DailySummary({
   );
   const timeline = buildTimeline(feedings, rests);
   const reference = getEffectiveReference(daysOfLife, currentWeightKg);
+  const sleepRef = getSleepReference(daysOfLife);
 
   function buildCareItems(): CareItem[] {
     const items: CareItem[] = [];
@@ -160,7 +162,8 @@ export default function DailySummary({
       </div>
 
       {/* Avisos — siempre arriba del todo */}
-      <LastFeedingBanner feedings={todayFeedings} reference={reference} />
+      <LastFeedingBanner feedings={feedings} reference={reference} />
+      <LastSleepBanner rests={rests} awakeWindowMaxMin={sleepRef.awakeWindowMaxMin} />
       {careReminders.map((i) => (
         <div key={`reminder-${i.key}`}>{i.reminder}</div>
       ))}
@@ -202,7 +205,7 @@ export default function DailySummary({
       <DailyCareSection items={careItems} />
 
       {/* Insights: progress + averages */}
-      <DayInsights feedings={todayFeedings} rests={todayRests} reference={reference} />
+      <DayInsights feedings={todayFeedings} rests={todayRests} reference={reference} sleepRef={sleepRef} todayRestMinutes={totalRestMin} />
 
       {/* Timeline */}
       {timeline.length === 0 ? (
@@ -295,7 +298,7 @@ function MassageWidget({ massageLogs, frenectomyDate, startTime, endTime, onAdd,
               disabled={!done && todayMassages.length >= 5}
               className="flex-1 flex flex-col items-center gap-1 touch-manipulation"
             >
-              <div className={`w-full aspect-square rounded-xl flex items-center justify-center text-sm font-bold transition-colors
+              <div className={`w-full aspect-square md:max-w-[52px] rounded-xl flex items-center justify-center text-sm font-bold transition-colors
                 ${done ? 'bg-blue-100 text-blue-700' : isNext ? 'bg-orange-100 text-orange-600 ring-2 ring-orange-300' : 'bg-gray-100 text-gray-400'}`}>
                 {done ? '✓' : i + 1}
               </div>
@@ -627,6 +630,41 @@ function LastFeedingBanner({ feedings, reference }: { feedings: Feeding[]; refer
         Última toma hace{' '}
         <span className="font-semibold text-gray-700">{label}</span>
       </span>
+    </div>
+  );
+}
+
+function LastSleepBanner({ rests, awakeWindowMaxMin }: { rests: import('../types').Rest[]; awakeWindowMaxMin: number }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  const awakeMin = getAwakeMinutes(rests);
+  // null = durmiendo ahora o sin siestas registradas → no avisar
+  if (awakeMin === null || awakeMin < awakeWindowMaxMin) return null;
+
+  // "Muy pasado" cuando supera el doble de la ventana recomendada.
+  const isAlert = awakeMin >= awakeWindowMaxMin * 2;
+  const label = formatElapsed(awakeMin);
+
+  return (
+    <div className={`border-2 rounded-2xl p-4 mb-4 ${isAlert ? 'border-red-400 bg-red-50' : 'border-amber-300 bg-amber-50'}`}>
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-xl animate-pulse">😴</span>
+        <span className={`text-sm font-bold ${isAlert ? 'text-red-700' : 'text-amber-800'}`}>
+          Lleva despierto {label}
+        </span>
+      </div>
+      <div className="ml-8 flex items-center gap-1.5">
+        <span className={`text-xs ${isAlert ? 'text-red-500' : 'text-amber-600'}`}>
+          Podría tocar siesta · ventana recomendada:
+        </span>
+        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isAlert ? 'text-red-600 bg-red-100' : 'text-amber-700 bg-amber-100'}`}>
+          {formatElapsed(awakeWindowMaxMin)}
+        </span>
+      </div>
     </div>
   );
 }

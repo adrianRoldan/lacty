@@ -92,11 +92,14 @@ export default function FeedingList({
     });
   }
 
-  const summary = getHistorySummary(feedings, rests);
-
   const cutoff = cutoffDate(filterPeriod);
-  const filteredFeedings = filterType === 'rests'    ? [] : feedings.filter(f => !cutoff || localDateOf(f.timestamp) >= cutoff);
-  const filteredRests    = filterType === 'feedings' ? [] : rests.filter(r => !cutoff || localDateOf(r.startTime) >= cutoff);
+  // El resumen respeta el filtro de días (no el de tipo, para no distorsionar las medias)
+  const periodFeedings = feedings.filter(f => !cutoff || localDateOf(f.timestamp) >= cutoff);
+  const periodRests     = rests.filter(r => !cutoff || localDateOf(r.startTime) >= cutoff);
+  const summary = getHistorySummary(periodFeedings, periodRests);
+
+  const filteredFeedings = filterType === 'rests'    ? [] : periodFeedings;
+  const filteredRests    = filterType === 'feedings' ? [] : periodRests;
 
   const groups = groupTimelineByDay(filteredFeedings, filteredRests);
   const days   = Object.keys(groups).sort((a, b) => b.localeCompare(a));
@@ -157,7 +160,8 @@ export default function FeedingList({
         {summary && (
           <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-              Media global — {summary.totalDays} {summary.totalDays === 1 ? 'día' : 'días'}
+              {filterPeriod === 'all' ? 'Media global' : `Media · últimos ${filterPeriod.replace('d', '')} días`}
+              {' — '}{summary.totalDays} {summary.totalDays === 1 ? 'día' : 'días'}
             </p>
             <div className="grid grid-cols-2 gap-x-6 gap-y-3">
               <SummaryRow icon="🍼" label="Tomas/día"      value={String(summary.avgFeedingsPerDay)} />
@@ -176,8 +180,14 @@ export default function FeedingList({
               {summary.avgBreastMinPerDay > 0 && (
                 <SummaryRow icon="⏱" label="Min pecho/día" value={formatMinutes(summary.avgBreastMinPerDay)} />
               )}
+              {summary.avgRestMinPerDay > 0 && (
+                <SummaryRow icon="😴" label="Sueño/día"     value={formatMinutes(summary.avgRestMinPerDay)} />
+              )}
+              {summary.avgSleepsPerDay > 0 && (
+                <SummaryRow icon="🛏" label="Nº sueños/día" value={String(summary.avgSleepsPerDay)} />
+              )}
               {summary.avgRestMinutes > 0 && (
-                <SummaryRow icon="😴" label="Sueño"         value={formatMinutes(summary.avgRestMinutes)} />
+                <SummaryRow icon="💤" label="Sueño/siesta"  value={formatMinutes(summary.avgRestMinutes)} />
               )}
             </div>
           </div>

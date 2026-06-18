@@ -9,6 +9,7 @@ import { randomBytes } from 'crypto';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import webpush from 'web-push';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3001;
@@ -27,6 +28,20 @@ function getSessionSecret() {
   writeFileSync(f, secret, { mode: 0o600 });
   return secret;
 }
+
+function getVapidKeys() {
+  if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    return { publicKey: process.env.VAPID_PUBLIC_KEY, privateKey: process.env.VAPID_PRIVATE_KEY };
+  }
+  const f = join(__dirname, '.vapid-keys.json');
+  if (existsSync(f)) return JSON.parse(readFileSync(f, 'utf-8'));
+  const keys = webpush.generateVAPIDKeys();
+  writeFileSync(f, JSON.stringify(keys), { mode: 0o600 });
+  return keys;
+}
+
+const vapidKeys = getVapidKeys();
+webpush.setVapidDetails('mailto:admin@lacty.app', vapidKeys.publicKey, vapidKeys.privateKey);
 
 const SQLiteStore = connectSqlite3(session);
 
@@ -93,10 +108,31 @@ function ensureColumn(table, column, type = 'TEXT') {
 ensureColumn('users', 'account_id');
 ensureColumn('accounts', 'invite_code');
 ensureColumn('accounts', 'name');
+ensureColumn('notification_prefs', 'massage_threshold_mins', 'INTEGER NOT NULL DEFAULT 15');
+ensureColumn('notification_prefs', 'last_massage_notif_at', 'TEXT');
 for (const t of DATA_TABLES) {
   ensureColumn(t, 'baby_id');
   db.exec(`CREATE INDEX IF NOT EXISTS idx_${t}_baby ON ${t}(baby_id)`);
 }
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id           TEXT PRIMARY KEY,
+    account_id   TEXT NOT NULL,
+    endpoint     TEXT NOT NULL UNIQUE,
+    subscription_json TEXT NOT NULL,
+    created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS notification_prefs (
+    account_id             TEXT NOT NULL,
+    baby_id                TEXT NOT NULL,
+    feeding_threshold_mins INTEGER NOT NULL DEFAULT 180,
+    rest_threshold_mins    INTEGER NOT NULL DEFAULT 120,
+    last_feeding_notif_at  TEXT,
+    last_rest_notif_at     TEXT,
+    PRIMARY KEY (account_id, baby_id)
+  );
+`);
 
 // Backfill de códigos de invitación para cuentas que no lo tengan
 for (const a of db.prepare(`SELECT id FROM accounts WHERE invite_code IS NULL`).all()) {
@@ -257,7 +293,7 @@ app.post('/api/auth/logout', (req, res) => {
 
 // Protege /api excepto /api/auth/* y /api/app-info
 app.use('/api', (req, res, next) => {
-  if (req.path.startsWith('/auth/') || req.path === '/app-info') return next();
+  if (req.path.startsWith('/auth/') || req.path === '/app-info' || req.path === '/push/vapid-key') return next();
   if (!req.session?.userId) return res.status(401).json({ error: 'No autorizado' });
   req.accountId = req.session.accountId;
   next();
@@ -384,6 +420,258 @@ function requireBaby(req, res, next) {
 for (const t of DATA_TABLES) {
   app.use(`/api/${t}`, requireBaby, makeRouter(t));
 }
+
+// ── Push notifications ────────────────────────────────────────────────────────
+
+app.get('/api/push/vapid-key', (req, res) => {
+  res.json({ publicKey: vapidKeys.publicKey });
+});
+
+app.post('/api/push/subscribe', (req, res) => {
+  const sub = req.body;
+  if (!sub?.endpoint) return res.status(400).json({ error: 'Suscripción inválida' });
+  db.prepare(`
+    INSERT OR REPLACE INTO push_subscriptions (id, account_id, endpoint, subscription_json)
+    VALUES (?, ?, ?, ?)
+  `).run(newId(), req.accountId, sub.endpoint, JSON.stringify(sub));
+  res.json({ ok: true });
+});
+
+app.delete('/api/push/subscribe', (req, res) => {
+  const { endpoint } = req.body ?? {};
+  if (endpoint) {
+    db.prepare(`DELETE FROM push_subscriptions WHERE account_id = ? AND endpoint = ?`)
+      .run(req.accountId, endpoint);
+  }
+  res.json({ ok: true });
+});
+
+app.get('/api/push/prefs/:babyId', (req, res) => {
+  const row = db.prepare(`SELECT * FROM notification_prefs WHERE account_id = ? AND baby_id = ?`)
+    .get(req.accountId, req.params.babyId);
+  res.json({
+    feedingThresholdMins:  row ? row.feeding_threshold_mins  : null,
+    restThresholdMins:     row ? row.rest_threshold_mins     : null,
+    massageThresholdMins:  row ? row.massage_threshold_mins  : null,
+  });
+});
+
+app.put('/api/push/prefs/:babyId', (req, res) => {
+  const { feedingThresholdMins, restThresholdMins, massageThresholdMins } = req.body ?? {};
+  db.prepare(`
+    INSERT INTO notification_prefs (account_id, baby_id, feeding_threshold_mins, rest_threshold_mins, massage_threshold_mins)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(account_id, baby_id) DO UPDATE SET
+      feeding_threshold_mins  = excluded.feeding_threshold_mins,
+      rest_threshold_mins     = excluded.rest_threshold_mins,
+      massage_threshold_mins  = excluded.massage_threshold_mins
+  `).run(req.accountId, req.params.babyId, feedingThresholdMins ?? 180, restThresholdMins ?? 120, massageThresholdMins ?? 15);
+  res.json({ ok: true });
+});
+
+app.post('/api/push/test', async (req, res) => {
+  try {
+    const subs = db.prepare(`SELECT endpoint, subscription_json FROM push_subscriptions WHERE account_id = ?`).all(req.accountId);
+    console.log('[push test] suscripciones encontradas:', subs.length);
+    if (subs.length === 0) {
+      return res.json({ ok: false, error: 'No hay dispositivos suscritos registrados en el servidor' });
+    }
+    const payload = JSON.stringify({
+      title: 'Lacty — notificación de prueba',
+      body: 'Las notificaciones están funcionando correctamente.',
+      tag: 'test',
+    });
+    const results = await Promise.allSettled(
+      subs.map((row) =>
+        webpush.sendNotification(JSON.parse(row.subscription_json), payload).then((r) => {
+          console.log('[push test] OK — status:', r.statusCode);
+        }).catch((err) => {
+          if (err.statusCode === 410 || err.statusCode === 404) {
+            db.prepare(`DELETE FROM push_subscriptions WHERE endpoint = ?`).run(row.endpoint);
+          }
+          console.error('[push test] Error:', err.statusCode, err.body ?? err.message);
+          throw new Error(`HTTP ${err.statusCode}: ${err.body ?? err.message}`);
+        })
+      )
+    );
+    const failed = results.filter((r) => r.status === 'rejected');
+    const sent   = results.length - failed.length;
+    if (sent === 0) {
+      return res.json({ ok: false, error: failed[0]?.reason?.message ?? 'Error desconocido' });
+    }
+    res.json({ ok: true, sent, failed: failed.length });
+  } catch (err) {
+    console.error('[push test] Excepción inesperada:', err.message);
+    res.status(500).json({ ok: false, error: `Error interno: ${err.message}` });
+  }
+});
+
+// ── Notif scheduler ──────────────────────────────────────────────────────────
+
+// Referencia orientativa por edad (días de vida) para umbrales por defecto.
+// Espeja los datos de src/data/referenceTable.ts; actualizar en paralelo si cambian.
+const NOTIF_REFERENCE = [
+  { dayTo: 28, feedsPerDayMin: 8, awakeWindowMaxMin: 60  },
+  { dayTo: 60, feedsPerDayMin: 7, awakeWindowMaxMin: 90  },
+  { dayTo: 90, feedsPerDayMin: 6, awakeWindowMaxMin: 120 },
+];
+
+function getDefaultNotifPrefs(daysOfLife) {
+  const row = NOTIF_REFERENCE.find((r) => daysOfLife <= r.dayTo);
+  const feedsMin = row?.feedsPerDayMin ?? 6;
+  return {
+    feedingThresholdMins: Math.round(24 * 60 / feedsMin),
+    restThresholdMins:    row?.awakeWindowMaxMin ?? 180,
+  };
+}
+
+function getDaysOfLife(baby) {
+  const today = new Date();
+  const todayTs = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  if (baby.birthDate) {
+    const b = new Date(baby.birthDate + 'T00:00:00');
+    const bTs = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+    return Math.floor((todayTs - bTs) / 86400000) + 1;
+  }
+  const setup = new Date(baby.setupDate);
+  const sTs = Date.UTC(setup.getFullYear(), setup.getMonth(), setup.getDate());
+  return baby.daysOfLifeAtSetup + Math.floor((todayTs - sTs) / 86400000);
+}
+
+// Espeja getRecommendedTimes de DailySummary.tsx — devuelve minutos desde medianoche.
+function getRecommendedMassageTimes(startTime, endTime) {
+  const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+  const start = toMin(startTime);
+  const interval = (toMin(endTime) - start) / 4;
+  return Array.from({ length: 5 }, (_, i) => Math.round(start + interval * i));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function sendPushToAccount(accountId, payload) {
+  const subs = db.prepare(`SELECT endpoint, subscription_json FROM push_subscriptions WHERE account_id = ?`).all(accountId);
+  for (const row of subs) {
+    webpush.sendNotification(JSON.parse(row.subscription_json), JSON.stringify(payload)).catch((err) => {
+      if (err.statusCode === 410 || err.statusCode === 404) {
+        db.prepare(`DELETE FROM push_subscriptions WHERE endpoint = ?`).run(row.endpoint);
+      } else {
+        console.error('[push] Error enviando notificación:', err.statusCode, err.body ?? err.message);
+      }
+    });
+  }
+}
+
+function checkNotifications() {
+  const accounts = db.prepare(`SELECT DISTINCT account_id FROM push_subscriptions`).all();
+  const now = Date.now();
+
+  for (const { account_id } of accounts) {
+    const babies = db.prepare(`SELECT id, data FROM babies WHERE account_id = ?`).all(account_id);
+
+    for (const babyRow of babies) {
+      const baby = JSON.parse(babyRow.data);
+      const babyId = babyRow.id;
+      const prefs = db.prepare(`SELECT * FROM notification_prefs WHERE account_id = ? AND baby_id = ?`)
+        .get(account_id, babyId);
+      const defaults = getDefaultNotifPrefs(getDaysOfLife(baby));
+      const feedingMs = (prefs?.feeding_threshold_mins ?? defaults.feedingThresholdMins) * 60 * 1000;
+      const restMs    = (prefs?.rest_threshold_mins    ?? defaults.restThresholdMins)    * 60 * 1000;
+      const name = baby.name || 'el bebé';
+
+      // Formatea una duración en ms como "2h 5min", "45min", "1h"
+      function duracion(ms) {
+        const h = Math.floor(ms / 3600000);
+        const m = Math.floor((ms % 3600000) / 60000);
+        if (h === 0) return `${m} min`;
+        if (m === 0) return `${h}h`;
+        return `${h}h ${m} min`;
+      }
+
+      // Tomas
+      const lastFeedingRow = db.prepare(
+        `SELECT data FROM feedings WHERE baby_id = ? ORDER BY json_extract(data, '$.timestamp') DESC LIMIT 1`
+      ).get(babyId);
+      if (lastFeedingRow) {
+        const lastTime  = new Date(JSON.parse(lastFeedingRow.data).timestamp).getTime();
+        const lastNotif = prefs?.last_feeding_notif_at ? new Date(prefs.last_feeding_notif_at).getTime() : 0;
+        if (now - lastTime > feedingMs && now - lastNotif > feedingMs) {
+          sendPushToAccount(account_id, {
+            title: `${name} tiene que comer`,
+            body: `Lleva ${duracion(now - lastTime)} sin tomar`,
+            tag: `feeding-${babyId}`,
+          });
+          db.prepare(`UPDATE notification_prefs SET last_feeding_notif_at = ? WHERE account_id = ? AND baby_id = ?`)
+            .run(new Date().toISOString(), account_id, babyId);
+        }
+      }
+
+      // Descanso (bebé lleva demasiado tiempo despierto)
+      const lastRestRow = db.prepare(
+        `SELECT data FROM rests WHERE baby_id = ? ORDER BY json_extract(data, '$.startTime') DESC LIMIT 1`
+      ).get(babyId);
+      if (lastRestRow) {
+        const rest = JSON.parse(lastRestRow.data);
+        if (rest.endTime) {
+          const awakeMs   = now - new Date(rest.endTime).getTime();
+          const lastNotif = prefs?.last_rest_notif_at ? new Date(prefs.last_rest_notif_at).getTime() : 0;
+          if (awakeMs > restMs && now - lastNotif > restMs) {
+            sendPushToAccount(account_id, {
+              title: `${name} necesita dormir`,
+              body: `Lleva ${duracion(awakeMs)} despierto/a`,
+              tag: `rest-${babyId}`,
+            });
+            db.prepare(`UPDATE notification_prefs SET last_rest_notif_at = ? WHERE account_id = ? AND baby_id = ?`)
+              .run(new Date().toISOString(), account_id, babyId);
+          }
+        }
+      }
+
+      // Masajes frenectomía
+      if (baby.frenectomyEnabled && baby.frenectomyDate) {
+        const frenEnd = new Date(baby.frenectomyDate + 'T12:00:00');
+        frenEnd.setDate(frenEnd.getDate() + 21);
+        if (now < frenEnd.getTime()) {
+          const today    = new Date().toISOString().slice(0, 10);
+          const slots    = getRecommendedMassageTimes(baby.frenectomyStartTime ?? '08:30', baby.frenectomyEndTime ?? '22:30');
+          const nowMin   = new Date().getHours() * 60 + new Date().getMinutes();
+          const thresholdMins = prefs?.massage_threshold_mins ?? 15;
+          const doneCount = db.prepare(
+            `SELECT COUNT(*) AS n FROM massages WHERE baby_id = ? AND json_extract(data, '$.date') = ?`
+          ).get(babyId, today).n;
+
+          if (doneCount < 5) {
+            let overdueSlot = -1;
+            for (let i = doneCount; i < 5; i++) {
+              if (nowMin >= slots[i] + thresholdMins) overdueSlot = i;
+              else break;
+            }
+            if (overdueSlot >= 0) {
+              const slotIntervalMins = (slots[4] - slots[0]) / 4;
+              const lastNotif      = prefs?.last_massage_notif_at;
+              const lastNotifDate  = lastNotif ? new Date(lastNotif).toISOString().slice(0, 10) : '';
+              const lastNotifMin   = lastNotif ? new Date(lastNotif).getHours() * 60 + new Date(lastNotif).getMinutes() : -9999;
+              const minsSinceNotif = lastNotifDate === today ? nowMin - lastNotifMin : 9999;
+
+              if (minsSinceNotif >= slotIntervalMins / 2) {
+                const slotMin = slots[overdueSlot];
+                const slotStr = `${String(Math.floor(slotMin / 60)).padStart(2, '0')}:${String(slotMin % 60).padStart(2, '0')}`;
+                sendPushToAccount(account_id, {
+                  title: `${name} necesita el masaje`,
+                  body: `Masaje ${overdueSlot + 1} de 5 — previsto a las ${slotStr}`,
+                  tag: `massage-${babyId}`,
+                });
+                db.prepare(`UPDATE notification_prefs SET last_massage_notif_at = ? WHERE account_id = ? AND baby_id = ?`)
+                  .run(new Date().toISOString(), account_id, babyId);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+setInterval(checkNotifications, 60 * 1000);
 
 // ── Static frontend (production build) ────────────────────────────────────────
 

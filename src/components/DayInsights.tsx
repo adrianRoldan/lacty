@@ -1,5 +1,5 @@
 import type { Feeding, Rest } from '../types';
-import type { FeedingReference } from '../data/referenceTable';
+import type { FeedingReference, SleepReference } from '../data/referenceTable';
 import {
   getTotalSupplementMl,
   getTotalEstimatedBreastMl,
@@ -13,6 +13,11 @@ interface Props {
   feedings: Feeding[];
   rests: Rest[];
   reference: FeedingReference | null;
+  sleepRef: SleepReference | null;
+  // Minutos de sueño de hoy, calculados una sola vez en DailySummary
+  // (incluye el tramo de hoy de sueños que cruzan medianoche). Se reutiliza
+  // aquí para que coincida con la tarjeta de estadísticas.
+  todayRestMinutes: number;
 }
 
 // Semaphore levels for the progress bars
@@ -42,51 +47,67 @@ const LEVEL_LABELS: Record<Level, string> = {
   over:  'superado',
 };
 
-export default function DayInsights({ feedings, rests, reference }: Props) {
+export default function DayInsights({ feedings, rests, reference, sleepRef, todayRestMinutes }: Props) {
   const totalMl = getTotalSupplementMl(feedings) + getTotalEstimatedBreastMl(feedings);
   const totalFeedings = feedings.length;
   const avgGap = getAvgGapMinutes(feedings);
   const avgMl = getAvgSupplementMl(feedings);
   const avgRest = getAvgRestMinutes(rests);
+  const totalRestToday = todayRestMinutes;
 
   const hasAnyData = totalFeedings > 0 || rests.length > 0;
   if (!hasAnyData) return null;
 
   return (
     <div className="space-y-3 mb-6">
-      {/* Progress: tomas y ml (only when reference available) */}
-      {reference && (
+      {/* Progress: tomas, ml y sueño */}
+      {(reference || sleepRef) && (
         <div className="bg-white rounded-2xl p-4 shadow-sm space-y-4">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
             Progreso del día
           </h3>
 
-          <ProgressRow
-            label="Tomas"
-            value={totalFeedings}
-            unit="tomas"
-            refMin={reference.feedsPerDayMin}
-            refMax={reference.feedsPerDayMax}
-            formatValue={(v) => String(v)}
-          />
+          {reference && (
+            <ProgressRow
+              label="Tomas"
+              value={totalFeedings}
+              refMin={reference.feedsPerDayMin}
+              refMax={reference.feedsPerDayMax}
+              formatValue={(v) => String(v)}
+            />
+          )}
 
-          <ProgressRow
-            label="Mililitros totales"
-            value={totalMl}
-            unit="ml"
-            refMin={reference.dailyMlMin ?? reference.mlPerFeedMin * reference.feedsPerDayMin}
-            refMax={reference.dailyMlMax ?? reference.mlPerFeedMax * reference.feedsPerDayMax}
-            formatValue={(v) => `${v} ml`}
-          />
+          {reference && (
+            <ProgressRow
+              label="Mililitros totales"
+              value={totalMl}
+              refMin={reference.dailyMlMin ?? reference.mlPerFeedMin * reference.feedsPerDayMin}
+              refMax={reference.dailyMlMax ?? reference.mlPerFeedMax * reference.feedsPerDayMax}
+              formatValue={(v) => `${v} ml`}
+            />
+          )}
 
-          <p className="text-xs text-gray-400 leading-relaxed">
-            ℹ️ Incluye jeringa-dedo (medido) + pecho estimado (~). El estimado de pecho es un promedio orientativo, no una medición real.
-          </p>
+          {sleepRef && (
+            <ProgressRow
+              label="Sueño"
+              value={totalRestToday}
+              refMin={sleepRef.sleepHoursMin * 60}
+              refMax={sleepRef.sleepHoursMax * 60}
+              refLabel={`${sleepRef.sleepHoursMin}–${sleepRef.sleepHoursMax} h`}
+              formatValue={(v) => formatMinutes(v)}
+            />
+          )}
+
+          {reference && (
+            <p className="text-xs text-gray-400 leading-relaxed">
+              ℹ️ Los ml incluyen jeringa-dedo (medido) + pecho estimado (~), un promedio orientativo. Las horas de sueño son orientativas por edad.
+            </p>
+          )}
         </div>
       )}
 
       {/* Averages */}
-      {(avgGap !== null || avgMl !== null || avgRest !== null) && (
+      {(avgGap !== null || avgMl !== null || avgRest !== null || totalRestToday > 0) && (
         <div className="bg-white rounded-2xl p-4 shadow-sm">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
             Medias del día
@@ -101,6 +122,12 @@ export default function DayInsights({ feedings, rests, reference }: Props) {
             {avgRest !== null && (
               <AverageRow icon="😴" label="Duración sueño" value={formatMinutes(avgRest)} />
             )}
+            {totalRestToday > 0 && (
+              <AverageRow icon="🌙" label="Sueño hoy" value={formatMinutes(totalRestToday)} />
+            )}
+            {rests.length > 0 && (
+              <AverageRow icon="🛏" label="Nº de sueños hoy" value={String(rests.length)} />
+            )}
           </div>
         </div>
       )}
@@ -109,14 +136,14 @@ export default function DayInsights({ feedings, rests, reference }: Props) {
 }
 
 function ProgressRow({
-  label, value, refMin, refMax, formatValue,
+  label, value, refMin, refMax, formatValue, refLabel,
 }: {
   label: string;
   value: number;
-  unit: string;
   refMin: number;
   refMax: number;
   formatValue: (v: number) => string;
+  refLabel?: string;
 }) {
   const level = getLevel(value, refMin, refMax);
   const colors = LEVEL_COLORS[level];
@@ -131,7 +158,7 @@ function ProgressRow({
         <span className="text-sm font-medium text-gray-700">{label}</span>
         <div className="flex items-center gap-2">
           <span className={`text-sm font-bold ${colors.text}`}>{formatValue(value)}</span>
-          <span className="text-xs text-gray-400">/ {refMin}–{refMax}</span>
+          <span className="text-xs text-gray-400">/ {refLabel ?? `${refMin}–${refMax}`}</span>
           <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${colors.bg} ${colors.text}`}>
             {LEVEL_LABELS[level]}
           </span>

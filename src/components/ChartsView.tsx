@@ -8,7 +8,8 @@ import {
 } from 'recharts';
 import type { Feeding, Rest, WeightEntry } from '../types';
 import { localDateOf, formatMinutes } from '../utils/dateUtils';
-import { getRestDurationMinutes } from '../utils/feedingUtils';
+import { getRestDurationMinutes, restMinutesOnDay } from '../utils/feedingUtils';
+import { useTheme } from '../theme';
 
 type Period = '7d' | '14d' | '30d';
 
@@ -45,6 +46,9 @@ function getDailyData(feedings: Feeding[], rests: Rest[], period: Period) {
     const avgRest   = dr.length > 0
       ? Math.round(dr.reduce((s, r) => s + (getRestDurationMinutes(r) ?? 0), 0) / dr.length)
       : undefined;
+    // Total de sueño del día: cada sueño aporta solo su tramo dentro del día
+    // (los que cruzan medianoche reparten minutos entre los dos días).
+    const totalRest = rests.reduce((s, r) => s + restMinutesOnDay(r, date), 0);
 
     return {
       date,
@@ -52,6 +56,7 @@ function getDailyData(feedings: Feeding[], rests: Rest[], period: Period) {
       ml:       ml > 0       ? ml        : undefined,
       breastMin: breastMin > 0 ? breastMin : undefined,
       avgRest,
+      totalRest: totalRest > 0 ? totalRest : undefined,
       tomas:    df.length > 0 ? df.length : undefined,
     };
   });
@@ -113,6 +118,8 @@ const TICK_STYLE = { fontSize: 10, fill: '#9ca3af' };
 // ── Charts ────────────────────────────────────────────────────────────────────
 
 export default function ChartsView({ feedings, rests, weights }: Props) {
+  const { theme } = useTheme();
+  const gridStroke = theme === 'dark' ? '#2b2f29' : '#f3f4f6';
   const [period, setPeriod] = useState<Period>('14d');
   const daily = getDailyData(feedings, rests, period);
 
@@ -123,6 +130,7 @@ export default function ChartsView({ feedings, rests, weights }: Props) {
   const hasMl       = daily.some(d => d.ml != null);
   const hasBreast   = daily.some(d => d.breastMin != null);
   const hasRest     = daily.some(d => d.avgRest != null);
+  const hasTotalRest = daily.some(d => d.totalRest != null);
   const hasTomas    = daily.some(d => d.tomas != null);
   const hasWeight   = weightData.length >= 2;
 
@@ -141,7 +149,7 @@ export default function ChartsView({ feedings, rests, weights }: Props) {
         ) : (
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={weightData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
               <XAxis dataKey="label" tick={TICK_STYLE} interval="preserveStartEnd" />
               <YAxis
                 tick={TICK_STYLE}
@@ -170,7 +178,7 @@ export default function ChartsView({ feedings, rests, weights }: Props) {
       <ChartSection title="🍼 Alimentación diaria" empty={!hasMl && !hasBreast}>
         <ResponsiveContainer width="100%" height={200}>
           <ComposedChart data={daily} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
             <XAxis dataKey="label" tick={TICK_STYLE} interval={tickInterval} />
             <YAxis tick={TICK_STYLE} />
             <Tooltip content={<ChartTooltip />} />
@@ -193,7 +201,7 @@ export default function ChartsView({ feedings, rests, weights }: Props) {
       <ChartSection title="🍼 Tomas por día" empty={!hasTomas}>
         <ResponsiveContainer width="100%" height={160}>
           <BarChart data={daily} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
             <XAxis dataKey="label" tick={TICK_STYLE} interval={tickInterval} />
             <YAxis tick={TICK_STYLE} allowDecimals={false} />
             <Tooltip content={<ChartTooltip unit=" tomas" />} />
@@ -202,11 +210,41 @@ export default function ChartsView({ feedings, rests, weights }: Props) {
         </ResponsiveContainer>
       </ChartSection>
 
+      {/* ── Sueño total por día ────────────────────────────────────── */}
+      <ChartSection title="🌙 Sueño total por día" empty={!hasTotalRest}>
+        <ResponsiveContainer width="100%" height={180}>
+          <ComposedChart data={daily} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+            <XAxis dataKey="label" tick={TICK_STYLE} interval={tickInterval} />
+            <YAxis
+              tick={TICK_STYLE}
+              tickFormatter={v => v >= 60 ? `${Math.floor(v / 60)}h` : `${v}m`}
+            />
+            <Tooltip
+              content={(props: any) => {
+                const { active, payload, label } = props;
+                if (!active || !payload?.length) return null;
+                return (
+                  <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-md text-xs">
+                    <p className="font-semibold text-gray-700 mb-1">{label}</p>
+                    <p style={{ color: '#7c3aed' }}>
+                      Total: <strong>{formatMinutes(payload[0].value)}</strong>
+                    </p>
+                  </div>
+                );
+              }}
+            />
+            <Bar dataKey="totalRest" name="Sueño total (min)" fill="#7c3aed" radius={[3, 3, 0, 0]} maxBarSize={24} />
+          </ComposedChart>
+        </ResponsiveContainer>
+        <p className="text-xs text-gray-400 text-center mt-2">Suma del día; los sueños que cruzan medianoche reparten sus minutos entre los dos días</p>
+      </ChartSection>
+
       {/* ── Sueño medio ────────────────────────────────────────────── */}
       <ChartSection title="😴 Sueño medio por día" empty={!hasRest}>
         <ResponsiveContainer width="100%" height={180}>
           <ComposedChart data={daily} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
             <XAxis dataKey="label" tick={TICK_STYLE} interval={tickInterval} />
             <YAxis
               tick={TICK_STYLE}

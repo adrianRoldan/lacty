@@ -15,22 +15,60 @@ export interface FeedingReference {
   isWeightBased?: boolean;
   dailyMlMin?: number;
   dailyMlMax?: number;
-  // Referencia de leche materna al pecho (ml/día) para estimación orientativa
-  // Fuente: datos de trabajo 502–725 ml/día para días 8–28
+  // Referencia de leche materna al pecho (ml/día) para estimación orientativa.
+  // Días 8–28: 502–725 ml/día. A partir del primer mes la producción se
+  // estabiliza en una meseta (~750–800 ml/día de media en LME), por lo que
+  // los días 29–90 usan 600–900 ml/día como rango orientativo.
   breastDailyMlMin?: number;
   breastDailyMlMax?: number;
+  // Sueño orientativo por EDAD (no depende del peso).
+  // Fuente: guías habituales (National Sleep Foundation / AASM).
+  sleepHoursMin?: number;
+  sleepHoursMax?: number;
+  // Ventana de vigilia máxima: minutos despierto antes de que toque dormir.
+  awakeWindowMaxMin?: number;
 }
 
 export const FEEDING_REFERENCE: FeedingReference[] = [
-  { dayFrom: 1,  dayTo: 1,  mlPerFeedMin: 5,   mlPerFeedMax: 10,  feedsPerDayMin: 8, feedsPerDayMax: 12 },
-  { dayFrom: 2,  dayTo: 2,  mlPerFeedMin: 10,  mlPerFeedMax: 20,  feedsPerDayMin: 8, feedsPerDayMax: 12 },
-  { dayFrom: 3,  dayTo: 3,  mlPerFeedMin: 20,  mlPerFeedMax: 30,  feedsPerDayMin: 8, feedsPerDayMax: 12 },
-  { dayFrom: 4,  dayTo: 7,  mlPerFeedMin: 30,  mlPerFeedMax: 60,  feedsPerDayMin: 8, feedsPerDayMax: 12 },
-  { dayFrom: 8,  dayTo: 14, mlPerFeedMin: 60,  mlPerFeedMax: 90,  feedsPerDayMin: 8, feedsPerDayMax: 12, breastDailyMlMin: 502, breastDailyMlMax: 725 },
-  { dayFrom: 15, dayTo: 28, mlPerFeedMin: 80,  mlPerFeedMax: 120, feedsPerDayMin: 8, feedsPerDayMax: 10, breastDailyMlMin: 502, breastDailyMlMax: 725 },
-  { dayFrom: 29, dayTo: 60, mlPerFeedMin: 100, mlPerFeedMax: 150, feedsPerDayMin: 7, feedsPerDayMax: 9  },
-  { dayFrom: 61, dayTo: 90, mlPerFeedMin: 120, mlPerFeedMax: 180, feedsPerDayMin: 6, feedsPerDayMax: 8  },
+  { dayFrom: 1,  dayTo: 1,  mlPerFeedMin: 5,   mlPerFeedMax: 10,  feedsPerDayMin: 8, feedsPerDayMax: 12, sleepHoursMin: 14, sleepHoursMax: 18, awakeWindowMaxMin: 60 },
+  { dayFrom: 2,  dayTo: 2,  mlPerFeedMin: 10,  mlPerFeedMax: 20,  feedsPerDayMin: 8, feedsPerDayMax: 12, sleepHoursMin: 14, sleepHoursMax: 18, awakeWindowMaxMin: 60 },
+  { dayFrom: 3,  dayTo: 3,  mlPerFeedMin: 20,  mlPerFeedMax: 30,  feedsPerDayMin: 8, feedsPerDayMax: 12, sleepHoursMin: 14, sleepHoursMax: 18, awakeWindowMaxMin: 60 },
+  { dayFrom: 4,  dayTo: 7,  mlPerFeedMin: 30,  mlPerFeedMax: 60,  feedsPerDayMin: 8, feedsPerDayMax: 12, sleepHoursMin: 14, sleepHoursMax: 18, awakeWindowMaxMin: 60 },
+  { dayFrom: 8,  dayTo: 14, mlPerFeedMin: 60,  mlPerFeedMax: 90,  feedsPerDayMin: 8, feedsPerDayMax: 12, breastDailyMlMin: 502, breastDailyMlMax: 725, sleepHoursMin: 14, sleepHoursMax: 18, awakeWindowMaxMin: 60 },
+  { dayFrom: 15, dayTo: 28, mlPerFeedMin: 80,  mlPerFeedMax: 120, feedsPerDayMin: 8, feedsPerDayMax: 10, breastDailyMlMin: 502, breastDailyMlMax: 725, sleepHoursMin: 14, sleepHoursMax: 18, awakeWindowMaxMin: 60 },
+  { dayFrom: 29, dayTo: 60, mlPerFeedMin: 100, mlPerFeedMax: 150, feedsPerDayMin: 7, feedsPerDayMax: 9,  breastDailyMlMin: 600, breastDailyMlMax: 900, sleepHoursMin: 14, sleepHoursMax: 17, awakeWindowMaxMin: 90 },
+  { dayFrom: 61, dayTo: 90, mlPerFeedMin: 120, mlPerFeedMax: 180, feedsPerDayMin: 6, feedsPerDayMax: 8,  breastDailyMlMin: 600, breastDailyMlMax: 900, sleepHoursMin: 13, sleepHoursMax: 16, awakeWindowMaxMin: 120 },
 ];
+
+// Referencia de sueño para edades fuera de la tabla (>3 meses): orientativa.
+export const SLEEP_REFERENCE_FALLBACK = {
+  sleepHoursMin: 12,
+  sleepHoursMax: 15,
+  awakeWindowMaxMin: 180,
+};
+
+export interface SleepReference {
+  sleepHoursMin: number;
+  sleepHoursMax: number;
+  awakeWindowMaxMin: number;
+}
+
+/**
+ * Devuelve la referencia de sueño orientativa para un día de vida dado.
+ * El sueño se guía por edad (no por peso). Usa la tabla por tramos y, para
+ * edades fuera de rango (>90 días), un fallback orientativo.
+ */
+export function getSleepReference(daysOfLife: number): SleepReference {
+  const row = getReferenceForDay(daysOfLife);
+  if (row?.sleepHoursMin != null && row.sleepHoursMax != null && row.awakeWindowMaxMin != null) {
+    return {
+      sleepHoursMin: row.sleepHoursMin,
+      sleepHoursMax: row.sleepHoursMax,
+      awakeWindowMaxMin: row.awakeWindowMaxMin,
+    };
+  }
+  return { ...SLEEP_REFERENCE_FALLBACK };
+}
 
 export function getReferenceForDay(daysOfLife: number): FeedingReference | null {
   return FEEDING_REFERENCE.find(
