@@ -1,4 +1,4 @@
-import type { BabyConfig, Feeding, Rest, WeightEntry, VitaminDLog, ProbioticLog, MassageLog, Consultation, CalendarEvent } from '../types';
+import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange } from '../types';
 
 const BASE = '/api';
 
@@ -29,14 +29,26 @@ async function json<T>(res: Response): Promise<T> {
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
-export interface AuthUser { username: string; accountId: string; }
+export interface AuthUser { username: string; accountId: string; role: 'admin' | 'user'; familyRole: 'owner' | 'editor' | 'viewer'; }
+
+export interface AdminUserInfo {
+  id: string;
+  username: string;
+  role: string;
+  accountId: string;
+  accountName?: string;
+  inviteCode?: string;
+  createdAt: string;
+  lastLoginAt?: string;
+  babies: { id: string; name: string; birthDate?: string }[];
+}
 
 export async function checkAuth(): Promise<AuthUser | null> {
   try {
     const res = await fetch(`${BASE}/auth/me`, { credentials: 'include' });
     if (!res.ok) return null;
     const data = await res.json();
-    return { username: data.username, accountId: data.accountId };
+    return { username: data.username, accountId: data.accountId, role: data.role ?? 'user', familyRole: data.familyRole ?? 'editor' };
   } catch {
     return null;
   }
@@ -54,7 +66,7 @@ export async function login(username: string, password: string): Promise<AuthUse
     throw new Error(err.error ?? 'Error al iniciar sesión');
   }
   const data = await res.json();
-  return { username: data.username, accountId: data.accountId };
+  return { username: data.username, accountId: data.accountId, role: data.role ?? 'user', familyRole: data.familyRole ?? 'editor' };
 }
 
 export async function signup(opts: { username: string; password: string; babyName?: string; inviteCode?: string }): Promise<AuthUser> {
@@ -69,10 +81,10 @@ export async function signup(opts: { username: string; password: string; babyNam
     throw new Error(err.error ?? 'Error al crear la cuenta');
   }
   const data = await res.json();
-  return { username: data.username, accountId: data.accountId };
+  return { username: data.username, accountId: data.accountId, role: data.role ?? 'user', familyRole: data.familyRole ?? 'editor' };
 }
 
-export interface AccountMember { id: string; username: string; isAdmin: boolean; isMe: boolean; }
+export interface AccountMember { id: string; username: string; isAdmin: boolean; isMe: boolean; familyRole: 'owner' | 'editor' | 'viewer'; }
 export interface AccountInfo {
   id: string;
   name: string | null;
@@ -100,6 +112,15 @@ export async function removeMember(userId: string): Promise<void> {
 
 export async function leaveAccount(): Promise<void> {
   const res = await fetch(`${BASE}/account/leave`, { method: 'POST', headers: { 'X-Client-Id': CLIENT_ID } });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Error');
+}
+
+export async function setMemberFamilyRole(userId: string, familyRole: 'editor' | 'viewer'): Promise<void> {
+  const res = await fetch(`${BASE}/account/members/${userId}/role`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Client-Id': CLIENT_ID },
+    body: JSON.stringify({ familyRole }),
+  });
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Error');
 }
 
@@ -237,6 +258,58 @@ export async function deleteWeight(id: string): Promise<void> {
   await fetch(`${BASE}/weights/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
+// ── Heights ───────────────────────────────────────────────────────────────────
+
+export async function getHeights(): Promise<HeightEntry[]> {
+  return json(await fetch(`${BASE}/heights`, { headers: babyHeaders() }));
+}
+
+export async function createHeight(entry: HeightEntry): Promise<HeightEntry> {
+  return json(await fetch(`${BASE}/heights`, {
+    method: 'POST',
+    headers: mutHeaders(),
+    body: JSON.stringify(entry),
+  }));
+}
+
+export async function updateHeight(entry: HeightEntry): Promise<HeightEntry> {
+  return json(await fetch(`${BASE}/heights/${entry.id}`, {
+    method: 'PUT',
+    headers: mutHeaders(),
+    body: JSON.stringify(entry),
+  }));
+}
+
+export async function deleteHeight(id: string): Promise<void> {
+  await fetch(`${BASE}/heights/${id}`, { method: 'DELETE', headers: mutHeaders() });
+}
+
+// ── Perímetro craneal ─────────────────────────────────────────────────────────
+
+export async function getHeadCircs(): Promise<HeadCircEntry[]> {
+  return json(await fetch(`${BASE}/headcircs`, { headers: babyHeaders() }));
+}
+
+export async function createHeadCirc(entry: HeadCircEntry): Promise<HeadCircEntry> {
+  return json(await fetch(`${BASE}/headcircs`, {
+    method: 'POST',
+    headers: mutHeaders(),
+    body: JSON.stringify(entry),
+  }));
+}
+
+export async function updateHeadCirc(entry: HeadCircEntry): Promise<HeadCircEntry> {
+  return json(await fetch(`${BASE}/headcircs/${entry.id}`, {
+    method: 'PUT',
+    headers: mutHeaders(),
+    body: JSON.stringify(entry),
+  }));
+}
+
+export async function deleteHeadCirc(id: string): Promise<void> {
+  await fetch(`${BASE}/headcircs/${id}`, { method: 'DELETE', headers: mutHeaders() });
+}
+
 // ── Vitamina D3 ───────────────────────────────────────────────────────────────
 
 export async function getVitaminDLogs(): Promise<VitaminDLog[]> {
@@ -298,6 +371,42 @@ export async function deleteMassageLog(id: string): Promise<void> {
   await fetch(`${BASE}/massages/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
+// ── Hitos del desarrollo ─────────────────────────────────────────────────────
+
+export async function getMilestones(): Promise<MilestoneLog[]> {
+  return json(await fetch(`${BASE}/milestones`, { headers: babyHeaders() }));
+}
+
+export async function saveMilestone(log: MilestoneLog): Promise<MilestoneLog> {
+  return json(await fetch(`${BASE}/milestones`, {
+    method: 'POST',
+    headers: mutHeaders(),
+    body: JSON.stringify(log),
+  }));
+}
+
+export async function deleteMilestone(id: string): Promise<void> {
+  await fetch(`${BASE}/milestones/${id}`, { method: 'DELETE', headers: mutHeaders() });
+}
+
+// ── Vacunas ──────────────────────────────────────────────────────────────────
+
+export async function getVaccines(): Promise<VaccineLog[]> {
+  return json(await fetch(`${BASE}/vaccines`, { headers: babyHeaders() }));
+}
+
+export async function saveVaccine(log: VaccineLog): Promise<VaccineLog> {
+  return json(await fetch(`${BASE}/vaccines`, {
+    method: 'POST',
+    headers: mutHeaders(),
+    body: JSON.stringify(log),
+  }));
+}
+
+export async function deleteVaccine(id: string): Promise<void> {
+  await fetch(`${BASE}/vaccines/${id}`, { method: 'DELETE', headers: mutHeaders() });
+}
+
 // ── Consultas ─────────────────────────────────────────────────────────────────
 
 export async function getConsultations(): Promise<Consultation[]> {
@@ -350,6 +459,32 @@ export async function deleteCalendarEvent(id: string): Promise<void> {
   await fetch(`${BASE}/calendar/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
+// ── Admin ─────────────────────────────────────────────────────────────────────
+
+export async function getAdminUsers(): Promise<AdminUserInfo[]> {
+  return json(await fetch(`${BASE}/admin/users`, { credentials: 'include' }));
+}
+
+export async function setUserRole(userId: string, role: string): Promise<void> {
+  await fetch(`${BASE}/admin/users/${userId}/role`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ role }),
+  });
+}
+
+export async function deleteUser(userId: string): Promise<void> {
+  const res = await fetch(`${BASE}/admin/users/${userId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Error al eliminar');
+  }
+}
+
 // ── Push notifications ─────────────────────────────────────────────────────────
 
 export async function getPushVapidKey(): Promise<string> {
@@ -374,6 +509,32 @@ export async function deletePushSubscription(endpoint: string): Promise<void> {
     credentials: 'include',
     body: JSON.stringify({ endpoint }),
   });
+}
+
+// ── Pañales ───────────────────────────────────────────────────────────────────
+
+export async function getDiapers(): Promise<DiaperChange[]> {
+  return json(await fetch(`${BASE}/diapers`, { headers: babyHeaders() }));
+}
+
+export async function createDiaper(d: DiaperChange): Promise<DiaperChange> {
+  return json(await fetch(`${BASE}/diapers`, {
+    method: 'POST',
+    headers: mutHeaders(),
+    body: JSON.stringify(d),
+  }));
+}
+
+export async function updateDiaper(d: DiaperChange): Promise<DiaperChange> {
+  return json(await fetch(`${BASE}/diapers/${d.id}`, {
+    method: 'PUT',
+    headers: mutHeaders(),
+    body: JSON.stringify(d),
+  }));
+}
+
+export async function deleteDiaper(id: string): Promise<void> {
+  await fetch(`${BASE}/diapers/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 export interface NotificationPrefs {

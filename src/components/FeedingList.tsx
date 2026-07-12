@@ -1,22 +1,24 @@
 import { useState } from 'react';
-import type { Feeding, Rest, TimelineItem, WeightEntry, VitaminDLog, ProbioticLog, MassageLog } from '../types';
+import type { Feeding, Rest, TimelineItem, VitaminDLog, ProbioticLog, MassageLog, DiaperChange } from '../types';
+import { BreastIcon } from './FeedingItem';
+import { DiaperIcon } from './DiaperItem';
 import { formatDate, formatDateShort, formatMinutes, gapMinutes, localDateOf } from '../utils/dateUtils';
 import {
   groupTimelineByDay,
   getTotalSupplementMl,
+  getTotalBottleMl,
   getTotalBreastMinutes,
   getTotalEstimatedBreastMl,
   getHistorySummary,
+  restMinutesOnDay,
 } from '../utils/feedingUtils';
 import FeedingItem from './FeedingItem';
 import RestItem from './RestItem';
-import { lazy, Suspense } from 'react';
-const ChartsView = lazy(() => import('./ChartsView'));
+import DiaperItem from './DiaperItem';
 
 interface Props {
   feedings: Feeding[];
   rests:    Rest[];
-  weights:  WeightEntry[];
   vitaminDLogs: VitaminDLog[];
   vitaminDEnabled: boolean;
   probioticLogs: ProbioticLog[];
@@ -24,15 +26,18 @@ interface Props {
   massageLogs: MassageLog[];
   frenectomyEnabled: boolean;
   frenectomyDate?: string;
+  readOnly?: boolean;
   onEditFeeding: (f: Feeding) => void;
   onEditRest:    (r: Rest) => void;
   onDeleteFeeding: (id: string) => void;
   onDeleteRest:    (id: string) => void;
+  diapers: DiaperChange[];
+  onEditDiaper: (d: DiaperChange) => void;
+  onDeleteDiaper: (id: string) => void;
 }
 
-type FilterType   = 'all' | 'feedings' | 'rests';
+type FilterType   = 'all' | 'feedings' | 'rests' | 'diapers';
 type FilterPeriod = 'all' | '7d' | '14d' | '30d';
-type MainView     = 'list' | 'charts';
 
 function morerecentFeedingTimestamp(items: TimelineItem[], index: number): string | null {
   for (let i = index - 1; i >= 0; i--) {
@@ -60,11 +65,13 @@ function monthLabel(key: string): string {
 }
 
 export default function FeedingList({
-  feedings, rests, weights, vitaminDLogs, vitaminDEnabled,
+  feedings, rests, vitaminDLogs, vitaminDEnabled,
   probioticLogs, probioticEnabled,
   massageLogs, frenectomyEnabled, frenectomyDate,
+  readOnly,
   onEditFeeding, onEditRest,
   onDeleteFeeding, onDeleteRest,
+  diapers, onEditDiaper, onDeleteDiaper,
 }: Props) {
   const vitaminDDates  = new Set(vitaminDLogs.map((l) => l.date));
   const probioticDates = new Set(probioticLogs.map((l) => l.date));
@@ -77,7 +84,6 @@ export default function FeedingList({
     const d = new Date(day + 'T12:00:00');
     return d >= frenectomyStart && d <= frenectomyEnd;
   }
-  const [mainView, setMainView]       = useState<MainView>('list');
   const [filterType, setFilterType]   = useState<FilterType>('all');
   const [filterPeriod, setFilterPeriod] = useState<FilterPeriod>('all');
 
@@ -98,10 +104,12 @@ export default function FeedingList({
   const periodRests     = rests.filter(r => !cutoff || localDateOf(r.startTime) >= cutoff);
   const summary = getHistorySummary(periodFeedings, periodRests);
 
-  const filteredFeedings = filterType === 'rests'    ? [] : periodFeedings;
-  const filteredRests    = filterType === 'feedings' ? [] : periodRests;
+  const periodDiapers = diapers.filter(d => !cutoff || localDateOf(d.timestamp) >= cutoff);
+  const filteredFeedings = (filterType === 'rests' || filterType === 'diapers')    ? [] : periodFeedings;
+  const filteredRests    = (filterType === 'feedings' || filterType === 'diapers') ? [] : periodRests;
+  const filteredDiapers  = (filterType === 'feedings' || filterType === 'rests')   ? [] : periodDiapers;
 
-  const groups = groupTimelineByDay(filteredFeedings, filteredRests);
+  const groups = groupTimelineByDay(filteredFeedings, filteredRests, filteredDiapers);
   const days   = Object.keys(groups).sort((a, b) => b.localeCompare(a));
 
   // Group days by month
@@ -113,7 +121,7 @@ export default function FeedingList({
   }
   const months = Object.keys(monthsMap).sort((a, b) => b.localeCompare(a));
 
-  if (feedings.length === 0 && rests.length === 0) {
+  if (feedings.length === 0 && rests.length === 0 && diapers.length === 0) {
     return (
       <div className="p-4 pb-24">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Historial</h1>
@@ -129,33 +137,9 @@ export default function FeedingList({
     <div className="p-4 pb-24">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Historial</h1>
-        <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
-          <button
-            onClick={() => setMainView('list')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-              mainView === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
-            }`}
-          >
-            Lista
-          </button>
-          <button
-            onClick={() => setMainView('charts')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-              mainView === 'charts' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
-            }`}
-          >
-            📈 Gráficas
-          </button>
-        </div>
       </div>
 
-      {mainView === 'charts' && (
-        <Suspense fallback={<div className="text-center py-12 text-gray-400 text-sm">Cargando gráficas…</div>}>
-          <ChartsView feedings={feedings} rests={rests} weights={weights} />
-        </Suspense>
-      )}
-
-      {mainView === 'list' && <>
+      <>
         {/* Resumen global */}
         {summary && (
           <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
@@ -166,7 +150,10 @@ export default function FeedingList({
             <div className="grid grid-cols-2 gap-x-6 gap-y-3">
               <SummaryRow icon="🍼" label="Tomas/día"      value={String(summary.avgFeedingsPerDay)} />
               {summary.avgBreastFeedsPerDay > 0 && (
-                <SummaryRow icon="🤱" label="Pecho/día"     value={`${summary.avgBreastFeedsPerDay} tomas`} />
+                <SummaryRow icon={<BreastIcon size={16} className="text-mustard-700" />} label="Pecho/día"     value={`${summary.avgBreastFeedsPerDay} tomas`} />
+              )}
+              {summary.avgBottleFeedsPerDay > 0 && (
+                <SummaryRow icon="🍼" label="Biberón/día"   value={`${summary.avgBottleFeedsPerDay} tomas`} />
               )}
               {summary.avgSyringeFeedsPerDay > 0 && (
                 <SummaryRow icon="💉" label="Jeringa/día"   value={`${summary.avgSyringeFeedsPerDay} tomas`} />
@@ -181,7 +168,7 @@ export default function FeedingList({
                 <SummaryRow icon="⏱" label="Min pecho/día" value={formatMinutes(summary.avgBreastMinPerDay)} />
               )}
               {summary.avgRestMinPerDay > 0 && (
-                <SummaryRow icon="😴" label="Sueño/día"     value={formatMinutes(summary.avgRestMinPerDay)} />
+                <SummaryRow icon="🌙" label="Sueño/día"     value={formatMinutes(summary.avgRestMinPerDay)} />
               )}
               {summary.avgSleepsPerDay > 0 && (
                 <SummaryRow icon="🛏" label="Nº sueños/día" value={String(summary.avgSleepsPerDay)} />
@@ -196,7 +183,7 @@ export default function FeedingList({
         {/* Filtros */}
         <div className="space-y-2 mb-5">
           <div className="flex gap-2">
-            {(['all', 'feedings', 'rests'] as FilterType[]).map((v) => (
+            {(['all', 'feedings', 'rests', 'diapers'] as FilterType[]).map((v) => (
               <button
                 key={v}
                 onClick={() => setFilterType(v)}
@@ -204,7 +191,9 @@ export default function FeedingList({
                   filterType === v ? 'bg-sage-600 text-white' : 'bg-white text-gray-500 shadow-sm'
                 }`}
               >
-                {v === 'all' ? 'Todo' : v === 'feedings' ? '🍼 Tomas' : '😴 Sueños'}
+                {v === 'all' ? 'Todo' : v === 'feedings' ? '🍼 Tomas' : v === 'rests' ? '🌙 Sueños' : (
+                  <span className="inline-flex items-center gap-1"><DiaperIcon size={14} /> Pañales</span>
+                )}
               </button>
             ))}
           </div>
@@ -240,7 +229,7 @@ export default function FeedingList({
                   .filter(i => i.type === 'feeding')
                   .map(i => i.data as Feeding)
               );
-              const monthTotalMl = getTotalSupplementMl(allDayFeedings) + getTotalEstimatedBreastMl(allDayFeedings);
+              const monthTotalMl = getTotalSupplementMl(allDayFeedings) + getTotalBottleMl(allDayFeedings) + getTotalEstimatedBreastMl(allDayFeedings);
               const monthAvgMl = monthDays.length > 0 ? Math.round(monthTotalMl / monthDays.length) : 0;
               const monthAvgFeedings = monthDays.length > 0
                 ? Math.round((allDayFeedings.length / monthDays.length) * 10) / 10
@@ -278,19 +267,28 @@ export default function FeedingList({
                         const dayFeedings = items
                           .filter((i): i is typeof i & { type: 'feeding' } => i.type === 'feeding')
                           .map((i) => i.data);
+                        const dayDiapers = items
+                          .filter((i): i is typeof i & { type: 'diaper' } => i.type === 'diaper')
+                          .map((i) => i.data);
+                        const dayWet = dayDiapers.filter(d => d.content === 'wet' || d.content === 'both').length;
+                        const dayDirty = dayDiapers.filter(d => d.content === 'dirty' || d.content === 'both').length;
                         const jeringaMl    = getTotalSupplementMl(dayFeedings);
+                        const biberonMl    = getTotalBottleMl(dayFeedings);
                         const estimatedMl  = getTotalEstimatedBreastMl(dayFeedings);
-                        const totalMl      = jeringaMl + estimatedMl;
+                        const totalMl      = jeringaMl + biberonMl + estimatedMl;
                         const totalMin     = getTotalBreastMinutes(dayFeedings);
                         const isoRef       = items[0].sortKey;
                         const mlFeedings   = dayFeedings.filter(
-                          f => (f.supplementMl != null && f.supplementMl > 0) || (f.breastEstimatedMl != null && f.breastEstimatedMl > 0)
+                          f => (f.supplementMl != null && f.supplementMl > 0) || (f.bottleMl != null && f.bottleMl > 0) || (f.breastEstimatedMl != null && f.breastEstimatedMl > 0)
                         );
                         const avgMlPerToma = mlFeedings.length > 0
                           ? Math.round(totalMl / mlFeedings.length)
                           : 0;
                         const breastCount  = dayFeedings.filter(f => f.hasBreast).length;
+                        const bottleCount  = dayFeedings.filter(f => f.hasBottle && (f.bottleMl ?? 0) > 0).length;
                         const syringeCount = dayFeedings.filter(f => f.hasSupplement && (f.supplementMl ?? 0) > 0).length;
+                        // Sueño del día (reparto por medianoche, sobre todos los sueños)
+                        const daySleepMin  = rests.reduce((s, r) => s + restMinutesOnDay(r, day), 0);
 
                         return (
                           <div key={day}>
@@ -302,11 +300,14 @@ export default function FeedingList({
                             </div>
                             <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-gray-400 mb-2">
                               {dayFeedings.length > 0 && <span>{dayFeedings.length} tomas</span>}
-                              {breastCount > 0 && <span className="text-pink-400">· 🤱 {breastCount}</span>}
+                              {breastCount > 0 && <span className="text-mustard-600 inline-flex items-center gap-0.5">· <BreastIcon size={12} /> {breastCount}</span>}
+                              {bottleCount > 0 && <span className="text-blue-500">· 🍼 {bottleCount}</span>}
                               {syringeCount > 0 && <span className="text-sage-500">· 💉 {syringeCount}</span>}
                               {totalMl > 0 && <span>· {totalMl} ml</span>}
                               {avgMlPerToma > 0 && <span>· {avgMlPerToma} ml/toma</span>}
                               {totalMin > 0 && <span>· {formatMinutes(totalMin)} pecho</span>}
+                              {daySleepMin > 0 && <span>· {formatMinutes(daySleepMin)} sueño</span>}
+                              {dayDiapers.length > 0 && <span className="text-sky-500">· 💧{dayWet} 💩{dayDirty}</span>}
                               {vitaminDEnabled && (
                                 vitaminDDates.has(day)
                                   ? <span className="text-green-600 font-medium">· 💊 ✓</span>
@@ -353,9 +354,11 @@ export default function FeedingList({
                                   <div key={item.data.id}>
                                     {gap !== null && <GapLine minutes={gap} />}
                                     {item.type === 'feeding' ? (
-                                      <FeedingItem feeding={item.data} onEdit={onEditFeeding} onDelete={onDeleteFeeding} />
+                                      <FeedingItem feeding={item.data} onEdit={onEditFeeding} onDelete={onDeleteFeeding} readOnly={readOnly} />
+                                    ) : item.type === 'rest' ? (
+                                      <RestItem rest={item.data} onEdit={onEditRest} onDelete={onDeleteRest} readOnly={readOnly} />
                                     ) : (
-                                      <RestItem rest={item.data} onEdit={onEditRest} onDelete={onDeleteRest} />
+                                      <DiaperItem diaper={item.data} onEdit={onEditDiaper} onDelete={onDeleteDiaper} readOnly={readOnly} />
                                     )}
                                   </div>
                                 );
@@ -371,12 +374,12 @@ export default function FeedingList({
             })}
           </div>
         )}
-      </>}
+      </>
     </div>
   );
 }
 
-function SummaryRow({ icon, label, value }: { icon: string; label: string; value: string }) {
+function SummaryRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-center gap-2">
       <span className="text-base leading-none">{icon}</span>

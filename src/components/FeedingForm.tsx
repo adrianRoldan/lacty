@@ -1,17 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Feeding } from '../types';
 import { generateId } from '../utils/feedingUtils';
 import { toLocalDatetimeInputValue } from '../utils/dateUtils';
+import { BreastIcon } from './FeedingItem';
 
 interface Props {
   onSave: (feeding: Feeding) => void;
   onCancel: () => void;
   existing?: Feeding | null;
+  preset?: 'bottle';
 }
 
 type NumField = number | '';
 
-export default function FeedingForm({ onSave, onCancel, existing }: Props) {
+export default function FeedingForm({ onSave, onCancel, existing, preset }: Props) {
   const [timestamp, setTimestamp] = useState(
     existing
       ? toLocalDatetimeInputValue(new Date(existing.timestamp))
@@ -20,10 +22,26 @@ export default function FeedingForm({ onSave, onCancel, existing }: Props) {
   const [hasBreast, setHasBreast] = useState(existing?.hasBreast ?? false);
   const [breastMinLeft, setBreastMinLeft] = useState<NumField>(existing?.breastMinLeft ?? '');
   const [breastMinRight, setBreastMinRight] = useState<NumField>(existing?.breastMinRight ?? '');
+  const [hasBottle, setHasBottle] = useState(existing?.hasBottle ?? (preset === 'bottle'));
+  const [bottleMl, setBottleMl] = useState<NumField>(existing?.bottleMl ?? '');
+  const [bottleType, setBottleType] = useState<'breast' | 'formula'>(existing?.bottleType ?? 'breast');
   const [hasSupplement, setHasSupplement] = useState(existing?.hasSupplement ?? false);
   const [supplementMl, setSupplementMl] = useState<NumField>(existing?.supplementMl ?? '');
   const [notes, setNotes] = useState(existing?.notes ?? '');
+  const [endTime, setEndTime] = useState(
+    existing?.endTime ? toLocalDatetimeInputValue(new Date(existing.endTime)) : ''
+  );
+  const [endTimeManual, setEndTimeManual] = useState(!!existing?.endTime);
+  const [showEndTime, setShowEndTime] = useState(false);
   const [error, setError] = useState('');
+
+  // Para pecho: hora fin siempre = inicio + minutos (prevalece sobre cualquier edición manual)
+  useEffect(() => {
+    if (!hasBreast) return;
+    const totalMin = (breastMinLeft !== '' ? Number(breastMinLeft) : 0) + (breastMinRight !== '' ? Number(breastMinRight) : 0);
+    if (totalMin <= 0) return;
+    setEndTime(toLocalDatetimeInputValue(new Date(new Date(timestamp).getTime() + totalMin * 60000)));
+  }, [breastMinLeft, breastMinRight, timestamp, hasBreast]);
 
   // Minutes elapsed from the form's start timestamp to now
   function elapsedMinutes(): number {
@@ -33,18 +51,29 @@ export default function FeedingForm({ onSave, onCancel, existing }: Props) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!hasBreast && !hasSupplement) {
-      setError('Indica al menos pecho o jeringa-dedo.');
+    if (!hasBreast && !hasBottle && !hasSupplement) {
+      setError('Indica al menos pecho, biberón o jeringa-dedo.');
       return;
     }
     setError('');
 
+    // Hora fin: pecho con minutos siempre calcula inicio+min (prevalece sobre edición manual)
+    // Para biberón/jeringa: solo si el usuario la introdujo manualmente
+    const totalBreastMin = (breastMinLeft !== '' ? Number(breastMinLeft) : 0) + (breastMinRight !== '' ? Number(breastMinRight) : 0);
+    const computedEndTime = (hasBreast && totalBreastMin > 0)
+      ? new Date(new Date(timestamp).getTime() + totalBreastMin * 60000).toISOString()
+      : (endTimeManual && endTime ? new Date(endTime).toISOString() : undefined);
+
     const feeding: Feeding = {
       id: existing?.id ?? generateId(),
       timestamp: new Date(timestamp).toISOString(),
+      ...(computedEndTime ? { endTime: computedEndTime } : {}),
       hasBreast,
       ...(hasBreast && breastMinLeft !== '' ? { breastMinLeft: Number(breastMinLeft) } : {}),
       ...(hasBreast && breastMinRight !== '' ? { breastMinRight: Number(breastMinRight) } : {}),
+      hasBottle,
+      ...(hasBottle && bottleMl !== '' ? { bottleMl: Number(bottleMl) } : {}),
+      ...(hasBottle ? { bottleType } : {}),
       hasSupplement,
       ...(hasSupplement && supplementMl !== '' ? { supplementMl: Number(supplementMl) } : {}),
       ...(notes.trim() ? { notes: notes.trim() } : {}),
@@ -80,7 +109,7 @@ export default function FeedingForm({ onSave, onCancel, existing }: Props) {
         {/* Pecho */}
         <div className="bg-white rounded-2xl p-4 shadow-sm">
           <ToggleRow
-            emoji="🤱"
+            emoji={<BreastIcon size={24} className="text-mustard-700" />}
             label="Pecho"
             on={hasBreast}
             onToggle={() => setHasBreast(!hasBreast)}
@@ -136,6 +165,47 @@ export default function FeedingForm({ onSave, onCancel, existing }: Props) {
           )}
         </div>
 
+        {/* Biberón */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <ToggleRow
+            emoji="🍼"
+            label="Biberón"
+            on={hasBottle}
+            onToggle={() => setHasBottle(!hasBottle)}
+          />
+          {hasBottle && (
+            <div className="mt-4 space-y-3">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBottleType('breast')}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold touch-manipulation transition-colors ${
+                    bottleType === 'breast' ? 'bg-pink-100 text-pink-700 ring-2 ring-pink-300' : 'bg-gray-100 text-gray-500'
+                  }`}
+                >
+                  <BreastIcon size={14} /> Leche materna
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBottleType('formula')}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold touch-manipulation transition-colors ${
+                    bottleType === 'formula' ? 'bg-amber-100 text-amber-700 ring-2 ring-amber-300' : 'bg-gray-100 text-gray-500'
+                  }`}
+                >
+                  🧪 Fórmula
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 text-center">Mililitros (opcional — puedes añadirlos al terminar)</p>
+              <NumInput
+                label=""
+                value={bottleMl}
+                max={300}
+                onChange={setBottleMl}
+              />
+            </div>
+          )}
+        </div>
+
         {/* Suplemento */}
         <div className="bg-white rounded-2xl p-4 shadow-sm">
           <ToggleRow
@@ -154,6 +224,28 @@ export default function FeedingForm({ onSave, onCancel, existing }: Props) {
                 onChange={setSupplementMl}
               />
             </div>
+          )}
+        </div>
+
+        {/* Hora fin (oculta por defecto) */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setShowEndTime((v) => !v)}
+            className="w-full flex items-center justify-between text-sm text-gray-500 touch-manipulation"
+          >
+            <span>Hora de fin</span>
+            <span className="text-sage-600 font-medium">
+              {showEndTime ? 'Ocultar' : endTime ? endTime.slice(11, 16) : 'Añadir ▾'}
+            </span>
+          </button>
+          {showEndTime && (
+            <input
+              type="datetime-local"
+              value={endTime}
+              onChange={(e) => { setEndTime(e.target.value); setEndTimeManual(true); }}
+              className="mt-3 w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-600"
+            />
           )}
         </div>
 
@@ -185,7 +277,7 @@ export default function FeedingForm({ onSave, onCancel, existing }: Props) {
 function ToggleRow({
   emoji, label, on, onToggle,
 }: {
-  emoji: string; label: string; on: boolean; onToggle: () => void;
+  emoji: React.ReactNode; label: string; on: boolean; onToggle: () => void;
 }) {
   return (
     <button

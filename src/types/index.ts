@@ -1,6 +1,7 @@
 export interface BabyConfig {
   id: string;
   name?: string;
+  sex?: 'male' | 'female';
   birthDate?: string;        // YYYY-MM-DD — fecha de nacimiento (preferida para calcular la edad)
   daysOfLifeAtSetup: number; // legacy: usado si no hay birthDate
   setupDate: string;
@@ -41,13 +42,24 @@ export interface WeightEntry {
   notes?: string;
 }
 
+export interface HeightEntry {
+  id: string;
+  date: string;     // ISO date "YYYY-MM-DD"
+  heightCm: number;
+  notes?: string;
+}
+
 export interface Feeding {
   id: string;
   timestamp: string;
+  endTime?: string;           // ISO — hora fin de la toma
   hasBreast: boolean;
   breastMinLeft?: number;
   breastMinRight?: number;
   breastEstimatedMl?: number; // ml estimados al pecho según referencia — solo en tomas nuevas
+  hasBottle?: boolean;
+  bottleMl?: number;
+  bottleType?: 'breast' | 'formula';
   hasSupplement: boolean;
   supplementMl?: number;
   notes?: string;
@@ -60,9 +72,44 @@ export interface Rest {
   notes?: string;
 }
 
+export interface MilestoneLog {
+  id: string;          // same as milestone id (m0-1, m1-3, etc.)
+  achievedAt: string;  // ISO timestamp
+  notes?: string;
+}
+
+export interface HeadCircEntry {
+  id: string;
+  date: string;     // ISO date "YYYY-MM-DD"
+  headCm: number;
+  notes?: string;
+}
+
+export interface VaccineLog {
+  id: string;          // same as vaccine entry id (hexa-1, vnc-2, etc.)
+  date: string;        // YYYY-MM-DD — fecha de administración
+  notes?: string;
+}
+
+export type DiaperContent = 'wet' | 'dirty' | 'both' | 'dry';
+export type PoopColor = 'yellow' | 'brown' | 'green' | 'orange' | 'black' | 'red' | 'white';
+export type PoopConsistency = 'liquid' | 'soft' | 'pasty' | 'solid';
+export type PoopAmount = 'little' | 'normal' | 'much';
+
+export interface DiaperChange {
+  id: string;
+  timestamp: string;
+  content: DiaperContent;
+  poopColor?: PoopColor;
+  poopConsistency?: PoopConsistency;
+  poopAmount?: PoopAmount;
+  notes?: string;
+}
+
 export type TimelineItem =
   | { type: 'feeding'; data: Feeding; sortKey: string }
-  | { type: 'rest'; data: Rest; sortKey: string };
+  | { type: 'rest'; data: Rest; sortKey: string }
+  | { type: 'diaper'; data: DiaperChange; sortKey: string };
 
 export type EventCategory = 'pediatra' | 'matrona' | 'fisio' | 'vacuna' | 'analisis' | 'revision' | 'otro';
 

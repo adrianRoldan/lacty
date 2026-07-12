@@ -19,6 +19,30 @@
   --color-wood-400: #C4A47C;
   --color-wood-600: #9B7A52;
 
+  /* Mostaza — tomas */
+  --color-mustard-100: #F5E6C4;
+  --color-mustard-200: #E8CF96;
+  --color-mustard-300: #D4AD4A;
+  --color-mustard-600: #B08C1E;
+  --color-mustard-700: #8A6E18;
+  --color-mustard-800: #635012;
+
+  /* Coral — tomas */
+  --color-coral-100: #FDE0D8;
+  --color-coral-200: #F9BFB0;
+  --color-coral-300: #F0907A;
+  --color-coral-600: #E05A3E;
+  --color-coral-700: #C04530;
+  --color-coral-800: #8E3225;
+
+  /* Blue lagoon — sueño */
+  --color-lagoon-100: #D4EEF0;
+  --color-lagoon-200: #A8DDE2;
+  --color-lagoon-300: #5BBCC6;
+  --color-lagoon-600: #1A8A96;
+  --color-lagoon-700: #14707A;
+  --color-lagoon-800: #0E535B;
+
   /* Taupe cálido — del carrito Inglesina */
   --color-taupe-50:  #F2EDEA;
   --color-taupe-100: #E1D8D4;
@@ -73,8 +97,8 @@
   --color-taupe-800: #d8ccc4;
 
   /* Acentos por defecto de Tailwind: tintes (-50/100) oscuros, texto (-600/700/800) claro */
-  --color-pink-50:  #2a141d;
-  --color-pink-100: #371a26;
+  --color-pink-50:  #35192a;
+  --color-pink-100: #3f1f33;
   --color-pink-200: #4d2536;
   --color-pink-600: #f472a6;
   --color-pink-700: #f9a8c8;
@@ -102,8 +126,8 @@
   --color-amber-800: #fde68a;
   --color-amber-900: #fef3c7;
 
-  --color-blue-50:  #122031;
-  --color-blue-100: #182a40;
+  --color-blue-50:  #19253d;
+  --color-blue-100: #1f2f4c;
   --color-blue-200: #1f3a5c;
   --color-blue-300: #2b5184;
   --color-blue-600: #60a5fa;
@@ -116,7 +140,33 @@
   --color-orange-600: #fb923c;
   --color-orange-800: #fed7aa;
 
-  --color-purple-100: #241433;
+  --color-mustard-100: #2d2510;
+  --color-mustard-200: #3f3518;
+  --color-mustard-300: #6b5a24;
+  --color-mustard-700: #f0d56a;
+
+  --color-coral-100: #351a15;
+  --color-coral-200: #4a2520;
+  --color-coral-300: #7a3a2e;
+  --color-coral-700: #f9a090;
+
+  --color-lagoon-100: #0f2a2d;
+  --color-lagoon-200: #153a3e;
+  --color-lagoon-300: #1a6b6b;
+  --color-lagoon-700: #67e0e8;
+
+  --color-cyan-100: #0f2d30;
+  --color-cyan-300: #1a6b6b;
+  --color-cyan-600: #22d3ee;
+  --color-cyan-700: #67e8f9;
+
+  --color-indigo-100: #1a1a3d;
+  --color-indigo-300: #4338ca;
+  --color-indigo-600: #818cf8;
+  --color-indigo-700: #a5b4fc;
+
+  --color-purple-50:  #251538;
+  --color-purple-100: #2f1c45;
   --color-purple-300: #6b3a9e;
   --color-purple-700: #c084fc;
 }
@@ -172,4 +222,17 @@ button, [role="button"] {
 }
 .animate-toast-in {
   animation: toast-in 0.2s ease-out;
+}
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+.animate-slide-in {
+  animation: slide-in 0.2s ease-out;
 }

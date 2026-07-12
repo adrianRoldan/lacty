@@ -13,7 +13,8 @@ import webpush from 'web-push';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3001;
-const DB_PATH = process.env.DB_PATH || join(__dirname, 'lacty.db');
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+const DB_PATH = process.env.DB_PATH || join(DATA_DIR, 'lacty.db');
 
 const newId = () => randomBytes(9).toString('base64url');
 const newInvite = () => Array.from({ length: 6 }, () => 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 31)]).join('');
@@ -22,7 +23,7 @@ const newInvite = () => Array.from({ length: 6 }, () => 'ABCDEFGHJKMNPQRSTUVWXYZ
 // una sola vez (nunca hardcodeado ni en el repositorio).
 function getSessionSecret() {
   if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
-  const f = join(__dirname, '.session-secret');
+  const f = join(DATA_DIR, '.session-secret');
   if (existsSync(f)) return readFileSync(f, 'utf-8').trim();
   const secret = randomBytes(32).toString('hex');
   writeFileSync(f, secret, { mode: 0o600 });
@@ -33,7 +34,7 @@ function getVapidKeys() {
   if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
     return { publicKey: process.env.VAPID_PUBLIC_KEY, privateKey: process.env.VAPID_PRIVATE_KEY };
   }
-  const f = join(__dirname, '.vapid-keys.json');
+  const f = join(DATA_DIR, '.vapid-keys.json');
   if (existsSync(f)) return JSON.parse(readFileSync(f, 'utf-8'));
   const keys = webpush.generateVAPIDKeys();
   writeFileSync(f, JSON.stringify(keys), { mode: 0o600 });
@@ -50,7 +51,7 @@ app.set('trust proxy', 1); // detrás de cloudflared/proxy: usar la IP real para
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(session({
-  store: new SQLiteStore({ db: 'sessions.db', dir: __dirname }),
+  store: new SQLiteStore({ db: 'sessions.db', dir: DATA_DIR }),
   secret: getSessionSecret(),
   resave: false,
   saveUninitialized: false,
@@ -74,7 +75,7 @@ const authLimiter = rateLimit({
 
 const db = new Database(DB_PATH);
 
-const DATA_TABLES = ['feedings', 'rests', 'weights', 'vitamind', 'probiotics', 'massages', 'consultations', 'calendar'];
+const DATA_TABLES = ['feedings', 'rests', 'weights', 'heights', 'headcircs', 'vitamind', 'probiotics', 'massages', 'consultations', 'calendar', 'milestones', 'vaccines', 'diapers'];
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS accounts (
@@ -106,6 +107,9 @@ function ensureColumn(table, column, type = 'TEXT') {
   }
 }
 ensureColumn('users', 'account_id');
+ensureColumn('users', 'role', "TEXT NOT NULL DEFAULT 'user'");
+ensureColumn('users', 'family_role', "TEXT NOT NULL DEFAULT 'editor'");
+ensureColumn('users', 'last_login_at');
 ensureColumn('accounts', 'invite_code');
 ensureColumn('accounts', 'name');
 ensureColumn('notification_prefs', 'massage_threshold_mins', 'INTEGER NOT NULL DEFAULT 15');
@@ -228,11 +232,13 @@ function makeRouter(table) {
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
 // Info pública mínima para la pantalla de login (sin datos sensibles)
+app.get('/api/health', (_, res) => res.json({ ok: true }));
 app.get('/api/app-info', (_, res) => res.json({ app: 'Lacty' }));
 
 app.get('/api/auth/me', (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: 'No autenticado' });
-  res.json({ username: req.session.username, accountId: req.session.accountId });
+  const user = db.prepare(`SELECT role, family_role FROM users WHERE id = ?`).get(req.session.userId);
+  res.json({ username: req.session.username, accountId: req.session.accountId, role: user?.role ?? 'user', familyRole: user?.family_role ?? 'editor' });
 });
 
 app.post('/api/auth/signup', authLimiter, async (req, res) => {
@@ -268,10 +274,12 @@ app.post('/api/auth/signup', authLimiter, async (req, res) => {
     tx();
   }
 
+  db.prepare(`UPDATE users SET last_login_at = datetime('now') WHERE id = ?`).run(userId);
   req.session.userId = userId;
   req.session.username = username;
   req.session.accountId = accountId;
-  res.status(201).json({ ok: true, username, accountId });
+  req.session.role = 'user';
+  res.status(201).json({ ok: true, username, accountId, role: 'user' });
 });
 
 app.post('/api/auth/login', authLimiter, async (req, res) => {
@@ -281,10 +289,13 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
   if (!user) return res.status(401).json({ error: 'Credenciales incorrectas' });
   const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) return res.status(401).json({ error: 'Credenciales incorrectas' });
+  db.prepare(`UPDATE users SET last_login_at = datetime('now') WHERE id = ?`).run(user.id);
   req.session.userId = user.id;
   req.session.username = user.username;
   req.session.accountId = user.account_id;
-  res.json({ ok: true, username: user.username, accountId: user.account_id });
+  req.session.role = user.role ?? 'user';
+  req.session.familyRole = user.family_role ?? 'editor';
+  res.json({ ok: true, username: user.username, accountId: user.account_id, role: user.role ?? 'user' });
 });
 
 app.post('/api/auth/logout', (req, res) => {
@@ -296,7 +307,80 @@ app.use('/api', (req, res, next) => {
   if (req.path.startsWith('/auth/') || req.path === '/app-info' || req.path === '/push/vapid-key') return next();
   if (!req.session?.userId) return res.status(401).json({ error: 'No autorizado' });
   req.accountId = req.session.accountId;
+  // Viewers: solo lectura (GET + SSE permitidos, todo lo demás bloqueado)
+  // Lee de la BD en cada request para reflejar cambios de rol inmediatos
+  if (req.method !== 'GET') {
+    if (req.path === '/auth/logout' || req.path === '/account/leave') return next();
+    const user = db.prepare(`SELECT family_role FROM users WHERE id = ?`).get(req.session.userId);
+    if ((user?.family_role ?? 'editor') === 'viewer') {
+      return res.status(403).json({ error: 'Tu cuenta es de solo lectura' });
+    }
+  }
   next();
+});
+
+// ── Admin ─────────────────────────────────────────────────────────────────────
+
+function requireAdmin(req, res, next) {
+  if ((req.session?.role ?? 'user') !== 'admin') return res.status(403).json({ error: 'No autorizado' });
+  next();
+}
+
+app.get('/api/admin/users', requireAdmin, (_req, res) => {
+  const users = db.prepare(`
+    SELECT u.id, u.username, u.role, u.account_id, u.created_at, u.last_login_at,
+           a.invite_code, a.name AS account_name
+    FROM users u
+    LEFT JOIN accounts a ON a.id = u.account_id
+    ORDER BY u.created_at DESC
+  `).all();
+
+  const babies = db.prepare(`SELECT id, account_id, data FROM babies`).all();
+  const babyMap = new Map();
+  for (const b of babies) {
+    const data = JSON.parse(b.data);
+    const list = babyMap.get(b.account_id) ?? [];
+    list.push({ id: b.id, name: data.name ?? '(sin nombre)', birthDate: data.birthDate });
+    babyMap.set(b.account_id, list);
+  }
+
+  const result = users.map(u => ({
+    id: u.id,
+    username: u.username,
+    role: u.role ?? 'user',
+    accountId: u.account_id,
+    accountName: u.account_name ?? null,
+    inviteCode: u.invite_code,
+    createdAt: u.created_at,
+    lastLoginAt: u.last_login_at,
+    babies: babyMap.get(u.account_id) ?? [],
+  }));
+
+  res.json(result);
+});
+
+app.put('/api/admin/users/:id/role', requireAdmin, (req, res) => {
+  const { role } = req.body ?? {};
+  if (!['admin', 'user'].includes(role)) return res.status(400).json({ error: 'Rol no válido' });
+  db.prepare(`UPDATE users SET role = ? WHERE id = ?`).run(role, req.params.id);
+  res.json({ ok: true });
+});
+
+app.delete('/api/admin/users/:id', requireAdmin, (req, res) => {
+  if (req.params.id === req.session.userId) return res.status(400).json({ error: 'No puedes eliminarte a ti mismo' });
+  const user = db.prepare(`SELECT account_id FROM users WHERE id = ?`).get(req.params.id);
+  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+  db.prepare(`DELETE FROM users WHERE id = ?`).run(req.params.id);
+  // Si era el último usuario de la cuenta, eliminar la cuenta y sus datos
+  const remaining = db.prepare(`SELECT COUNT(*) AS c FROM users WHERE account_id = ?`).get(user.account_id);
+  if (remaining.c === 0) {
+    for (const t of DATA_TABLES) db.prepare(`DELETE FROM ${t} WHERE baby_id IN (SELECT id FROM babies WHERE account_id = ?)`).run(user.account_id);
+    db.prepare(`DELETE FROM babies WHERE account_id = ?`).run(user.account_id);
+    db.prepare(`DELETE FROM push_subscriptions WHERE account_id = ?`).run(user.account_id);
+    db.prepare(`DELETE FROM notification_prefs WHERE account_id = ?`).run(user.account_id);
+    db.prepare(`DELETE FROM accounts WHERE id = ?`).run(user.account_id);
+  }
+  res.json({ ok: true });
 });
 
 // ── Versiones (polling de respaldo) ─────────────────────────────────────────────
@@ -325,8 +409,8 @@ app.get('/api/events', (req, res) => {
 
 app.get('/api/account', (req, res) => {
   const acc = db.prepare(`SELECT id, invite_code, name FROM accounts WHERE id = ?`).get(req.accountId);
-  const rows = db.prepare(`SELECT id, username FROM users WHERE account_id = ? ORDER BY created_at`).all(req.accountId);
-  const adminId = rows[0]?.id; // el creador (más antiguo) es admin
+  const rows = db.prepare(`SELECT id, username, family_role FROM users WHERE account_id = ? ORDER BY created_at`).all(req.accountId);
+  const adminId = rows[0]?.id;
   res.json({
     id: acc?.id,
     name: acc?.name ?? null,
@@ -337,6 +421,7 @@ app.get('/api/account', (req, res) => {
       username: m.username,
       isAdmin: m.id === adminId,
       isMe: m.id === req.session.userId,
+      familyRole: m.id === adminId ? 'owner' : (m.family_role ?? 'editor'),
     })),
   });
 });
@@ -365,6 +450,18 @@ app.post('/api/account/leave', (req, res) => {
   if (count <= 1) return res.status(400).json({ error: 'Eres el único miembro; no puedes abandonar la cuenta' });
   db.prepare(`DELETE FROM users WHERE id = ?`).run(req.session.userId);
   req.session.destroy(() => res.json({ ok: true }));
+});
+
+// Cambiar el family_role de un miembro (solo el owner)
+app.put('/api/account/members/:userId/role', (req, res) => {
+  const rows = db.prepare(`SELECT id FROM users WHERE account_id = ? ORDER BY created_at`).all(req.accountId);
+  const adminId = rows[0]?.id;
+  if (req.session.userId !== adminId) return res.status(403).json({ error: 'Solo el administrador de la familia puede cambiar roles' });
+  if (req.params.userId === adminId) return res.status(400).json({ error: 'El propietario no puede cambiar su propio rol' });
+  const { familyRole } = req.body ?? {};
+  if (!['editor', 'viewer'].includes(familyRole)) return res.status(400).json({ error: 'Rol no válido' });
+  db.prepare(`UPDATE users SET family_role = ? WHERE id = ? AND account_id = ?`).run(familyRole, req.params.userId, req.accountId);
+  res.json({ ok: true });
 });
 
 // ── Bebés (por cuenta) ───────────────────────────────────────────────────────────

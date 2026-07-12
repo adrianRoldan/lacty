@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+lacty.db
+lacty.db.backup-*
+sessions.db
+.session-secret
+.vapid-keys.json
+data/
+docs/
+*.log

@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.tsx'
 import { ThemeProvider, applyInitialTheme } from './theme.tsx'
 import { registerServiceWorker } from './utils/pushNotifications'
+import { ConfirmProvider } from './components/ConfirmDialog.tsx'
 
 applyInitialTheme()
 registerServiceWorker()
@@ -11,7 +12,9 @@ registerServiceWorker()
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
-      <App />
+      <ConfirmProvider>
+        <App />
+      </ConfirmProvider>
     </ThemeProvider>
   </StrictMode>,
 )

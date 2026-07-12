@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import type { BabyConfig } from '../types';
-import { getCurrentDaysOfLife } from '../utils/dateUtils';
+import { getCurrentDaysOfLife, formatBabyAge } from '../utils/dateUtils';
+import { useConfirm } from './ConfirmDialog';
 import * as api from '../api';
 
 interface Props {
   babies: BabyConfig[];
   activeId: string;
   currentUser: string | null;
+  readOnly?: boolean;
   onSwitchBaby: (id: string) => void;
   onCreateBaby: (data: Omit<BabyConfig, 'id'>) => Promise<void>;
   onDeleteBaby: (id: string) => void;
@@ -14,8 +16,9 @@ interface Props {
 }
 
 export default function FamilyView({
-  babies, activeId, currentUser, onSwitchBaby, onCreateBaby, onDeleteBaby, onLogout,
+  babies, activeId, currentUser, readOnly, onSwitchBaby, onCreateBaby, onDeleteBaby, onLogout,
 }: Props) {
+  const confirm = useConfirm();
   const [creating, setCreating] = useState(false);
 
   return (
@@ -40,16 +43,16 @@ export default function FamilyView({
                 <span className="text-2xl">👶</span>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-gray-900 truncate">{b.name ?? 'Sin nombre'}</p>
-                  <p className="text-xs text-gray-500">Día {getCurrentDaysOfLife(b)} de vida</p>
+                  <p className="text-xs text-gray-500">{formatBabyAge(getCurrentDaysOfLife(b))}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {isActive && <span className="text-xs font-medium text-sage-700 bg-sage-100 px-2 py-0.5 rounded-full">Activo</span>}
-                {babies.length > 1 && (
+                {babies.length > 1 && !readOnly && (
                   <button
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.stopPropagation();
-                      if (window.confirm(`¿Eliminar a ${b.name ?? 'este bebé'} y TODO su historial? No se puede deshacer.`)) {
+                      if (await confirm(`¿Eliminar a ${b.name ?? 'este bebé'} y TODO su historial? No se puede deshacer.`)) {
                         onDeleteBaby(b.id);
                       }
                     }}
@@ -64,12 +67,12 @@ export default function FamilyView({
           );
         })}
       </div>
-      <button
+      {!readOnly && <button
         onClick={() => setCreating(true)}
         className="w-full bg-white border-2 border-dashed border-gray-200 rounded-2xl py-3 text-sage-600 font-semibold text-sm active:bg-gray-50 touch-manipulation mb-6"
       >
         + Añadir bebé
-      </button>
+      </button>}
 
       {/* Cuenta */}
       <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Mi cuenta</h2>
@@ -105,6 +108,7 @@ export default function FamilyView({
 }
 
 function AccountSection() {
+  const confirm = useConfirm();
   const [info, setInfo] = useState<api.AccountInfo | null>(null);
   const [copied, setCopied] = useState(false);
   const [famName, setFamName] = useState('');
@@ -129,12 +133,17 @@ function AccountSection() {
   }
 
   async function expel(userId: string, username: string) {
-    if (!window.confirm(`¿Quitar a ${username} de la familia?`)) return;
+    if (!await confirm(`¿Quitar a ${username} de la familia?`)) return;
     try { await api.removeMember(userId); reload(); } catch (e: any) { alert(e.message); }
   }
 
+  async function toggleFamilyRole(userId: string, current: string) {
+    const newRole = current === 'viewer' ? 'editor' : 'viewer';
+    try { await api.setMemberFamilyRole(userId, newRole); reload(); } catch (e: any) { alert(e.message); }
+  }
+
   async function leave() {
-    if (!window.confirm('¿Abandonar esta familia? Dejarás de ver sus datos.')) return;
+    if (!await confirm('¿Abandonar esta familia? Dejarás de ver sus datos.')) return;
     try { await api.leaveAccount(); window.location.reload(); } catch (e: any) { alert(e.message); }
   }
 
@@ -161,22 +170,44 @@ function AccountSection() {
         <p className="text-sm font-medium text-gray-900 mb-2">Miembros ({info.members.length})</p>
         <div className="space-y-1.5">
           {info.members.map((m) => (
-            <div key={m.id} className="flex items-center justify-between">
+            <div key={m.id} className="flex items-center justify-between py-1">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="flex items-center justify-center w-7 h-7 rounded-full bg-sage-100 text-sage-700 text-xs font-bold shrink-0">
                   {m.username.charAt(0).toUpperCase()}
                 </span>
-                <span className="text-sm text-gray-700 truncate">{m.username}</span>
-                {m.isAdmin && <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">admin</span>}
-                {m.isMe && <span className="text-xs text-gray-400">(tú)</span>}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm text-gray-700 truncate">{m.username}</span>
+                    {m.isMe && <span className="text-xs text-gray-400">(tú)</span>}
+                  </div>
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                    m.familyRole === 'owner' ? 'bg-amber-50 text-amber-600'
+                    : m.familyRole === 'viewer' ? 'bg-gray-100 text-gray-500'
+                    : 'bg-sage-50 text-sage-600'
+                  }`}>
+                    {m.familyRole === 'owner' ? 'propietario' : m.familyRole === 'viewer' ? 'solo lectura' : 'editor'}
+                  </span>
+                </div>
               </div>
-              {info.isAdmin && !m.isMe && (
-                <button
-                  onClick={() => expel(m.id, m.username)}
-                  className="text-xs text-gray-300 hover:text-red-500 touch-manipulation px-2 py-1"
-                >
-                  Quitar
-                </button>
+              {info.isAdmin && !m.isMe && m.familyRole !== 'owner' && (
+                <div className="flex items-center gap-1 shrink-0 ml-2">
+                  <button
+                    onClick={() => toggleFamilyRole(m.id, m.familyRole)}
+                    className={`text-xs px-2 py-1 rounded-lg touch-manipulation ${
+                      m.familyRole === 'viewer'
+                        ? 'text-sage-600 bg-sage-50 active:bg-sage-100'
+                        : 'text-gray-500 bg-gray-100 active:bg-gray-200'
+                    }`}
+                  >
+                    {m.familyRole === 'viewer' ? 'Dar edición' : 'Solo lectura'}
+                  </button>
+                  <button
+                    onClick={() => expel(m.id, m.username)}
+                    className="text-xs text-gray-300 hover:text-red-500 touch-manipulation px-1.5 py-1"
+                  >
+                    <TrashIcon />
+                  </button>
+                </div>
               )}
             </div>
           ))}
@@ -217,15 +248,24 @@ function NewBabyModal({ onCreate, onCancel }: {
   const today = new Date().toISOString().slice(0, 10);
   const [name, setName] = useState('');
   const [birthDate, setBirthDate] = useState(today);
+  const [sex, setSex] = useState<'male' | 'female' | ''>('');
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   async function save() {
+    if (!birthDate) { setError('La fecha de nacimiento es obligatoria.'); return; }
+    if (!sex) { setError('Indica el sexo del bebé.'); return; }
+    setError('');
     setSaving(true);
     try {
+      const birthD = new Date(birthDate + 'T12:00:00');
+      const todayD = new Date(today + 'T12:00:00');
+      const daysOfLife = Math.max(1, Math.round((todayD.getTime() - birthD.getTime()) / 86400000) + 1);
       await onCreate({
         name: name.trim() || undefined,
         birthDate,
-        daysOfLifeAtSetup: 1,
+        sex: sex as 'male' | 'female',
+        daysOfLifeAtSetup: daysOfLife,
         setupDate: today,
       });
     } finally { setSaving(false); }
@@ -248,13 +288,37 @@ function NewBabyModal({ onCreate, onCancel }: {
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-500 block mb-1">Fecha de nacimiento</label>
+            <label className="text-xs font-medium text-gray-500 block mb-1">Fecha de nacimiento <span className="text-red-400">*</span></label>
             <input
               type="date" value={birthDate} max={today}
               onChange={(e) => setBirthDate(e.target.value)}
               className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 bg-white outline-none focus:ring-2 focus:ring-sage-400"
             />
           </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 block mb-1.5">Sexo <span className="text-red-400">*</span></label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setSex('male')}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-semibold touch-manipulation transition-colors ${
+                  sex === 'male' ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-300' : 'bg-gray-100 text-gray-500'
+                }`}
+              >
+                ♂ Niño
+              </button>
+              <button
+                type="button"
+                onClick={() => setSex('female')}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-semibold touch-manipulation transition-colors ${
+                  sex === 'female' ? 'bg-pink-100 text-pink-700 ring-2 ring-pink-300' : 'bg-gray-100 text-gray-500'
+                }`}
+              >
+                ♀ Niña
+              </button>
+            </div>
+          </div>
+          {error && <p className="text-red-500 text-xs text-center">{error}</p>}
           <button
             onClick={save} disabled={saving}
             className="w-full bg-sage-600 text-white font-semibold py-3 rounded-xl active:bg-sage-700 disabled:opacity-50 touch-manipulation"

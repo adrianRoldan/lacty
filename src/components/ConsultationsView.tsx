@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import type { Consultation, ConsultationCategory } from '../types';
 import { generateId } from '../utils/feedingUtils';
+import { useConfirm } from './ConfirmDialog';
 
 interface Props {
   consultations: Consultation[];
+  readOnly?: boolean;
   onCreate: (c: Consultation) => void;
   onUpdate: (c: Consultation) => void;
   onDelete: (id: string) => void;
@@ -18,7 +20,7 @@ const CATEGORIES: { key: ConsultationCategory; label: string; icon: string; colo
 
 const catOf = (k: ConsultationCategory) => CATEGORIES.find((c) => c.key === k)!;
 
-export default function ConsultationsView({ consultations, onCreate, onUpdate, onDelete }: Props) {
+export default function ConsultationsView({ consultations, readOnly, onCreate, onUpdate, onDelete }: Props) {
   const [text, setText] = useState('');
   const [newCat, setNewCat] = useState<ConsultationCategory>('pediatra');
   const [filter, setFilter] = useState<ConsultationCategory | 'all'>('all');
@@ -55,7 +57,7 @@ export default function ConsultationsView({ consultations, onCreate, onUpdate, o
   return (
     <div className="px-4 pt-3 pb-24">
       {/* Quick-add */}
-      <div className="bg-white rounded-2xl shadow-sm p-3 mb-4">
+      {!readOnly && <div className="bg-white rounded-2xl shadow-sm p-3 mb-4">
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -86,7 +88,7 @@ export default function ConsultationsView({ consultations, onCreate, onUpdate, o
             Añadir
           </button>
         </div>
-      </div>
+      </div>}
 
       {/* Filtro por categoría */}
       <div className="flex gap-1.5 mb-4 overflow-x-auto">
@@ -114,7 +116,7 @@ export default function ConsultationsView({ consultations, onCreate, onUpdate, o
                   key={c.id} c={c} expanded={expandedId === c.id}
                   onToggleExpand={() => setExpandedId(expandedId === c.id ? null : c.id)}
                   onToggleResolved={() => toggleResolved(c)}
-                  onUpdate={onUpdate} onDelete={onDelete}
+                  onUpdate={onUpdate} onDelete={onDelete} readOnly={readOnly}
                 />
               ))}
             </div>
@@ -137,7 +139,7 @@ export default function ConsultationsView({ consultations, onCreate, onUpdate, o
                       key={c.id} c={c} expanded={expandedId === c.id}
                       onToggleExpand={() => setExpandedId(expandedId === c.id ? null : c.id)}
                       onToggleResolved={() => toggleResolved(c)}
-                      onUpdate={onUpdate} onDelete={onDelete}
+                      onUpdate={onUpdate} onDelete={onDelete} readOnly={readOnly}
                     />
                   ))}
                 </div>
@@ -150,14 +152,16 @@ export default function ConsultationsView({ consultations, onCreate, onUpdate, o
   );
 }
 
-function ConsultationCard({ c, expanded, onToggleExpand, onToggleResolved, onUpdate, onDelete }: {
+function ConsultationCard({ c, expanded, onToggleExpand, onToggleResolved, onUpdate, onDelete, readOnly }: {
   c: Consultation;
   expanded: boolean;
   onToggleExpand: () => void;
   onToggleResolved: () => void;
   onUpdate: (c: Consultation) => void;
   onDelete: (id: string) => void;
+  readOnly?: boolean;
 }) {
+  const confirm = useConfirm();
   const cat = catOf(c.category);
   const [answer, setAnswer] = useState(c.answer ?? '');
   const [editText, setEditText] = useState(c.text);
@@ -237,7 +241,7 @@ function ConsultationCard({ c, expanded, onToggleExpand, onToggleResolved, onUpd
         </div>
 
         {/* Borrar / cerrar edición */}
-        {expanded ? (
+        {!readOnly && (expanded ? (
           <button
             onClick={() => { saveText(); onToggleExpand(); }}
             className="text-sage-600 text-sm font-semibold px-2 py-1 shrink-0 touch-manipulation"
@@ -246,13 +250,13 @@ function ConsultationCard({ c, expanded, onToggleExpand, onToggleResolved, onUpd
           </button>
         ) : (
           <button
-            onClick={() => { if (window.confirm('¿Eliminar esta duda?')) onDelete(c.id); }}
+            onClick={async () => { if (await confirm('¿Eliminar esta duda?')) onDelete(c.id); }}
             className="text-gray-300 hover:text-red-400 p-1 shrink-0 touch-manipulation"
             aria-label="Eliminar"
           >
             <TrashIcon />
           </button>
-        )}
+        ))}
       </div>
 
       {/* Respuesta (al expandir) */}

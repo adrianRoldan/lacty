@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
-import type { BabyConfig, WeightEntry, VitaminDLog, ProbioticLog, MassageLog } from '../types';
+import type { BabyConfig, WeightEntry, HeightEntry, VitaminDLog, ProbioticLog, MassageLog } from '../types';
 import { getCurrentDaysOfLife, getBirthDate, todayIso } from '../utils/dateUtils';
+import { useConfirm } from './ConfirmDialog';
 
 interface Props {
   config: BabyConfig;
   weights: WeightEntry[];
+  heights: HeightEntry[];
+  headCircs: import('../types').HeadCircEntry[];
   vitaminDLogs: VitaminDLog[];
   probioticLogs: ProbioticLog[];
   massageLogs: MassageLog[];
@@ -13,23 +16,45 @@ interface Props {
   onNewWeight: () => void;
   onEditWeight: (w: WeightEntry) => void;
   onDeleteWeight: (id: string) => void;
+  onNewHeight: () => void;
+  onEditHeight: (h: HeightEntry) => void;
+  onDeleteHeight: (id: string) => void;
+  onNewHeadCirc: () => void;
+  onEditHeadCirc: (h: import('../types').HeadCircEntry) => void;
+  onDeleteHeadCirc: (id: string) => void;
+  onOpenWeightChart: () => void;
+  onOpenHeightChart: () => void;
+  onOpenHeadCircChart: () => void;
+  onOpenMilestones: () => void;
+  onOpenVaccines: () => void;
+  onOpenPediatraSummary: () => void;
+  readOnly?: boolean;
   onUpdateConfig: (partial: Partial<Omit<BabyConfig, 'id'>>) => Promise<void>;
 }
 
 export default function BabyProfile({
-  config, weights, vitaminDLogs, probioticLogs, massageLogs,
-  onOpenFamily, onOpenReference, onNewWeight, onEditWeight, onDeleteWeight, onUpdateConfig,
+  config, weights, heights, headCircs, vitaminDLogs, probioticLogs, massageLogs,
+  onOpenFamily, onOpenReference, onNewWeight, onEditWeight, onDeleteWeight,
+  onNewHeight, onEditHeight, onDeleteHeight, onNewHeadCirc, onEditHeadCirc, onDeleteHeadCirc,
+  onOpenWeightChart, onOpenHeightChart, onOpenHeadCircChart, onOpenMilestones, onOpenVaccines, onOpenPediatraSummary, onUpdateConfig, readOnly,
 }: Props) {
+  const confirm = useConfirm();
   const daysOfLife = getCurrentDaysOfLife(config);
   const sorted = [...weights].sort((a, b) => b.date.localeCompare(a.date));
   const latest = sorted[0] ?? null;
+  const sortedHeights = [...heights].sort((a, b) => b.date.localeCompare(a.date));
+  const latestHeight = sortedHeights[0] ?? null;
   const [nameInput, setNameInput] = useState(config.name ?? '');
 
   // Al cambiar de bebé activo, refrescar el campo de nombre
   useEffect(() => { setNameInput(config.name ?? ''); }, [config.id, config.name]);
 
-  function handleDelete(id: string) {
-    if (window.confirm('¿Eliminar este registro de peso?')) onDeleteWeight(id);
+  async function handleDelete(id: string) {
+    if (await confirm('¿Eliminar este registro de peso?')) onDeleteWeight(id);
+  }
+
+  async function handleDeleteHeight(id: string) {
+    if (await confirm('¿Eliminar este registro de altura?')) onDeleteHeight(id);
   }
 
   function handleNameSave() {
@@ -56,19 +81,46 @@ export default function BabyProfile({
             onChange={(e) => setNameInput(e.target.value)}
             onBlur={handleNameSave}
             onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget.blur())}
+            disabled={readOnly}
             placeholder="Escribe el nombre…"
             className="w-full text-lg font-medium text-gray-900 placeholder-gray-300 border-none outline-none focus:ring-0 bg-transparent"
           />
         </div>
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-4xl font-bold text-gray-900">{daysOfLife}</p>
-            <p className="text-sm text-gray-500">días de vida</p>
+            {daysOfLife < 30 ? (
+              <>
+                <p className="text-4xl font-bold text-gray-900">{daysOfLife}</p>
+                <p className="text-sm text-gray-500">días de vida</p>
+              </>
+            ) : (() => {
+              const months = Math.floor(daysOfLife / 30);
+              const weeks = Math.floor((daysOfLife - months * 30) / 7);
+              const mLabel = months === 1 ? 'mes' : 'meses';
+              const wLabel = weeks === 1 ? 'semana' : 'semanas';
+              return (
+                <>
+                  <p className="text-xl font-bold text-gray-900 leading-snug">
+                    {months} {mLabel}{weeks > 0 ? ` y ${weeks} ${wLabel}` : ''}
+                  </p>
+                  <p className="text-sm text-gray-500">{daysOfLife} días de vida</p>
+                </>
+              );
+            })()}
           </div>
-          {latest && (
+          {(latest || latestHeight) && (
             <div className="text-right">
-              <p className="text-4xl font-bold text-sage-600">{latest.weightKg} <span className="text-2xl">kg</span></p>
-              <p className="text-sm text-gray-500">último peso</p>
+              {latest && (
+                <>
+                  <p className="text-4xl font-bold text-sage-600">{latest.weightKg} <span className="text-2xl">kg</span></p>
+                  <p className="text-sm text-gray-500">último peso</p>
+                </>
+              )}
+              {latestHeight && (
+                <p className="text-sm text-gray-500 mt-1">
+                  <span className="font-bold text-gray-700">{latestHeight.heightCm} cm</span> de altura
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -78,9 +130,33 @@ export default function BabyProfile({
             type="date"
             value={getBirthDate(config)}
             max={todayIso()}
-            onChange={(e) => e.target.value && onUpdateConfig({ birthDate: e.target.value })}
+            onChange={(e) => { if (e.target.value && e.target.value <= todayIso()) onUpdateConfig({ birthDate: e.target.value }); }}
+            disabled={readOnly}
             className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-sage-400"
           />
+        </div>
+        <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+          <p className="text-sm text-gray-700">Sexo</p>
+          <div className="flex gap-1.5">
+            <button
+              onClick={readOnly ? undefined : () => onUpdateConfig({ sex: 'male' })}
+              disabled={readOnly}
+              className={`px-3 py-1.5 rounded-xl text-sm font-semibold touch-manipulation transition-colors ${
+                config.sex === 'male' ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-300' : 'bg-gray-100 text-gray-500'
+              }`}
+            >
+              ♂ Niño
+            </button>
+            <button
+              onClick={readOnly ? undefined : () => onUpdateConfig({ sex: 'female' })}
+              disabled={readOnly}
+              className={`px-3 py-1.5 rounded-xl text-sm font-semibold touch-manipulation transition-colors ${
+                config.sex === 'female' ? 'bg-pink-100 text-pink-700 ring-2 ring-pink-300' : 'bg-gray-100 text-gray-500'
+              }`}
+            >
+              ♀ Niña
+            </button>
+          </div>
         </div>
       </div>
 
@@ -112,16 +188,71 @@ export default function BabyProfile({
         </span>
         <span className="text-gray-300 shrink-0 self-center">›</span>
       </button>
+      <button
+        onClick={onOpenMilestones}
+        className="w-full flex items-center justify-between bg-white rounded-2xl shadow-sm px-4 py-3 mb-3 active:bg-gray-50 touch-manipulation text-left"
+      >
+        <span className="flex items-start gap-3 min-w-0">
+          <span className="text-xl shrink-0">🌟</span>
+          <span className="min-w-0">
+            <span className="block text-sm font-medium text-gray-900">Hitos del desarrollo</span>
+            <span className="block text-xs text-gray-500 mt-0.5">
+              Seguimiento de habilidades motoras, sociales, cognitivas y más.
+            </span>
+          </span>
+        </span>
+        <span className="text-gray-300 shrink-0 self-center">›</span>
+      </button>
+      <button
+        onClick={onOpenVaccines}
+        className="w-full flex items-center justify-between bg-white rounded-2xl shadow-sm px-4 py-3 mb-3 active:bg-gray-50 touch-manipulation text-left"
+      >
+        <span className="flex items-start gap-3 min-w-0">
+          <span className="text-xl shrink-0">💉</span>
+          <span className="min-w-0">
+            <span className="block text-sm font-medium text-gray-900">Vacunas</span>
+            <span className="block text-xs text-gray-500 mt-0.5">
+              Calendario vacunal AEP. Marca las administradas.
+            </span>
+          </span>
+        </span>
+        <span className="text-gray-300 shrink-0 self-center">›</span>
+      </button>
+      <button
+        onClick={onOpenPediatraSummary}
+        className="w-full flex items-center justify-between bg-white rounded-2xl shadow-sm px-4 py-3 mb-6 active:bg-gray-50 touch-manipulation text-left"
+      >
+        <span className="flex items-start gap-3 min-w-0">
+          <span className="text-xl shrink-0">📄</span>
+          <span className="min-w-0">
+            <span className="block text-sm font-medium text-gray-900">Resumen para el pediatra</span>
+            <span className="block text-xs text-gray-500 mt-0.5">
+              Últimos 14 días: tomas, peso, sueño y hitos. Listo para imprimir.
+            </span>
+          </span>
+        </span>
+        <span className="text-gray-300 shrink-0 self-center">›</span>
+      </button>
 
       {/* Historial de peso */}
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Historial de peso</h2>
-        <button
-          onClick={onNewWeight}
-          className="bg-sage-600 text-white font-semibold px-4 py-2 rounded-xl text-sm active:bg-sage-700 touch-manipulation"
-        >
-          + Peso
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onOpenWeightChart}
+            aria-label="Ver gráfica de peso"
+            title="Ver gráfica de peso"
+            className="text-sage-600 p-2 rounded-xl active:bg-sage-50 touch-manipulation"
+          >
+            <ChartIcon />
+          </button>
+          {!readOnly && <button
+            onClick={onNewWeight}
+            className="bg-sage-600 text-white font-semibold px-4 py-2 rounded-xl text-sm active:bg-sage-700 touch-manipulation"
+          >
+            + Peso
+          </button>}
+        </div>
       </div>
 
       {sorted.length === 0 ? (
@@ -133,7 +264,7 @@ export default function BabyProfile({
           </button>
         </div>
       ) : (
-        <div className="space-y-2 mb-6">
+        <div className={`space-y-2 mb-6 ${sorted.length > 5 ? 'max-h-[28rem] overflow-y-auto pr-1' : ''}`}>
           {sorted.map((entry, i) => {
             const prev = sorted[i + 1];
             const diff = prev ? Math.round((entry.weightKg - prev.weightKg) * 1000) : null;
@@ -145,7 +276,7 @@ export default function BabyProfile({
             return (
               <div
                 key={entry.id}
-                onClick={() => onEditWeight(entry)}
+                onClick={readOnly ? undefined : () => onEditWeight(entry)}
                 className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer active:bg-gray-50 select-none"
               >
                 <div className="flex items-start justify-between gap-2">
@@ -175,19 +306,178 @@ export default function BabyProfile({
                       <p className="text-xs text-gray-400 mt-0.5 truncate italic">"{entry.notes}"</p>
                     )}
                   </div>
-                  <button
+                  {!readOnly && <button
                     onClick={(e) => { e.stopPropagation(); handleDelete(entry.id); }}
                     className="text-gray-300 hover:text-red-400 p-2 shrink-0 touch-manipulation"
                     aria-label="Eliminar peso"
                   >
                     <TrashIcon />
-                  </button>
+                  </button>}
                 </div>
               </div>
             );
           })}
         </div>
       )}
+
+      {/* Historial de altura */}
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Historial de altura</h2>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onOpenHeightChart}
+            aria-label="Ver gráfica de altura"
+            title="Ver gráfica de altura"
+            className="text-sage-600 p-2 rounded-xl active:bg-sage-50 touch-manipulation"
+          >
+            <ChartIcon />
+          </button>
+          {!readOnly && <button
+            onClick={onNewHeight}
+            className="bg-sage-600 text-white font-semibold px-4 py-2 rounded-xl text-sm active:bg-sage-700 touch-manipulation"
+          >
+            + Altura
+          </button>}
+        </div>
+      </div>
+
+      {sortedHeights.length === 0 ? (
+        <div className="text-center py-10 text-gray-400 mb-6">
+          <p className="text-3xl mb-2">📏</p>
+          <p className="text-sm">Aún no hay registros de altura.</p>
+          <button onClick={onNewHeight} className="mt-3 text-sage-600 font-medium touch-manipulation text-sm">
+            Registrar primera altura
+          </button>
+        </div>
+      ) : (
+        <div className={`space-y-2 mb-6 ${sortedHeights.length > 5 ? 'max-h-[28rem] overflow-y-auto pr-1' : ''}`}>
+          {sortedHeights.map((entry, i) => {
+            const prev = sortedHeights[i + 1];
+            const diff = prev ? Math.round((entry.heightCm - prev.heightCm) * 10) / 10 : null;
+            const daysBetween = prev
+              ? Math.round(
+                  (new Date(entry.date + 'T12:00:00').getTime() - new Date(prev.date + 'T12:00:00').getTime()) / 86400000
+                )
+              : null;
+            return (
+              <div
+                key={entry.id}
+                onClick={readOnly ? undefined : () => onEditHeight(entry)}
+                className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer active:bg-gray-50 select-none"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-500">
+                        {formatDate(entry.date)}
+                      </span>
+                      {i === 0 && (
+                        <span className="text-xs bg-sage-100 text-sage-700 px-1.5 py-0.5 rounded-full font-medium">
+                          último
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-baseline gap-2 mt-0.5">
+                      <span className="text-2xl font-bold text-gray-900">{entry.heightCm} cm</span>
+                      {diff !== null && (
+                        <span className={`text-sm font-medium ${diff >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                          {diff >= 0 ? '+' : ''}{diff} cm
+                          {daysBetween != null && daysBetween > 0 && (
+                            <span className="text-gray-400 font-normal"> en {daysBetween} {daysBetween === 1 ? 'día' : 'días'}</span>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                    {entry.notes && (
+                      <p className="text-xs text-gray-400 mt-0.5 truncate italic">"{entry.notes}"</p>
+                    )}
+                  </div>
+                  {!readOnly && <button
+                    onClick={(e) => { e.stopPropagation(); handleDeleteHeight(entry.id); }}
+                    className="text-gray-300 hover:text-red-400 p-2 shrink-0 touch-manipulation"
+                    aria-label="Eliminar altura"
+                  >
+                    <TrashIcon />
+                  </button>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Historial de perímetro craneal */}
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Perímetro craneal</h2>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onOpenHeadCircChart}
+            aria-label="Ver gráfica de perímetro"
+            title="Ver gráfica de perímetro craneal"
+            className="text-sage-600 p-2 rounded-xl active:bg-sage-50 touch-manipulation"
+          >
+            <ChartIcon />
+          </button>
+          {!readOnly && <button
+            onClick={onNewHeadCirc}
+            className="bg-sage-600 text-white font-semibold px-4 py-2 rounded-xl text-sm active:bg-sage-700 touch-manipulation"
+          >
+            + PC
+          </button>}
+        </div>
+      </div>
+
+      {(() => {
+        const sortedHC = [...headCircs].sort((a, b) => b.date.localeCompare(a.date));
+        return sortedHC.length === 0 ? (
+          <div className="text-center py-10 text-gray-400 mb-6">
+            <p className="text-3xl mb-2">🧒</p>
+            <p className="text-sm">Aún no hay registros de perímetro craneal.</p>
+            <button onClick={onNewHeadCirc} className="mt-3 text-sage-600 font-medium touch-manipulation text-sm">
+              Registrar primer perímetro
+            </button>
+          </div>
+        ) : (
+          <div className={`space-y-2 mb-6 ${sortedHC.length > 5 ? 'max-h-[28rem] overflow-y-auto pr-1' : ''}`}>
+            {sortedHC.map((entry, i) => {
+              const prev = sortedHC[i + 1];
+              const diff = prev ? Math.round((entry.headCm - prev.headCm) * 10) / 10 : null;
+              return (
+                <div
+                  key={entry.id}
+                  onClick={readOnly ? undefined : () => onEditHeadCirc(entry)}
+                  className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer active:bg-gray-50 select-none"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-500">{formatDate(entry.date)}</span>
+                        {i === 0 && <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-medium">último</span>}
+                      </div>
+                      <div className="flex items-baseline gap-2 mt-0.5">
+                        <span className="text-2xl font-bold text-gray-900">{entry.headCm} cm</span>
+                        {diff !== null && (
+                          <span className={`text-sm font-medium ${diff >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                            {diff >= 0 ? '+' : ''}{diff} cm
+                          </span>
+                        )}
+                      </div>
+                      {entry.notes && <p className="text-xs text-gray-400 mt-0.5 truncate italic">"{entry.notes}"</p>}
+                    </div>
+                    {!readOnly && <button
+                      onClick={async (e) => { e.stopPropagation(); if (await confirm('¿Eliminar?')) onDeleteHeadCirc(entry.id); }}
+                      className="text-gray-300 hover:text-red-400 p-2 shrink-0 touch-manipulation"
+                      aria-label="Eliminar"
+                    >
+                      <TrashIcon />
+                    </button>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Vitamina D3 — configuración */}
       <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Vitamina D3</h2>
@@ -542,6 +832,15 @@ function formatDate(isoDate: string): string {
   return new Date(isoDate + 'T12:00:00').toLocaleDateString('es-ES', {
     day: 'numeric', month: 'long', year: 'numeric',
   });
+}
+
+function ChartIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 3v18h18" />
+      <path d="M7 14l4-4 3 3 5-6" />
+    </svg>
+  );
 }
 
 function TrashIcon() {

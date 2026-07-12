@@ -6,6 +6,7 @@ import ConsultationsView from './ConsultationsView';
 interface Props {
   events: CalendarEvent[];
   consultations: Consultation[];
+  readOnly?: boolean;
   onCreateEvent: (e: CalendarEvent) => void;
   onUpdateEvent: (e: CalendarEvent) => void;
   onDeleteEvent: (id: string) => void;
@@ -15,7 +16,7 @@ interface Props {
 }
 
 export default function VisitasView({
-  events, consultations,
+  events, consultations, readOnly,
   onCreateEvent, onUpdateEvent, onDeleteEvent,
   onCreateConsultation, onUpdateConsultation, onDeleteConsultation,
 }: Props) {
@@ -50,6 +51,7 @@ export default function VisitasView({
         <CalendarView
           events={events}
           consultations={consultations}
+          readOnly={readOnly}
           onCreate={onCreateEvent}
           onUpdate={onUpdateEvent}
           onDelete={onDeleteEvent}
@@ -57,6 +59,7 @@ export default function VisitasView({
       ) : (
         <ConsultationsView
           consultations={consultations}
+          readOnly={readOnly}
           onCreate={onCreateConsultation}
           onUpdate={onUpdateConsultation}
           onDelete={onDeleteConsultation}

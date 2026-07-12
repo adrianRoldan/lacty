@@ -25,7 +25,7 @@ export default function ReferenceView({ config, feedings, rests, currentWeightKg
   const ref = getEffectiveReference(daysOfLife, currentWeightKg);
   const sleep = getSleepReference(daysOfLife);
   const todayFeedings = getTodayFeedings(feedings);
-  const todayMl = getTotalSupplementMl(todayFeedings);
+  const todayMl = getTotalSupplementMl(todayFeedings) + todayFeedings.reduce((s, f) => s + (f.bottleMl ?? 0), 0);
   const todayBreastMin = getTotalBreastMinutes(todayFeedings);
   const correlation = getRestCorrelation(feedings, rests);
 
@@ -86,7 +86,7 @@ export default function ReferenceView({ config, feedings, rests, currentWeightKg
 
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-900">
             <p>
-              Hoy llevas <strong>{todayMl} ml con jeringa-dedo</strong>
+              Hoy llevas <strong>{todayMl} ml con jeringa-dedo y biberón</strong>
               {todayBreastMin > 0 && <> y <strong>{todayBreastMin} min de pecho</strong></>}.
             </p>
             <p className="mt-1 text-xs text-amber-800">
@@ -285,7 +285,7 @@ export default function ReferenceView({ config, feedings, rests, currentWeightKg
             </p>
           </div>
           <p className="text-xs text-gray-400">
-            Esta fórmula es para leche total (pecho + biberón + jeringa). Cuando el bebé crezca y el peso cambie, actualízalo en la pestaña Mi bebé para que la referencia se ajuste.
+            Esta fórmula es para leche total (pecho + biberón + jeringa-dedo). Cuando el bebé crezca y el peso cambie, actualízalo en la pestaña Mi bebé para que la referencia se ajuste.
           </p>
         </div>
       ) : (
@@ -338,7 +338,7 @@ export default function ReferenceView({ config, feedings, rests, currentWeightKg
       </h2>
       {correlation.length === 0 ? (
         <div className="bg-white rounded-2xl p-5 shadow-sm mb-6 text-center text-gray-400 text-sm">
-          <p className="text-2xl mb-2">😴</p>
+          <p className="text-2xl mb-2">🌙</p>
           <p>Aún no hay datos suficientes.</p>
           <p className="text-xs mt-1">Registra el sueño tras las tomas con jeringa-dedo para ver patrones aquí.</p>
         </div>

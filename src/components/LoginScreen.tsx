@@ -2,7 +2,7 @@ import { useState } from 'react';
 import * as api from '../api';
 
 interface Props {
-  onLogin: (username: string) => void;
+  onLogin: (username: string, role: 'admin' | 'user', familyRole: 'owner' | 'editor' | 'viewer') => void;
 }
 
 type Mode = 'login' | 'signup';
@@ -24,7 +24,7 @@ export default function LoginScreen({ onLogin }: Props) {
     try {
       if (mode === 'login') {
         const user = await api.login(username.trim(), password);
-        onLogin(user.username);
+        onLogin(user.username, user.role ?? 'user', user.familyRole ?? 'editor');
       } else {
         const user = await api.signup({
           username: username.trim(),
@@ -32,7 +32,7 @@ export default function LoginScreen({ onLogin }: Props) {
           babyName: joinExisting ? undefined : babyName.trim() || undefined,
           inviteCode: joinExisting ? inviteCode.trim() : undefined,
         });
-        onLogin(user.username);
+        onLogin(user.username, user.role ?? 'user', user.familyRole ?? 'editor');
       }
     } catch (err: any) {
       setError(err.message ?? 'Error');

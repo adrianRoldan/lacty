@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import type { CalendarEvent, EventCategory, Consultation } from '../types';
 import { generateId } from '../utils/feedingUtils';
+import { useConfirm } from './ConfirmDialog';
 
 interface Props {
   events: CalendarEvent[];
   consultations: Consultation[];
+  readOnly?: boolean;
   onCreate: (e: CalendarEvent) => void;
   onUpdate: (e: CalendarEvent) => void;
   onDelete: (id: string) => void;
@@ -27,7 +29,7 @@ const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 
 const isoOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const todayIso = () => isoOf(new Date());
 
-export default function CalendarView({ events, consultations, onCreate, onUpdate, onDelete }: Props) {
+export default function CalendarView({ events, consultations, readOnly, onCreate, onUpdate, onDelete }: Props) {
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
@@ -146,7 +148,7 @@ export default function CalendarView({ events, consultations, onCreate, onUpdate
       {selectedEvents.length > 0 ? (
         <div className="space-y-2 mb-6">
           {selectedEvents.map((e) => (
-            <EventCard key={e.id} e={e} onClick={() => { setEditing(e); setCreating(false); }} />
+            <EventCard key={e.id} e={e} onClick={readOnly ? undefined : () => { setEditing(e); setCreating(false); }} />
           ))}
         </div>
       ) : (
@@ -159,14 +161,14 @@ export default function CalendarView({ events, consultations, onCreate, onUpdate
           <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Próximos</h3>
           <div className="space-y-2">
             {upcoming.map((e) => (
-              <EventCard key={e.id} e={e} showDate onClick={() => { setSelected(e.date); setEditing(e); setCreating(false); }} />
+              <EventCard key={e.id} e={e} showDate onClick={readOnly ? undefined : () => { setSelected(e.date); setEditing(e); setCreating(false); }} />
             ))}
           </div>
         </>
       )}
 
       {/* FAB — nuevo evento (en el día seleccionado) */}
-      {!editing && (
+      {!editing && !readOnly && (
         <button
           onClick={() => startCreate()}
           aria-label="Nuevo evento"
@@ -191,7 +193,7 @@ export default function CalendarView({ events, consultations, onCreate, onUpdate
   );
 }
 
-function EventCard({ e, showDate, onClick }: { e: CalendarEvent; showDate?: boolean; onClick: () => void }) {
+function EventCard({ e, showDate, onClick }: { e: CalendarEvent; showDate?: boolean; onClick?: () => void }) {
   const cat = catOf(e.category);
   return (
     <div onClick={onClick} className="bg-white rounded-2xl shadow-sm p-3 flex items-center gap-3 cursor-pointer active:bg-gray-50 select-none">
@@ -216,6 +218,7 @@ function EventForm({ event, isNew, consultations, onSave, onDelete, onCancel }: 
   onDelete: () => void;
   onCancel: () => void;
 }) {
+  const confirm = useConfirm();
   const [date, setDate] = useState(event.date);
   const [time, setTime] = useState(event.time ?? '');
   const [title, setTitle] = useState(event.title);
@@ -327,7 +330,7 @@ function EventForm({ event, isNew, consultations, onSave, onDelete, onCancel }: 
           <div className="flex gap-2 pt-1">
             {!isNew && (
               <button
-                onClick={() => { if (window.confirm('¿Eliminar este evento?')) onDelete(); }}
+                onClick={async () => { if (await confirm('¿Eliminar este evento?')) onDelete(); }}
                 className="text-red-500 font-medium px-4 py-3 touch-manipulation"
               >
                 Eliminar

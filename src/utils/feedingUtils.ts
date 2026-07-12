@@ -1,9 +1,11 @@
-import type { Feeding, Rest, TimelineItem } from '../types';
+import type { Feeding, Rest, TimelineItem, DiaperChange } from '../types';
 import { isSameDay, todayIso, localDateOf } from './dateUtils';
 import { getReferenceForDay } from '../data/referenceTable';
 
 function isFeedingInProgress(f: Feeding): boolean {
+  if (f.endTime) return false;
   return (f.hasBreast && f.breastMinLeft == null && f.breastMinRight == null) ||
+         (f.hasBottle && f.bottleMl == null) ||
          (f.hasSupplement && f.supplementMl == null);
 }
 
@@ -16,6 +18,10 @@ export function getTodayFeedings(feedings: Feeding[]): Feeding[] {
 
 export function getTotalSupplementMl(feedings: Feeding[]): number {
   return feedings.reduce((sum, f) => sum + (f.supplementMl ?? 0), 0);
+}
+
+export function getTotalBottleMl(feedings: Feeding[]): number {
+  return feedings.reduce((sum, f) => sum + (f.bottleMl ?? 0), 0);
 }
 
 export function getTotalBreastMinutes(feedings: Feeding[]): number {
@@ -75,13 +81,13 @@ export function getAvgGapMinutes(feedings: Feeding[]): number | null {
   return Math.round(total / (sorted.length - 1));
 }
 
-// Average ml per feeding (only feedings that recorded supplement ml).
+// Average ml per feeding (only feedings that recorded any ml).
 export function getAvgSupplementMl(feedings: Feeding[]): number | null {
   const withMl = feedings.filter(
-    (f) => (f.supplementMl != null && f.supplementMl > 0) || (f.breastEstimatedMl != null && f.breastEstimatedMl > 0)
+    (f) => (f.supplementMl != null && f.supplementMl > 0) || (f.bottleMl != null && f.bottleMl > 0) || (f.breastEstimatedMl != null && f.breastEstimatedMl > 0)
   );
   if (withMl.length === 0) return null;
-  const total = withMl.reduce((s, f) => s + (f.supplementMl ?? 0) + (f.breastEstimatedMl ?? 0), 0);
+  const total = withMl.reduce((s, f) => s + (f.supplementMl ?? 0) + (f.bottleMl ?? 0) + (f.breastEstimatedMl ?? 0), 0);
   return Math.round(total / withMl.length);
 }
 
@@ -157,9 +163,15 @@ export function getTodayRestMinutes(rests: Rest[]): number {
   return rests.reduce((sum, r) => sum + restMinutesOnDay(r, today), 0);
 }
 
+export function getTodayDiapers(diapers: DiaperChange[], day?: string): DiaperChange[] {
+  const d = day ?? todayIso();
+  return diapers.filter((diaper) => isSameDay(diaper.timestamp, d));
+}
+
 export function buildTimeline(
   feedings: Feeding[],
   rests: Rest[],
+  diapers: DiaperChange[],
   dayFilter?: string
 ): TimelineItem[] {
   const day = dayFilter ?? todayIso();
@@ -170,6 +182,9 @@ export function buildTimeline(
     ...rests
       .filter((r) => isSameDay(r.startTime, day) || (!dayFilter && r.endTime == null))
       .map((r) => ({ type: 'rest' as const, data: r, sortKey: r.startTime })),
+    ...diapers
+      .filter((d) => isSameDay(d.timestamp, day))
+      .map((d) => ({ type: 'diaper' as const, data: d, sortKey: d.timestamp })),
   ];
   return items.sort((a, b) => b.sortKey.localeCompare(a.sortKey));
 }
@@ -223,6 +238,7 @@ export interface HistorySummary {
   totalDays: number;
   avgFeedingsPerDay: number;
   avgBreastFeedsPerDay: number;  // tomas de pecho / días con pecho
+  avgBottleFeedsPerDay: number;  // tomas de biberón / días con biberón
   avgSyringeFeedsPerDay: number; // tomas de jeringa / días con jeringa
   avgTotalMlPerDay: number;
   avgTotalMlPerFeeding: number;
@@ -243,12 +259,12 @@ export function getHistorySummary(feedings: Feeding[], rests: Rest[]): HistorySu
     ? Math.round((feedings.length / feedingDays.size) * 10) / 10
     : 0;
 
-  // Days with any ml recorded (jeringa or breast estimated)
+  // Days with any ml recorded (jeringa, biberón, or breast estimated)
   const mlFeedings = feedings.filter(
-    (f) => (f.supplementMl != null && f.supplementMl > 0) || (f.breastEstimatedMl != null && f.breastEstimatedMl > 0)
+    (f) => (f.supplementMl != null && f.supplementMl > 0) || (f.bottleMl != null && f.bottleMl > 0) || (f.breastEstimatedMl != null && f.breastEstimatedMl > 0)
   );
   const mlDays = new Set(mlFeedings.map((f) => localDateOf(f.timestamp)));
-  const totalMl = mlFeedings.reduce((s, f) => s + (f.supplementMl ?? 0) + (f.breastEstimatedMl ?? 0), 0);
+  const totalMl = mlFeedings.reduce((s, f) => s + (f.supplementMl ?? 0) + (f.bottleMl ?? 0) + (f.breastEstimatedMl ?? 0), 0);
   const avgTotalMlPerDay = mlDays.size > 0
     ? Math.round(totalMl / mlDays.size)
     : 0;
@@ -256,13 +272,18 @@ export function getHistorySummary(feedings: Feeding[], rests: Rest[]): HistorySu
     ? Math.round(totalMl / mlFeedings.length)
     : 0;
 
-  // Breast vs syringe feed counts
+  // Breast vs bottle vs syringe feed counts
   const breastFeedings = feedings.filter((f) => f.hasBreast);
+  const bottleFeedings = feedings.filter((f) => f.hasBottle && (f.bottleMl ?? 0) > 0);
   const syringeFeedings = feedings.filter((f) => f.hasSupplement && (f.supplementMl ?? 0) > 0);
   const breastFeedDays = new Set(breastFeedings.map((f) => localDateOf(f.timestamp)));
+  const bottleFeedDays = new Set(bottleFeedings.map((f) => localDateOf(f.timestamp)));
   const syringeFeedDays = new Set(syringeFeedings.map((f) => localDateOf(f.timestamp)));
   const avgBreastFeedsPerDay = breastFeedDays.size > 0
     ? Math.round((breastFeedings.length / breastFeedDays.size) * 10) / 10
+    : 0;
+  const avgBottleFeedsPerDay = bottleFeedDays.size > 0
+    ? Math.round((bottleFeedings.length / bottleFeedDays.size) * 10) / 10
     : 0;
   const avgSyringeFeedsPerDay = syringeFeedDays.size > 0
     ? Math.round((syringeFeedings.length / syringeFeedDays.size) * 10) / 10
@@ -311,7 +332,7 @@ export function getHistorySummary(feedings: Feeding[], rests: Rest[]): HistorySu
     ? Math.round((totalSleepsByDay / restDayCount) * 10) / 10
     : 0;
 
-  return { totalDays, avgFeedingsPerDay, avgBreastFeedsPerDay, avgSyringeFeedsPerDay, avgTotalMlPerDay, avgTotalMlPerFeeding, avgBreastMinPerDay, avgRestMinutes, avgRestMinPerDay, avgSleepsPerDay };
+  return { totalDays, avgFeedingsPerDay, avgBreastFeedsPerDay, avgBottleFeedsPerDay, avgSyringeFeedsPerDay, avgTotalMlPerDay, avgTotalMlPerFeeding, avgBreastMinPerDay, avgRestMinutes, avgRestMinPerDay, avgSleepsPerDay };
 }
 
 export function generateId(): string {
@@ -320,7 +341,8 @@ export function generateId(): string {
 
 export function groupTimelineByDay(
   feedings: Feeding[],
-  rests: Rest[]
+  rests: Rest[],
+  diapers: DiaperChange[]
 ): Record<string, TimelineItem[]> {
   const groups: Record<string, TimelineItem[]> = {};
 
@@ -333,6 +355,11 @@ export function groupTimelineByDay(
     const day = localDateOf(r.startTime);
     if (!groups[day]) groups[day] = [];
     groups[day].push({ type: 'rest', data: r, sortKey: r.startTime });
+  }
+  for (const d of diapers) {
+    const day = localDateOf(d.timestamp);
+    if (!groups[day]) groups[day] = [];
+    groups[day].push({ type: 'diaper', data: d, sortKey: d.timestamp });
   }
 
   for (const day of Object.keys(groups)) {

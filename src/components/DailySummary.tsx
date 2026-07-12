@@ -1,19 +1,23 @@
-import { useState, useEffect, type ReactNode } from 'react';
-import type { BabyConfig, Feeding, Rest, TimelineItem, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent } from '../types';
-import { getCurrentDaysOfLife, formatMinutes, gapMinutes, isSameDay, todayIso } from '../utils/dateUtils';
+import { useState, useEffect } from 'react';
+import type { BabyConfig, Feeding, Rest, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent, DiaperChange } from '../types';
+import { getCurrentDaysOfLife, formatBabyAge, formatMinutes, gapMinutes, isSameDay, todayIso } from '../utils/dateUtils';
 import {
   getTodayFeedings,
   getTotalSupplementMl,
+  getTotalBottleMl,
   getTotalBreastMinutes,
   getTotalEstimatedBreastMl,
   getTodayRestMinutes,
   getAwakeMinutes,
+  getTodayDiapers,
   buildTimeline,
 } from '../utils/feedingUtils';
 import { getEffectiveReference, getSleepReference } from '../data/referenceTable';
 import FeedingItem from './FeedingItem';
 import RestItem from './RestItem';
+import DiaperItem from './DiaperItem';
 import DayInsights from './DayInsights';
+import WeekComparison from './WeekComparison';
 
 interface Props {
   config: BabyConfig;
@@ -22,6 +26,7 @@ interface Props {
   currentWeightKg?: number;
   vitaminDLogs: VitaminDLog[];
   calendarEvents: CalendarEvent[];
+  readOnly?: boolean;
   onOpenAgenda: () => void;
   onNewFeeding: () => void;
   onNewRest: () => void;
@@ -40,209 +45,17 @@ interface Props {
   massageLogs: MassageLog[];
   onAddMassage: (date: string) => void;
   onRemoveMassage: (id: string) => void;
+  diapers: DiaperChange[];
+  onNewDiaper: () => void;
+  onEditDiaper: (d: DiaperChange) => void;
+  onDeleteDiaper: (id: string) => void;
 }
 
-// Returns the previous feeding timestamp for a given index, ignoring rests.
-function prevFeedingTimestamp(timeline: TimelineItem[], index: number): string | null {
+function prevFeedingTimestamp(timeline: ReturnType<typeof buildTimeline>, index: number): string | null {
   for (let i = index - 1; i >= 0; i--) {
     if (timeline[i].type === 'feeding') return (timeline[i].data as import('../types').Feeding).timestamp;
   }
   return null;
-}
-
-export default function DailySummary({
-  config, feedings, rests, currentWeightKg, vitaminDLogs,
-  calendarEvents, onOpenAgenda,
-  onNewFeeding, onNewRest,
-  onEditFeeding, onEditRest,
-  onDeleteFeeding, onDeleteRest,
-  onStopFeeding, onStopRest,
-  onGiveVitaminD, onRemoveVitaminD,
-  probioticLogs, onGiveProbiotic, onRemoveProbiotic,
-  onRecalculateTodayBreast,
-  massageLogs, onAddMassage, onRemoveMassage,
-}: Props) {
-  const daysOfLife = getCurrentDaysOfLife(config);
-  const todayFeedings = getTodayFeedings(feedings);
-  const today = todayIso();
-  const todayRests = rests.filter((r) => isSameDay(r.startTime, today) || r.endTime == null);
-  const totalMl = getTotalSupplementMl(todayFeedings);
-  const totalBreastMin = getTotalBreastMinutes(todayFeedings);
-  const totalEstimatedBreastMl = getTotalEstimatedBreastMl(todayFeedings);
-  const totalRestMin = getTodayRestMinutes(rests);
-  const hasBreastWithMinutes = todayFeedings.some(
-    (f) => f.hasBreast && ((f.breastMinLeft ?? 0) + (f.breastMinRight ?? 0)) > 0
-  );
-  const timeline = buildTimeline(feedings, rests);
-  const reference = getEffectiveReference(daysOfLife, currentWeightKg);
-  const sleepRef = getSleepReference(daysOfLife);
-
-  function buildCareItems(): CareItem[] {
-    const items: CareItem[] = [];
-
-    if (config.vitaminDEnabled) {
-      const given = vitaminDLogs.some((l) => l.date === today);
-      items.push({
-        key: 'vitaminD',
-        icon: '💊',
-        done: given,
-        reminder: config.vitaminDReminderHour !== undefined
-          ? <SupplementReminder logs={vitaminDLogs} reminderHour={config.vitaminDReminderHour} icon="💊" label="vitamina D3" />
-          : undefined,
-        card: <SupplementCard icon="💊" label={`Vitamina D3${config.vitaminDMedName ? ` · ${config.vitaminDMedName}` : ''}`} sublabel="2 gotas" given={given}
-                onGive={() => onGiveVitaminD(today)} onRemove={() => onRemoveVitaminD(today)} />,
-      });
-    }
-
-    if (config.probioticEnabled) {
-      const given = probioticLogs.some((l) => l.date === today);
-      items.push({
-        key: 'probiotic',
-        icon: '🦠',
-        done: given,
-        reminder: config.probioticReminderHour !== undefined
-          ? <SupplementReminder logs={probioticLogs} reminderHour={config.probioticReminderHour} icon="🦠" label="probiótico" />
-          : undefined,
-        card: <SupplementCard icon="🦠" label={`Probiótico${config.probioticMedName ? ` · ${config.probioticMedName}` : ''}`} sublabel="5 gotas" given={given}
-                onGive={() => onGiveProbiotic(today)} onRemove={() => onRemoveProbiotic(today)} />,
-      });
-    }
-
-    if (config.frenectomyEnabled && config.frenectomyDate) {
-      const end = new Date(config.frenectomyDate + 'T12:00:00');
-      end.setDate(end.getDate() + 21);
-      if (end.getTime() > Date.now()) {
-        const count = massageLogs.filter((m) => m.date === today).length;
-        const startT = config.frenectomyStartTime ?? '08:30';
-        const endT = config.frenectomyEndTime ?? '22:30';
-        items.push({
-          key: 'massage',
-          icon: '👅',
-          done: count >= 5,
-          reminder: <MassageReminder massageLogs={massageLogs} frenectomyDate={config.frenectomyDate}
-                      startTime={startT} endTime={endT} />,
-          card: <MassageWidget massageLogs={massageLogs} frenectomyDate={config.frenectomyDate}
-                  startTime={startT} endTime={endT}
-                  onAdd={() => onAddMassage(today)} onRemove={onRemoveMassage} />,
-        });
-      }
-    }
-
-    return items;
-  }
-
-  const careItems = buildCareItems();
-  const careReminders = careItems.filter((i) => !i.done && i.reminder);
-
-  return (
-    <div className="p-4 pb-24">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Hoy</h1>
-          <p className="text-sm text-gray-500">
-            {new Date().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-            {' · '}día {daysOfLife} de vida
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={onNewRest}
-            className="bg-taupe-600 text-white font-semibold px-4 py-3 rounded-xl text-sm active:bg-taupe-700 touch-manipulation"
-          >
-            + Sueño
-          </button>
-          <button
-            onClick={onNewFeeding}
-            className="bg-sage-600 text-white font-semibold px-4 py-3 rounded-xl text-sm active:bg-sage-700 touch-manipulation"
-          >
-            + Toma
-          </button>
-        </div>
-      </div>
-
-      {/* Avisos — siempre arriba del todo */}
-      <LastFeedingBanner feedings={feedings} reference={reference} />
-      <LastSleepBanner rests={rests} awakeWindowMaxMin={sleepRef.awakeWindowMaxMin} />
-      {careReminders.map((i) => (
-        <div key={`reminder-${i.key}`}>{i.reminder}</div>
-      ))}
-      <NextEventBanner events={calendarEvents} onOpen={onOpenAgenda} />
-
-      {/* Stats — 2 filas × 3 columnas */}
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        {/* Fila 1 */}
-        <StatCard value={String(todayFeedings.length)}  label="tomas"    color="text-gray-900" />
-        <StatCard
-          value={totalEstimatedBreastMl > 0 ? `~${totalMl + totalEstimatedBreastMl} ml` : `${totalMl} ml`}
-          label="total ml"
-          color="text-gray-900"
-        />
-        <StatCard value={`${totalMl} ml`} label="jeringa" color="text-sage-600" />
-
-        {/* Fila 2 */}
-        <StatCard
-          value={totalEstimatedBreastMl > 0 ? `~${totalEstimatedBreastMl} ml` : '—'}
-          label="pecho ml"
-          color={totalEstimatedBreastMl > 0 ? 'text-pink-400' : 'text-gray-300'}
-        />
-        <div className="relative">
-          <StatCard value={formatMinutes(totalBreastMin)} label="pecho" color="text-pink-600" />
-          {hasBreastWithMinutes && (
-            <button
-              onClick={onRecalculateTodayBreast}
-              className="absolute top-2 right-2 text-xs text-pink-300 hover:text-pink-500 touch-manipulation"
-              title="Recalcular ml de pecho de hoy"
-            >
-              ↻
-            </button>
-          )}
-        </div>
-        <StatCard value={formatMinutes(totalRestMin)} label="sueño" color="text-taupe-600" />
-      </div>
-
-      {/* Cuidados diarios agrupados */}
-      <DailyCareSection items={careItems} />
-
-      {/* Insights: progress + averages */}
-      <DayInsights feedings={todayFeedings} rests={todayRests} reference={reference} sleepRef={sleepRef} todayRestMinutes={totalRestMin} />
-
-      {/* Timeline */}
-      {timeline.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
-          <p className="text-4xl mb-3">🍼</p>
-          <p className="text-base">Aún no hay registros hoy</p>
-          <div className="flex justify-center gap-4 mt-4">
-            <button onClick={onNewFeeding} className="text-sage-600 font-medium touch-manipulation">+ Toma</button>
-            <button onClick={onNewRest} className="text-taupe-600 font-medium touch-manipulation">+ Sueño</button>
-          </div>
-        </div>
-      ) : (
-        <div>
-          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Hoy</h2>
-          {timeline.map((item, i) => {
-            // Lista descendente: prevFeedingTimestamp es MÁS RECIENTE (índice menor)
-            // Gap = desde este ítem hasta el más reciente de arriba
-            const morerecentTs = prevFeedingTimestamp(timeline, i);
-            const gap =
-              item.type === 'feeding' && morerecentTs
-                ? gapMinutes(item.data.timestamp, morerecentTs)
-                : null;
-            return (
-              <div key={item.data.id}>
-                {gap !== null && <GapLine minutes={gap} />}
-                {item.type === 'feeding' ? (
-                  <FeedingItem feeding={item.data} onEdit={onEditFeeding} onDelete={onDeleteFeeding} onStop={onStopFeeding} />
-                ) : (
-                  <RestItem rest={item.data} onEdit={onEditRest} onDelete={onDeleteRest} onStop={onStopRest} />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
 }
 
 function getRecommendedTimes(startTime: string, endTime: string): string[] {
@@ -254,265 +67,361 @@ function getRecommendedTimes(startTime: string, endTime: string): string[] {
   return Array.from({ length: 5 }, (_, i) => toStr(Math.round(start + interval * i)));
 }
 
-function MassageWidget({ massageLogs, frenectomyDate, startTime, endTime, onAdd, onRemove }: {
-  massageLogs: MassageLog[];
-  frenectomyDate: string;
-  startTime: string;
-  endTime: string;
-  onAdd: () => void;
-  onRemove: (id: string) => void;
-}) {
-  const today = todayIso();
-  const end = new Date(frenectomyDate + 'T12:00:00');
-  end.setDate(end.getDate() + 21);
-  const daysLeft = Math.ceil((end.getTime() - Date.now()) / 86400000);
-  if (daysLeft <= 0) return null;
-
-  const todayMassages = massageLogs
-    .filter((m) => m.date === today)
-    .sort((a, b) => a.performedAt.localeCompare(b.performedAt));
-  const recommended = getRecommendedTimes(startTime, endTime);
-  const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
-
-  return (
-    <div className="bg-white rounded-2xl p-4 shadow-sm mb-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-base">👅</span>
-          <span className="text-sm font-semibold text-gray-800">Masajes</span>
-          <span className="text-xs text-gray-400">{todayMassages.length}/5</span>
-        </div>
-        <span className="text-xs text-blue-500 font-medium">{daysLeft} días restantes</span>
-      </div>
-      <div className="flex justify-between gap-1">
-        {Array.from({ length: 5 }, (_, i) => {
-          const massage = todayMassages[i];
-          const done = !!massage;
-          const recMin = (() => { const [h, m] = recommended[i].split(':').map(Number); return h * 60 + m; })();
-          const isPast = nowMin >= recMin;
-          const isNext = !done && i === todayMassages.length && isPast;
-          return (
-            <button
-              key={i}
-              onClick={done ? () => onRemove(massage.id) : onAdd}
-              disabled={!done && todayMassages.length >= 5}
-              className="flex-1 flex flex-col items-center gap-1 touch-manipulation"
-            >
-              <div className={`w-full aspect-square md:max-w-[52px] rounded-xl flex items-center justify-center text-sm font-bold transition-colors
-                ${done ? 'bg-blue-100 text-blue-700' : isNext ? 'bg-orange-100 text-orange-600 ring-2 ring-orange-300' : 'bg-gray-100 text-gray-400'}`}>
-                {done ? '✓' : i + 1}
-              </div>
-              <span className="text-xs text-blue-400 tabular-nums">{recommended[i]}</span>
-              <span className="text-xs text-gray-400 tabular-nums">
-                {done ? formatMassageTime(massage.performedAt) : '—'}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-      {todayMassages.length < 5 && (
-        <button
-          onClick={onAdd}
-          className="mt-3 w-full py-2 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 text-blue-700 text-sm font-semibold rounded-xl touch-manipulation transition-colors"
-        >
-          + Registrar masaje
-        </button>
-      )}
-      {todayMassages.length === 5 && (
-        <p className="mt-3 text-center text-xs text-green-600 font-medium">✓ Todos los masajes del día completados</p>
-      )}
-    </div>
-  );
-}
-
-function MassageReminder({ massageLogs, frenectomyDate, startTime, endTime }: {
-  massageLogs: MassageLog[];
-  frenectomyDate: string;
-  startTime: string;
-  endTime: string;
-}) {
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 60000);
-    return () => clearInterval(id);
-  }, []);
-
-  const today = todayIso();
-  const end = new Date(frenectomyDate + 'T12:00:00');
-  end.setDate(end.getDate() + 21);
-  if (end.getTime() <= Date.now()) return null;
-
-  const todayMassages = massageLogs.filter((m) => m.date === today);
-  if (todayMassages.length >= 5) return null;
-
-  const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
-  const recommended = getRecommendedTimes(startTime, endTime);
-  const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
-
-  // Próximo masaje pendiente cuya hora recomendada ya ha pasado
-  const nextPending = todayMassages.length; // índice 0-4 del próximo masaje a hacer
-  if (nextPending >= 5) return null;
-
-  const recMin = toMin(recommended[nextPending]);
-  const minutesLate = nowMin - recMin;
-  if (minutesLate < 0) return null; // aún no ha llegado la hora
-
-  const h = Math.floor(minutesLate / 60);
-  const m = minutesLate % 60;
-  const lateStr = h > 0 ? `${h}h ${m}min` : `${m}min`;
-
-  const isLate = minutesLate > 0;
-
-  return (
-    <div className={`border-2 rounded-2xl p-4 mb-4 ${isLate ? 'border-orange-400 bg-orange-50' : 'border-amber-300 bg-amber-50'}`}>
-      <div className="flex items-center gap-2">
-        <span className="text-xl animate-pulse">👅</span>
-        <div>
-          <p className={`text-sm font-bold ${isLate ? 'text-orange-800' : 'text-amber-800'}`}>
-            Masaje #{nextPending + 1} pendiente — {recommended[nextPending]}
-          </p>
-          <p className={`text-xs mt-0.5 ${isLate ? 'text-orange-600' : 'text-amber-600'}`}>
-            {isLate ? `Con ${lateStr} de retraso` : '¡Es la hora!'}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function formatMassageTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-}
-
-interface CareItem {
+interface CareChip {
   key: string;
   icon: string;
+  label: string;
   done: boolean;
-  reminder?: ReactNode;
-  card: ReactNode;
+  urgent: boolean;
+  count?: { current: number; total: number };
+  onAdd: () => void;
+  onUndo?: () => void;
 }
 
-function SupplementCard({ icon, label, sublabel, given, onGive, onRemove }: {
-  icon: string;
-  label: string;
-  sublabel: string;
-  given: boolean;
-  onGive: () => void;
-  onRemove: () => void;
-}) {
-  return (
-    <div
-      onClick={given ? onRemove : onGive}
-      className={`rounded-2xl p-4 cursor-pointer select-none flex items-center justify-between
-        ${given ? 'bg-green-50 border border-green-200 active:bg-green-100' : 'bg-white shadow-sm active:bg-gray-50'}`}
-    >
-      <div className="flex items-center gap-3">
-        <span className="text-2xl">{icon}</span>
-        <div>
-          <p className="text-sm font-semibold text-gray-900">{label}</p>
-          <p className={`text-xs mt-0.5 ${given ? 'text-green-600' : 'text-gray-400'}`}>
-            {given ? `Dado hoy ✓` : `${sublabel} — toca para marcar`}
-          </p>
-        </div>
-      </div>
-      {given && <span className="text-xs text-gray-400">Toca para deshacer</span>}
-    </div>
-  );
-}
-
-function SupplementReminder({ logs, reminderHour, icon, label }: {
-  logs: { date: string }[];
-  reminderHour: number;
-  icon: string;
-  label: string;
-}) {
+export default function DailySummary({
+  config, feedings, rests, currentWeightKg, vitaminDLogs,
+  calendarEvents, readOnly,
+  onOpenAgenda,
+  onNewFeeding, onNewRest,
+  onEditFeeding, onEditRest,
+  onDeleteFeeding, onDeleteRest,
+  onStopFeeding, onStopRest,
+  onGiveVitaminD, onRemoveVitaminD,
+  probioticLogs, onGiveProbiotic, onRemoveProbiotic,
+  onRecalculateTodayBreast,
+  massageLogs, onAddMassage, onRemoveMassage,
+  diapers, onEditDiaper, onDeleteDiaper,
+}: Props) {
+  const daysOfLife = getCurrentDaysOfLife(config);
+  const todayFeedings = getTodayFeedings(feedings);
   const today = todayIso();
-  const given = logs.some((l) => l.date === today);
-  if (given || new Date().getHours() < reminderHour) return null;
-
-  return (
-    <div className="border-2 border-amber-300 bg-amber-50 rounded-2xl p-4 mb-4">
-      <div className="flex items-center gap-2">
-        <span className="text-xl animate-pulse">{icon}</span>
-        <div>
-          <p className="text-sm font-bold text-amber-800">¡No olvides el {label} de hoy!</p>
-          <p className="text-xs text-amber-600 mt-0.5">
-            Recordatorio a las {String(reminderHour).padStart(2, '0')}:00
-          </p>
-        </div>
-      </div>
-    </div>
+  const todayRests = rests.filter((r) => isSameDay(r.startTime, today) || r.endTime == null);
+  const totalMl = getTotalSupplementMl(todayFeedings);
+  const totalBottleMl = getTotalBottleMl(todayFeedings);
+  const totalBreastMin = getTotalBreastMinutes(todayFeedings);
+  const totalEstimatedBreastMl = getTotalEstimatedBreastMl(todayFeedings);
+  const totalRestMin = getTodayRestMinutes(rests);
+  const hasBreastWithMinutes = todayFeedings.some(
+    (f) => f.hasBreast && ((f.breastMinLeft ?? 0) + (f.breastMinRight ?? 0)) > 0
   );
-}
+  const todayDiapers = getTodayDiapers(diapers);
+  const wetCount = todayDiapers.filter((d) => d.content === 'wet' || d.content === 'both').length;
+  const dirtyCount = todayDiapers.filter((d) => d.content === 'dirty' || d.content === 'both').length;
+  const timeline = buildTimeline(feedings, rests, diapers);
+  const reference = getEffectiveReference(daysOfLife, currentWeightKg);
+  const sleepRef = getSleepReference(daysOfLife);
 
-function DailyCareSection({ items }: { items: CareItem[] }) {
+  function buildCareChips(): CareChip[] {
+    const chips: CareChip[] = [];
+    const now = new Date();
+    const nowHour = now.getHours();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+
+    if (config.vitaminDEnabled) {
+      const given = vitaminDLogs.some((l) => l.date === today);
+      const urgent = !given && config.vitaminDReminderHour !== undefined && nowHour >= config.vitaminDReminderHour;
+      chips.push({
+        key: 'vitaminD',
+        icon: '💊',
+        label: config.vitaminDMedName || 'Vit. D',
+        done: given,
+        urgent,
+        onAdd: () => onGiveVitaminD(today),
+        onUndo: given ? () => onRemoveVitaminD(today) : undefined,
+      });
+    }
+
+    if (config.probioticEnabled) {
+      const given = probioticLogs.some((l) => l.date === today);
+      const urgent = !given && config.probioticReminderHour !== undefined && nowHour >= config.probioticReminderHour;
+      chips.push({
+        key: 'probiotic',
+        icon: '🦠',
+        label: config.probioticMedName || 'Probiótico',
+        done: given,
+        urgent,
+        onAdd: () => onGiveProbiotic(today),
+        onUndo: given ? () => onRemoveProbiotic(today) : undefined,
+      });
+    }
+
+    if (config.frenectomyEnabled && config.frenectomyDate) {
+      const end = new Date(config.frenectomyDate + 'T12:00:00');
+      end.setDate(end.getDate() + 21);
+      if (end.getTime() > Date.now()) {
+        const todayMassages = massageLogs
+          .filter((m) => m.date === today)
+          .sort((a, b) => a.performedAt.localeCompare(b.performedAt));
+        const count = todayMassages.length;
+        const done = count >= 5;
+        const startT = config.frenectomyStartTime ?? '08:30';
+        const endT = config.frenectomyEndTime ?? '22:30';
+        const recommended = getRecommendedTimes(startT, endT);
+        const nextPending = count < 5 ? count : 4;
+        const urgent = !done && nowMin >= toMin(recommended[nextPending]);
+        const lastMassage = todayMassages[todayMassages.length - 1];
+        chips.push({
+          key: 'massage',
+          icon: '👅',
+          label: 'Masajes',
+          done,
+          urgent,
+          count: { current: count, total: 5 },
+          onAdd: () => onAddMassage(today),
+          onUndo: count > 0 ? () => onRemoveMassage(lastMassage.id) : undefined,
+        });
+      }
+    }
+
+    return chips;
+  }
+
+  const careChips = buildCareChips();
+
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
   const [, setTick] = useState(0);
-  const [expanded, setExpanded] = useState(false);
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 60000);
     return () => clearInterval(id);
   }, []);
 
-  if (items.length === 0) return null;
+  const lastFeeding = feedings.length > 0
+    ? [...feedings].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
+    : null;
+  const lastFeedingInProgress = lastFeeding != null && (
+    (lastFeeding.hasBreast && lastFeeding.breastMinLeft == null && lastFeeding.breastMinRight == null) ||
+    (lastFeeding.hasBottle && lastFeeding.bottleMl == null) ||
+    (lastFeeding.hasSupplement && lastFeeding.supplementMl == null)
+  );
+  const lastFeedingElapsed = lastFeeding && !lastFeedingInProgress
+    ? Math.floor((Date.now() - new Date(lastFeeding.timestamp).getTime()) / 60000)
+    : null;
+  const feedingAlertMin = reference ? Math.round((24 * 60) / reference.feedsPerDayMin) : 180;
+  const isFeedingAlert = lastFeedingElapsed !== null && lastFeedingElapsed >= feedingAlertMin;
 
-  const pending = items.filter((i) => !i.done);
-  const completed = items.filter((i) => i.done);
-  const allDone = pending.length === 0;
+  const awakeMin = getAwakeMinutes(rests);
+  const isAwakeAlert = awakeMin !== null && awakeMin >= sleepRef.awakeWindowMaxMin;
+  const isAwakeSevere = awakeMin !== null && awakeMin >= sleepRef.awakeWindowMaxMin * 2;
+
+  const grandTotalMl = totalMl + totalBottleMl + totalEstimatedBreastMl;
 
   return (
-    <>
-      {/* Pendientes: cards individuales (los recordatorios se muestran arriba del todo) */}
-      {pending.map((i) => (
-        <div key={i.key} className="mb-4">{i.card}</div>
-      ))}
-
-      {/* Completados: card colapsable de resumen */}
-      {completed.length > 0 && (
-        <div className="mb-4">
-          {!expanded ? (
-            <button
-              onClick={() => setExpanded(true)}
-              className="w-full bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center justify-between active:bg-green-100 touch-manipulation"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-green-600 text-lg">✓</span>
-                <span className="text-sm font-semibold text-green-800">
-                  {allDone ? 'Cuidados completados' : 'Cuidados hechos'}
-                </span>
-                <span className="flex items-center gap-1">
-                  {completed.map((i) => <span key={i.key} className="text-lg">{i.icon}</span>)}
-                </span>
-              </div>
-              <span className="text-gray-400 text-sm">▶</span>
-            </button>
-          ) : (
-            <div className="space-y-2">
+    <div className="p-4 pb-24">
+      {/* ── 1. Header ──────────────────────────────────────────────────── */}
+      <div className="mb-3">
+        <div className="flex items-baseline gap-2">
+          <h1 className="text-2xl font-bold text-gray-900">Hoy</h1>
+          <span className="text-base font-semibold text-gray-500">
+            {new Date().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+          </span>
+        </div>
+        <div className="flex items-center justify-between mt-0.5">
+          <p className="text-sm text-gray-500">{formatBabyAge(daysOfLife)}</p>
+          {!readOnly && (
+            <div className="flex gap-2">
               <button
-                onClick={() => setExpanded(false)}
-                className="w-full flex items-center justify-between px-1 touch-manipulation"
+                onClick={onNewRest}
+                className="bg-lagoon-100 text-lagoon-700 font-semibold px-4 py-2 rounded-xl text-sm active:bg-lagoon-200 touch-manipulation"
               >
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Cuidados hechos</span>
-                <span className="text-gray-400 text-sm">▼</span>
+                + Sueño
               </button>
-              {completed.map((i) => (
-                <div key={i.key}>{i.card}</div>
-              ))}
+              <button
+                onClick={onNewFeeding}
+                className="bg-mustard-100 text-mustard-700 font-semibold px-4 py-2 rounded-xl text-sm active:bg-mustard-200 touch-manipulation"
+              >
+                + Toma
+              </button>
             </div>
           )}
         </div>
+      </div>
+
+      {/* ── 2. Barra de estado compacta ────────────────────────────────── */}
+      <div className="bg-white rounded-2xl shadow-sm mb-3 overflow-hidden">
+        <div className={`grid divide-x divide-gray-100 ${todayDiapers.length > 0 ? 'grid-cols-5' : 'grid-cols-4'}`}>
+          <MiniStat value={String(todayFeedings.length)} label="tomas" />
+          <MiniStat value={totalEstimatedBreastMl > 0 ? `~${grandTotalMl}` : `${totalMl + totalBottleMl}`} label="ml" />
+          <MiniStat value={formatMinutes(totalBreastMin)} label="pecho" color="text-pink-600" />
+          <MiniStat value={formatMinutes(totalRestMin)} label="sueño" color="text-taupe-600" />
+          {todayDiapers.length > 0 && (
+            <MiniStat value={`${wetCount}·${dirtyCount}`} label="💧·💩" color="text-sky-600" />
+          )}
+        </div>
+        <div className="flex items-center justify-between px-3 py-2 bg-gray-50/50 border-t border-gray-100 text-xs">
+          <div className="text-gray-500">
+            {lastFeedingInProgress && (
+              <span className="text-pink-500 font-medium animate-pulse">🤱 En curso…</span>
+            )}
+            {lastFeedingElapsed !== null && !isFeedingAlert && (
+              <>🕐 Hace <span className="font-semibold text-gray-700">{formatElapsed(lastFeedingElapsed)}</span></>
+            )}
+            {isFeedingAlert && lastFeedingElapsed !== null && (
+              <span className="font-bold text-red-600">⚠️ {formatElapsed(lastFeedingElapsed)} sin comer</span>
+            )}
+            {!lastFeeding && <span className="text-gray-400">Sin tomas aún</span>}
+          </div>
+          <button
+            onClick={() => setDetailsOpen((o) => !o)}
+            className="text-sage-600 font-semibold px-1.5 touch-manipulation shrink-0"
+          >
+            {detailsOpen ? 'menos' : 'ver más'}
+          </button>
+        </div>
+        {detailsOpen && (
+          <div className="px-3 pb-3 pt-2 border-t border-gray-100 space-y-3">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="relative bg-gray-50 rounded-xl p-2.5 text-center">
+                <span className="text-lg">🤱</span>
+                <p className={`text-base font-bold leading-tight ${totalEstimatedBreastMl > 0 ? 'text-pink-500' : 'text-gray-300'}`}>
+                  {totalEstimatedBreastMl > 0 ? `~${totalEstimatedBreastMl}` : '—'}
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">pecho ml</p>
+                {hasBreastWithMinutes && (
+                  <button
+                    onClick={onRecalculateTodayBreast}
+                    className="absolute top-1 right-1 text-xs text-pink-300 hover:text-pink-500 touch-manipulation"
+                    title="Recalcular"
+                  >↻</button>
+                )}
+              </div>
+              <div className="bg-gray-50 rounded-xl p-2.5 text-center">
+                <span className="text-sm">🍼</span>
+                <p className="text-base font-bold text-blue-600 leading-tight">{totalBottleMl}</p>
+                <p className="text-xs text-gray-400 mt-0.5">biberón ml</p>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-2.5 text-center">
+                <span className="text-sm">💉</span>
+                <p className="text-base font-bold text-sage-600 leading-tight">{totalMl}</p>
+                <p className="text-xs text-gray-400 mt-0.5">jeringa ml</p>
+              </div>
+            </div>
+            <DayInsights feedings={todayFeedings} rests={todayRests} reference={reference} sleepRef={sleepRef} todayRestMinutes={totalRestMin} />
+            <WeekComparison feedings={feedings} rests={rests} />
+          </div>
+        )}
+      </div>
+
+      {/* ── 3. Alertas urgentes ────────────────────────────────────────── */}
+      {isFeedingAlert && lastFeedingElapsed !== null && (
+        <div className="border-2 border-red-400 bg-red-50 rounded-xl p-3 mb-2">
+          <div className="flex items-center gap-2">
+            <span className="animate-pulse">⚠️</span>
+            <span className="text-sm font-bold text-red-700">¡{formatElapsed(lastFeedingElapsed)} sin comer!</span>
+            <span className="text-xs text-red-400 ml-auto">máx. {formatElapsed(feedingAlertMin)}</span>
+          </div>
+        </div>
       )}
-    </>
+      {isAwakeAlert && awakeMin !== null && (
+        <div className={`border-2 rounded-xl p-3 mb-2 ${isAwakeSevere ? 'border-red-400 bg-red-50' : 'border-amber-300 bg-amber-50'}`}>
+          <div className="flex items-center gap-2">
+            <span className="animate-pulse">🌙</span>
+            <span className={`text-sm font-bold ${isAwakeSevere ? 'text-red-700' : 'text-amber-800'}`}>
+              Despierto {formatElapsed(awakeMin)}
+            </span>
+            <span className={`text-xs ml-auto ${isAwakeSevere ? 'text-red-400' : 'text-amber-600'}`}>
+              máx. {formatElapsed(sleepRef.awakeWindowMaxMin)}
+            </span>
+          </div>
+        </div>
+      )}
+      <NextEventBanner events={calendarEvents} onOpen={onOpenAgenda} />
+
+      {/* ── 4. Timeline — contenido principal ──────────────────────────── */}
+      <div className="flex items-center justify-between mt-4 mb-2">
+        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Registros de hoy</h2>
+        {careChips.length > 0 && (
+          <CareChipsRow chips={careChips} readOnly={readOnly} />
+        )}
+      </div>
+      {timeline.length === 0 ? (
+        <div className="text-center py-12 text-gray-400">
+          <p className="text-4xl mb-3">🍼</p>
+          <p className="text-base">Aún no hay registros hoy</p>
+          <div className="flex justify-center gap-4 mt-4">
+            <button onClick={onNewFeeding} className="text-mustard-600 font-medium touch-manipulation">+ Toma</button>
+            <button onClick={onNewRest} className="text-lagoon-600 font-medium touch-manipulation">+ Sueño</button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-1">
+          {timeline.map((item, i) => {
+            const morerecentTs = prevFeedingTimestamp(timeline, i);
+            const gap =
+              item.type === 'feeding' && morerecentTs
+                ? gapMinutes(item.data.timestamp, morerecentTs)
+                : null;
+            return (
+              <div key={item.data.id}>
+                {gap !== null && <GapLine minutes={gap} />}
+                {item.type === 'feeding' ? (
+                  <FeedingItem feeding={item.data} onEdit={onEditFeeding} onDelete={onDeleteFeeding} onStop={onStopFeeding} listDay={today} readOnly={readOnly} />
+                ) : item.type === 'rest' ? (
+                  <RestItem rest={item.data} onEdit={onEditRest} onDelete={onDeleteRest} onStop={onStopRest} listDay={today} readOnly={readOnly} />
+                ) : (
+                  <DiaperItem diaper={item.data} onEdit={onEditDiaper} onDelete={onDeleteDiaper} readOnly={readOnly} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
-function StatCard({ value, label, color, note }: { value: string; label: string; color: string; note?: string }) {
-  const len = value.length;
-  const size = len <= 2 ? 'text-3xl' : len <= 5 ? 'text-2xl' : 'text-lg';
+// ── Care chips row ──────────────────────────────────────────────────────────
+
+function CareChipsRow({ chips, readOnly }: { chips: CareChip[]; readOnly?: boolean }) {
   return (
-    <div className="bg-white rounded-2xl p-3 shadow-sm text-center">
-      <p className={`font-bold ${color} ${size} leading-tight`}>{value}</p>
-      <p className="text-xs text-gray-500 mt-1 leading-tight">{label}</p>
-      {note && <p className="text-xs text-pink-400 mt-0.5">{note}</p>}
+    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+      {chips.map((chip) => {
+        const countLabel = chip.count ? ` ${chip.count.current}/${chip.count.total}` : '';
+        const canAdd = !readOnly && !chip.done;
+        const canUndo = !readOnly && !!chip.onUndo;
+
+        const colorClass = chip.done
+          ? 'bg-green-100 text-green-700'
+          : chip.urgent
+            ? 'bg-amber-100 text-amber-800'
+            : 'bg-gray-100 text-gray-500';
+
+        return (
+          <div key={chip.key} className="flex items-center rounded-full overflow-hidden">
+            <button
+              onClick={canAdd ? chip.onAdd : (!readOnly && chip.done && !chip.count ? chip.onUndo : undefined)}
+              className={`flex items-center gap-1 pl-2.5 ${canUndo ? 'pr-1.5' : 'pr-2.5'} py-1 text-xs font-semibold touch-manipulation transition-colors
+                ${colorClass}
+                ${!readOnly ? 'active:brightness-95' : 'cursor-default'}`}
+            >
+              <span>{chip.icon}</span>
+              <span>{chip.label}{countLabel}</span>
+              {chip.done && !chip.count && <span className="ml-0.5">✓</span>}
+            </button>
+            {canUndo && (
+              <button
+                onClick={chip.onUndo}
+                className={`pr-2 pl-1 py-1 text-xs touch-manipulation active:brightness-95 border-l border-white/40 ${colorClass}`}
+                title="Deshacer"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+function MiniStat({ value, label, color }: { value: string; label: string; color?: string }) {
+  return (
+    <div className="py-2.5 px-1 text-center">
+      <p className={`text-lg font-bold leading-tight ${color ?? 'text-gray-900'}`}>{value}</p>
+      <p className="text-xs text-gray-400 mt-0.5">{label}</p>
     </div>
   );
 }
@@ -535,10 +444,26 @@ const EVENT_CAT_META: Record<string, { icon: string; label: string }> = {
 };
 
 function NextEventBanner({ events, onOpen }: { events: CalendarEvent[]; onOpen: () => void }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
+
   const today = todayIso();
-  const next = events
+  const now = Date.now();
+
+  const candidates = events
     .filter((e) => e.date >= today)
-    .sort((a, b) => (a.date + (a.time ?? '99')).localeCompare(b.date + (b.time ?? '99')))[0];
+    .sort((a, b) => (a.date + (a.time ?? '99')).localeCompare(b.date + (b.time ?? '99')));
+
+  const next = candidates.find((e) => {
+    if (e.date !== today || !e.time) return true;
+    const [h, m] = e.time.split(':').map(Number);
+    const eventTime = new Date(today + 'T00:00:00');
+    eventTime.setHours(h, m, 0, 0);
+    return now - eventTime.getTime() < 2 * 60 * 60 * 1000;
+  });
   if (!next) return null;
 
   const meta = EVENT_CAT_META[next.category] ?? EVENT_CAT_META.otro;
@@ -547,17 +472,27 @@ function NextEventBanner({ events, onOpen }: { events: CalendarEvent[]; onOpen: 
   const whenLabel = isToday ? 'Hoy' : isTomorrow ? 'Mañana'
     : new Date(next.date + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
 
+  let isPast = false;
+  if (isToday && next.time) {
+    const [h, m] = next.time.split(':').map(Number);
+    const eventTime = new Date(today + 'T00:00:00');
+    eventTime.setHours(h, m, 0, 0);
+    isPast = now > eventTime.getTime();
+  }
+
   return (
     <button
       onClick={onOpen}
       className={`w-full text-left rounded-2xl p-3 mb-4 flex items-center gap-3 touch-manipulation active:opacity-80 ${
-        isToday ? 'bg-blue-50 border-2 border-blue-300' : 'bg-white shadow-sm'
+        isPast ? 'bg-gray-100 opacity-60' : isToday ? 'bg-blue-50 border-2 border-blue-300' : 'bg-white shadow-sm'
       }`}
     >
-      <span className="text-xl shrink-0">📅</span>
+      <span className="text-xl shrink-0">{isPast ? '✅' : '📅'}</span>
       <div className="flex-1 min-w-0">
-        <p className={`text-sm ${isToday ? 'font-bold text-blue-800' : 'font-semibold text-gray-800'}`}>
-          {isToday ? '¡Cita hoy!' : 'Próxima cita'} · {whenLabel}{next.time ? ` ${next.time}` : ''}
+        <p className={`text-sm ${
+          isPast ? 'text-gray-500 line-through' : isToday ? 'font-bold text-blue-800' : 'font-semibold text-gray-800'
+        }`}>
+          {isPast ? 'Cita pasada' : isToday ? '¡Cita hoy!' : 'Próxima cita'} · {whenLabel}{next.time ? ` ${next.time}` : ''}
         </p>
         <p className="text-xs text-gray-500 truncate">
           {meta.icon} {next.title || meta.label}
@@ -574,106 +509,11 @@ function isoPlusDays(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-function LastFeedingBanner({ feedings, reference }: { feedings: Feeding[]; reference: import('../data/referenceTable').FeedingReference | null }) {
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setTick(t => t + 1), 60000);
-    return () => clearInterval(id);
-  }, []);
-
-  if (feedings.length === 0) return null;
-
-  const last = [...feedings].sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  )[0];
-
-  const inProgress =
-    (last.hasBreast && last.breastMinLeft == null && last.breastMinRight == null) ||
-    (last.hasSupplement && last.supplementMl == null);
-
-  if (inProgress) return null;
-
-  // Derive max gap from reference: 24h / min feeds per day
-  // Falls back to 3h if no reference available
-  const alertMin = reference
-    ? Math.round((24 * 60) / reference.feedsPerDayMin)
-    : 180;
-
-  const elapsed = Math.floor((Date.now() - new Date(last.timestamp).getTime()) / 60000);
-  const isAlert = elapsed >= alertMin;
-  const label = formatElapsed(elapsed);
-
-  if (isAlert) {
-    return (
-      <div className="border-2 border-red-400 bg-red-50 rounded-2xl p-4 mb-4">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-xl animate-pulse">⚠️</span>
-          <span className="text-sm font-bold text-red-700">
-            ¡Han pasado {label} desde la última toma!
-          </span>
-        </div>
-        <p className="text-xs text-red-500 ml-8 mb-2">El bebé debería comer pronto.</p>
-        <div className="ml-8 flex items-center gap-1.5">
-          <span className="text-xs text-red-400">Límite recomendado para esta edad:</span>
-          <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
-            {formatElapsed(alertMin)}
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white rounded-2xl p-3 shadow-sm mb-4 flex items-center gap-2">
-      <span>🕐</span>
-      <span className="text-sm text-gray-500">
-        Última toma hace{' '}
-        <span className="font-semibold text-gray-700">{label}</span>
-      </span>
-    </div>
-  );
-}
-
-function LastSleepBanner({ rests, awakeWindowMaxMin }: { rests: import('../types').Rest[]; awakeWindowMaxMin: number }) {
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setTick(t => t + 1), 60000);
-    return () => clearInterval(id);
-  }, []);
-
-  const awakeMin = getAwakeMinutes(rests);
-  // null = durmiendo ahora o sin siestas registradas → no avisar
-  if (awakeMin === null || awakeMin < awakeWindowMaxMin) return null;
-
-  // "Muy pasado" cuando supera el doble de la ventana recomendada.
-  const isAlert = awakeMin >= awakeWindowMaxMin * 2;
-  const label = formatElapsed(awakeMin);
-
-  return (
-    <div className={`border-2 rounded-2xl p-4 mb-4 ${isAlert ? 'border-red-400 bg-red-50' : 'border-amber-300 bg-amber-50'}`}>
-      <div className="flex items-center gap-2 mb-1">
-        <span className="text-xl animate-pulse">😴</span>
-        <span className={`text-sm font-bold ${isAlert ? 'text-red-700' : 'text-amber-800'}`}>
-          Lleva despierto {label}
-        </span>
-      </div>
-      <div className="ml-8 flex items-center gap-1.5">
-        <span className={`text-xs ${isAlert ? 'text-red-500' : 'text-amber-600'}`}>
-          Podría tocar siesta · ventana recomendada:
-        </span>
-        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isAlert ? 'text-red-600 bg-red-100' : 'text-amber-700 bg-amber-100'}`}>
-          {formatElapsed(awakeWindowMaxMin)}
-        </span>
-      </div>
-    </div>
-  );
-}
-
 function GapLine({ minutes }: { minutes: number }) {
   return (
     <div className="flex items-center gap-2 my-1 px-1">
       <div className="flex-1 border-t border-dashed border-gray-200" />
-      <span className="text-xs text-gray-400 shrink-0">{formatMinutes(minutes)}</span>
+      <span className="text-xs text-gray-400 shrink-0">{formatMinutes(minutes)} desde la última toma</span>
       <div className="flex-1 border-t border-dashed border-gray-200" />
     </div>
   );

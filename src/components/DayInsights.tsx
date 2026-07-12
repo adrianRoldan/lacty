@@ -2,6 +2,7 @@ import type { Feeding, Rest } from '../types';
 import type { FeedingReference, SleepReference } from '../data/referenceTable';
 import {
   getTotalSupplementMl,
+  getTotalBottleMl,
   getTotalEstimatedBreastMl,
   getAvgGapMinutes,
   getAvgSupplementMl,
@@ -48,7 +49,7 @@ const LEVEL_LABELS: Record<Level, string> = {
 };
 
 export default function DayInsights({ feedings, rests, reference, sleepRef, todayRestMinutes }: Props) {
-  const totalMl = getTotalSupplementMl(feedings) + getTotalEstimatedBreastMl(feedings);
+  const totalMl = getTotalSupplementMl(feedings) + getTotalBottleMl(feedings) + getTotalEstimatedBreastMl(feedings);
   const totalFeedings = feedings.length;
   const avgGap = getAvgGapMinutes(feedings);
   const avgMl = getAvgSupplementMl(feedings);
@@ -100,7 +101,7 @@ export default function DayInsights({ feedings, rests, reference, sleepRef, toda
 
           {reference && (
             <p className="text-xs text-gray-400 leading-relaxed">
-              ℹ️ Los ml incluyen jeringa-dedo (medido) + pecho estimado (~), un promedio orientativo. Las horas de sueño son orientativas por edad.
+              ℹ️ Los ml incluyen jeringa-dedo (medido) + biberón (medido) + pecho estimado (~), un promedio orientativo. Las horas de sueño son orientativas por edad.
             </p>
           )}
         </div>
@@ -120,7 +121,7 @@ export default function DayInsights({ feedings, rests, reference, sleepRef, toda
               <AverageRow icon="💧" label="ml por toma (total)" value={`${avgMl} ml`} />
             )}
             {avgRest !== null && (
-              <AverageRow icon="😴" label="Duración sueño" value={formatMinutes(avgRest)} />
+              <AverageRow icon="🌙" label="Duración sueño" value={formatMinutes(avgRest)} />
             )}
             {totalRestToday > 0 && (
               <AverageRow icon="🌙" label="Sueño hoy" value={formatMinutes(totalRestToday)} />
