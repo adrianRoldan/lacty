@@ -8,7 +8,9 @@ interface Props {
 type Mode = 'login' | 'signup';
 
 export default function LoginScreen({ onLogin }: Props) {
-  const [mode, setMode] = useState<Mode>('login');
+  const [mode, setMode] = useState<Mode>(
+    window.location.search.includes('registro') ? 'signup' : 'login'
+  );
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [babyName, setBabyName] = useState('');
@@ -132,6 +134,12 @@ export default function LoginScreen({ onLogin }: Props) {
               ¿Ya tienes cuenta? <span className="font-semibold">Inicia sesión</span>
             </button>
           )}
+        </div>
+
+        <div className="text-center mt-4 pt-4 border-t border-gray-100">
+          <a href="https://lacty.es" className="text-xs text-gray-400 hover:text-sage-600 transition-colors">
+            ← Volver a lacty.es
+          </a>
         </div>
       </div>
     </div>
