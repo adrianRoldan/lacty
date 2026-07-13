@@ -112,8 +112,6 @@ ensureColumn('users', 'family_role', "TEXT NOT NULL DEFAULT 'editor'");
 ensureColumn('users', 'last_login_at');
 ensureColumn('accounts', 'invite_code');
 ensureColumn('accounts', 'name');
-ensureColumn('notification_prefs', 'massage_threshold_mins', 'INTEGER NOT NULL DEFAULT 15');
-ensureColumn('notification_prefs', 'last_massage_notif_at', 'TEXT');
 for (const t of DATA_TABLES) {
   ensureColumn(t, 'baby_id');
   db.exec(`CREATE INDEX IF NOT EXISTS idx_${t}_baby ON ${t}(baby_id)`);
@@ -137,6 +135,9 @@ db.exec(`
     PRIMARY KEY (account_id, baby_id)
   );
 `);
+
+ensureColumn('notification_prefs', 'massage_threshold_mins', 'INTEGER NOT NULL DEFAULT 15');
+ensureColumn('notification_prefs', 'last_massage_notif_at', 'TEXT');
 
 // Backfill de códigos de invitación para cuentas que no lo tengan
 for (const a of db.prepare(`SELECT id FROM accounts WHERE invite_code IS NULL`).all()) {
