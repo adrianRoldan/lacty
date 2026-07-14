@@ -23,12 +23,12 @@ import AppSettings from './components/AppSettings';
 import MilestonesView from './components/MilestonesView';
 import VaccinesView from './components/VaccinesView';
 import PediatraSummary from './components/PediatraSummary';
-import AdminView, { ActivityDashboard, PushBroadcastView } from './components/AdminView';
+import AdminView, { ActivityDashboard, PushBroadcastView, BabiesAdminView } from './components/AdminView';
 import ThemeSelector from './components/ThemeSelector';
 import { Toaster, toast } from './toast';
 const ChartsView = lazy(() => import('./components/ChartsView'));
 
-type Tab = 'hoy' | 'graficas' | 'historial' | 'hitos' | 'vacunas' | 'referencia' | 'visitas' | 'consultas' | 'config' | 'familia' | 'admin-users' | 'admin-activity' | 'admin-push' | 'admin-settings';
+type Tab = 'hoy' | 'graficas' | 'historial' | 'hitos' | 'vacunas' | 'referencia' | 'visitas' | 'consultas' | 'config' | 'familia' | 'admin-users' | 'admin-babies' | 'admin-activity' | 'admin-push' | 'admin-settings';
 type Screen =
   | Tab
   | 'nueva-toma'
@@ -723,6 +723,7 @@ export default function App() {
           <nav className="flex flex-col gap-1">
             {isAdmin ? (<>
               <SidebarButton label="Usuarios" icon={FamilyIcon} active={activeTab === 'admin-users'} onClick={() => navigate('admin-users')} />
+              <SidebarButton label="Bebés" icon={BabyIcon} active={activeTab === 'admin-babies'} onClick={() => navigate('admin-babies')} />
               <SidebarButton label="Actividad" icon={ChartIcon} active={activeTab === 'admin-activity'} onClick={() => navigate('admin-activity')} />
               <SidebarButton label="Notificaciones" icon={BellIcon} active={activeTab === 'admin-push'} onClick={() => navigate('admin-push')} />
               <SidebarButton label="Ajustes" icon={SettingsIcon} active={activeTab === 'admin-settings'} onClick={() => navigate('admin-settings')} />
@@ -1037,6 +1038,13 @@ export default function App() {
           <AdminView />
         )}
 
+        {screen === 'admin-babies' && (
+          <div className="p-4 pb-24">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Bebés</h1>
+            <BabiesAdminView />
+          </div>
+        )}
+
         {screen === 'admin-activity' && (
           <div className="p-4 pb-24">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Actividad</h1>
@@ -1128,6 +1136,7 @@ export default function App() {
         <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 flex pb-safe">
           {isAdmin ? (<>
             <NavButton label="Usuarios" icon={FamilyIcon} active={activeTab === 'admin-users'} onClick={() => navigate('admin-users')} />
+            <NavButton label="Bebés" icon={BabyIcon} active={activeTab === 'admin-babies'} onClick={() => navigate('admin-babies')} />
             <NavButton label="Actividad" icon={ChartIcon} active={activeTab === 'admin-activity'} onClick={() => navigate('admin-activity')} />
             <NavButton label="Push" icon={BellIcon} active={activeTab === 'admin-push'} onClick={() => navigate('admin-push')} />
             <NavButton label="Ajustes" icon={SettingsIcon} active={activeTab === 'admin-settings'} onClick={() => navigate('admin-settings')} />

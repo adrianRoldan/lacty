@@ -620,6 +620,50 @@ app.delete('/api/admin/push/subscriptions/:id', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+app.get('/api/admin/babies', requireAdmin, (req, res) => {
+  const rows = db.prepare(`
+    SELECT b.id, b.account_id, b.data, b.created_at,
+           a.name AS account_name, a.invite_code
+    FROM babies b
+    LEFT JOIN accounts a ON a.id = b.account_id
+    ORDER BY b.created_at DESC
+  `).all();
+  res.json(rows.map(r => {
+    const d = JSON.parse(r.data);
+    return {
+      id: r.id,
+      accountId: r.account_id,
+      accountName: r.account_name ?? null,
+      inviteCode: r.invite_code ?? null,
+      name: d.name ?? null,
+      birthDate: d.birthDate ?? null,
+      sex: d.sex ?? null,
+      setupDate: d.setupDate ?? null,
+      daysOfLifeAtSetup: d.daysOfLifeAtSetup ?? 1,
+    };
+  }));
+});
+
+app.put('/api/admin/babies/:id', requireAdmin, (req, res) => {
+  const row = db.prepare(`SELECT data FROM babies WHERE id = ?`).get(req.params.id);
+  if (!row) return res.status(404).json({ error: 'Bebé no encontrado' });
+  const data = JSON.parse(row.data);
+  const { name, birthDate, sex } = req.body ?? {};
+  if (name !== undefined) { const v = String(name).trim(); data.name = v || undefined; }
+  if (birthDate !== undefined) { data.birthDate = birthDate || undefined; }
+  if (sex !== undefined) { data.sex = ['male', 'female'].includes(sex) ? sex : undefined; }
+  db.prepare(`UPDATE babies SET data = ? WHERE id = ?`).run(JSON.stringify(data), req.params.id);
+  res.json({ ok: true });
+});
+
+app.delete('/api/admin/babies/:id', requireAdmin, (req, res) => {
+  const row = db.prepare(`SELECT id FROM babies WHERE id = ?`).get(req.params.id);
+  if (!row) return res.status(404).json({ error: 'Bebé no encontrado' });
+  for (const t of DATA_TABLES) db.prepare(`DELETE FROM ${t} WHERE baby_id = ?`).run(req.params.id);
+  db.prepare(`DELETE FROM babies WHERE id = ?`).run(req.params.id);
+  res.json({ ok: true });
+});
+
 // ── Versiones (polling de respaldo) ─────────────────────────────────────────────
 
 app.get('/api/version', (req, res) => res.json(getRevs(req.accountId)));

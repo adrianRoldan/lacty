@@ -600,6 +600,46 @@ export async function exitImpersonation(): Promise<void> {
   });
 }
 
+export interface AdminBabyInfo {
+  id: string;
+  accountId: string;
+  accountName: string | null;
+  inviteCode: string | null;
+  name: string | null;
+  birthDate: string | null;
+  sex: 'male' | 'female' | null;
+  setupDate: string | null;
+  daysOfLifeAtSetup: number;
+}
+
+export async function getAdminBabies(): Promise<AdminBabyInfo[]> {
+  return json(await fetch(`${BASE}/admin/babies`, { credentials: 'include' }));
+}
+
+export async function updateAdminBaby(id: string, data: { name?: string; birthDate?: string; sex?: string }): Promise<void> {
+  const res = await fetch(`${BASE}/admin/babies/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Error al actualizar');
+  }
+}
+
+export async function deleteAdminBaby(id: string): Promise<void> {
+  const res = await fetch(`${BASE}/admin/babies/${id}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Error al eliminar');
+  }
+}
+
 export async function getAdminStats(): Promise<AdminStats> {
   return json(await fetch(`${BASE}/admin/stats`, { credentials: 'include' }));
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { AdminUserInfo, AdminStats } from '../api';
+import type { AdminUserInfo, AdminStats, AdminBabyInfo } from '../api';
 import * as api from '../api';
 import { useConfirm } from './ConfirmDialog';
 
@@ -827,6 +827,239 @@ export function PushBroadcastView() {
       </section>
     </div>
   );
+}
+
+export function BabiesAdminView() {
+  const confirm = useConfirm();
+  const [babies, setBabies] = useState<AdminBabyInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [editing, setEditing] = useState<AdminBabyInfo | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editBirthDate, setEditBirthDate] = useState('');
+  const [editSex, setEditSex] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState('');
+
+  useEffect(() => {
+    api.getAdminBabies().then(setBabies).finally(() => setLoading(false));
+  }, []);
+
+  function openEdit(baby: AdminBabyInfo) {
+    setEditing(baby);
+    setEditName(baby.name ?? '');
+    setEditBirthDate(baby.birthDate ?? '');
+    setEditSex(baby.sex ?? '');
+    setEditError('');
+  }
+
+  async function handleSaveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editing) return;
+    setEditLoading(true);
+    setEditError('');
+    try {
+      await api.updateAdminBaby(editing.id, {
+        name: editName,
+        birthDate: editBirthDate,
+        sex: editSex || undefined,
+      });
+      setBabies(prev => prev.map(b => b.id === editing.id
+        ? { ...b, name: editName || null, birthDate: editBirthDate || null, sex: (editSex as 'male' | 'female') || null }
+        : b
+      ));
+      setEditing(null);
+    } catch (e: any) {
+      setEditError(e.message);
+    } finally {
+      setEditLoading(false);
+    }
+  }
+
+  async function handleDelete(baby: AdminBabyInfo) {
+    if (!await confirm({
+      message: `¿Eliminar a "${baby.name ?? 'este bebé'}"? Se borrarán todas sus tomas, pesos, sueños y demás datos. Esta acción no se puede deshacer.`,
+      confirmLabel: 'Eliminar',
+      danger: true,
+    })) return;
+    try {
+      await api.deleteAdminBaby(baby.id);
+      setBabies(prev => prev.filter(b => b.id !== baby.id));
+      setEditing(null);
+    } catch (e: any) {
+      alert(e.message);
+    }
+  }
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    if (!q) return babies;
+    return babies.filter(b =>
+      (b.name ?? '').toLowerCase().includes(q) ||
+      (b.accountName ?? '').toLowerCase().includes(q) ||
+      (b.inviteCode ?? '').toLowerCase().includes(q)
+    );
+  }, [babies, search]);
+
+  // Agrupar por familia
+  const byAccount = new Map<string, AdminBabyInfo[]>();
+  for (const b of filtered) {
+    const list = byAccount.get(b.accountId) ?? [];
+    list.push(b);
+    byAccount.set(b.accountId, list);
+  }
+
+  const noName = babies.filter(b => !b.name).length;
+  const noBirthDate = babies.filter(b => !b.birthDate).length;
+
+  return (
+    <div>
+      {loading ? (
+        <p className="text-center text-gray-400 py-12 text-sm">Cargando…</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            <StatCard label="Bebés" value={String(babies.length)} />
+            <StatCard label="Sin nombre" value={String(noName)} />
+            <StatCard label="Sin fecha" value={String(noBirthDate)} />
+          </div>
+
+          <input
+            type="text" value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar por nombre, familia o código…"
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-sage-400 placeholder:text-gray-400 mb-4"
+          />
+
+          {byAccount.size === 0 ? (
+            <p className="text-center text-gray-400 py-10 text-sm">Sin resultados</p>
+          ) : (
+            <div className="space-y-4">
+              {[...byAccount.entries()].map(([accountId, accountBabies]) => {
+                const first = accountBabies[0];
+                return (
+                  <div key={accountId} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                    <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+                      <span className="text-xs font-semibold text-gray-700">{first.accountName ?? 'Familia sin nombre'}</span>
+                      {first.inviteCode && (
+                        <span className="text-xs bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded font-mono">{first.inviteCode}</span>
+                      )}
+                      <span className="text-xs text-gray-400 ml-auto">{accountBabies.length} {accountBabies.length === 1 ? 'bebé' : 'bebés'}</span>
+                    </div>
+                    <div className="divide-y divide-gray-50">
+                      {accountBabies.map(baby => {
+                        const sexEmoji = baby.sex === 'male' ? '👦' : baby.sex === 'female' ? '👧' : '👶';
+                        const age = baby.birthDate ? babyAge(baby.birthDate) : null;
+                        return (
+                          <div key={baby.id} className="px-4 py-3 flex items-center gap-3">
+                            <span className="text-2xl shrink-0">{sexEmoji}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900">
+                                {baby.name ?? <span className="text-gray-400 italic">Sin nombre</span>}
+                              </p>
+                              <div className="flex flex-wrap gap-x-3 text-xs text-gray-400 mt-0.5">
+                                {baby.birthDate
+                                  ? <span>{baby.birthDate}{age ? ` · ${age}` : ''}</span>
+                                  : <span className="text-amber-500">Sin fecha de nacimiento</span>
+                                }
+                              </div>
+                            </div>
+                            <div className="flex gap-1.5 shrink-0">
+                              <button
+                                onClick={() => openEdit(baby)}
+                                className="text-xs text-gray-600 bg-gray-100 px-2.5 py-1.5 rounded-lg active:bg-gray-200 touch-manipulation"
+                              >
+                                ✏️ Editar
+                              </button>
+                              <button
+                                onClick={() => handleDelete(baby)}
+                                className="text-xs text-red-400 bg-red-50 px-2 py-1.5 rounded-lg active:bg-red-100 touch-manipulation"
+                              >
+                                🗑
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Sheet edición */}
+      {editing && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setEditing(null)} />
+          <div className="relative bg-white rounded-t-2xl shadow-xl">
+            <div className="px-4 pt-4 pb-2 border-b border-gray-100 flex items-center justify-between">
+              <p className="font-semibold text-gray-900">Editar bebé</p>
+              <button onClick={() => setEditing(null)} className="text-gray-400 text-xl w-8 h-8 flex items-center justify-center">✕</button>
+            </div>
+            <form onSubmit={handleSaveEdit} className="p-4 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Nombre</label>
+                <input
+                  type="text" value={editName} onChange={e => setEditName(e.target.value)}
+                  placeholder="Nombre del bebé"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Fecha de nacimiento</label>
+                <input
+                  type="date" value={editBirthDate} onChange={e => setEditBirthDate(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Sexo</label>
+                <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
+                  {([['', '—'], ['male', '👦 Niño'], ['female', '👧 Niña']] as const).map(([val, label]) => (
+                    <button key={val} type="button" onClick={() => setEditSex(val)}
+                      className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors ${editSex === val ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {editError && <p className="text-sm text-red-500 text-center">{editError}</p>}
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setEditing(null)}
+                  className="flex-1 py-3 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 active:bg-gray-200 touch-manipulation">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={editLoading}
+                  className="flex-1 py-3 rounded-xl text-sm font-semibold text-white bg-sage-600 active:bg-sage-700 disabled:opacity-50 touch-manipulation">
+                  {editLoading ? 'Guardando…' : 'Guardar'}
+                </button>
+              </div>
+              <div className="pt-1 border-t border-gray-100">
+                <button type="button" onClick={() => handleDelete(editing)}
+                  className="w-full py-3 rounded-xl text-sm font-semibold text-red-500 bg-red-50 active:bg-red-100 touch-manipulation">
+                  🗑️ Eliminar bebé y todos sus datos
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function babyAge(birthDate: string): string {
+  const days = Math.floor((Date.now() - new Date(birthDate).getTime()) / 86400000);
+  if (days < 0) return '';
+  if (days < 7) return `${days}d`;
+  if (days < 112) {
+    const w = Math.floor(days / 7), r = days % 7;
+    return r === 0 ? `${w}sem` : `${w}sem ${r}d`;
+  }
+  const m = Math.floor(days / 30), w = Math.floor((days - m * 30) / 7);
+  return w > 0 ? `${m}m ${w}sem` : `${m}m`;
 }
 
 function MetricCard({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {
