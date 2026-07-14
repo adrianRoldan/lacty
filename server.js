@@ -112,6 +112,8 @@ ensureColumn('users', 'family_role', "TEXT NOT NULL DEFAULT 'editor'");
 ensureColumn('users', 'last_login_at');
 ensureColumn('accounts', 'invite_code');
 ensureColumn('accounts', 'name');
+ensureColumn('push_subscriptions', 'user_id');
+ensureColumn('push_subscriptions', 'user_agent');
 for (const t of DATA_TABLES) {
   ensureColumn(t, 'baby_id');
   db.exec(`CREATE INDEX IF NOT EXISTS idx_${t}_baby ON ${t}(baby_id)`);
@@ -592,10 +594,12 @@ app.post('/api/admin/push/broadcast', requireAdmin, async (req, res) => {
 
 app.get('/api/admin/push/subscriptions', requireAdmin, (req, res) => {
   const rows = db.prepare(`
-    SELECT ps.id, ps.account_id, ps.endpoint, ps.created_at,
-           a.name AS account_name, a.invite_code
+    SELECT ps.id, ps.account_id, ps.user_id, ps.user_agent, ps.endpoint, ps.created_at,
+           a.name AS account_name, a.invite_code,
+           u.username
     FROM push_subscriptions ps
     LEFT JOIN accounts a ON a.id = ps.account_id
+    LEFT JOIN users u ON u.id = ps.user_id
     ORDER BY ps.created_at DESC
   `).all();
   res.json(rows.map(r => ({
@@ -603,6 +607,8 @@ app.get('/api/admin/push/subscriptions', requireAdmin, (req, res) => {
     accountId: r.account_id,
     accountName: r.account_name ?? null,
     inviteCode: r.invite_code ?? null,
+    username: r.username ?? null,
+    userAgent: r.user_agent ?? null,
     endpoint: r.endpoint,
     createdAt: r.created_at,
   })));
@@ -755,13 +761,30 @@ app.get('/api/push/vapid-key', (req, res) => {
   res.json({ publicKey: vapidKeys.publicKey });
 });
 
+function parseUserAgent(ua) {
+  if (!ua) return null;
+  let browser = 'Navegador';
+  if (ua.includes('Edg/')) browser = 'Edge';
+  else if (ua.includes('Chrome/') && !ua.includes('Chromium')) browser = 'Chrome';
+  else if (ua.includes('Firefox/')) browser = 'Firefox';
+  else if (ua.includes('Safari/') && !ua.includes('Chrome')) browser = 'Safari';
+  let os = '';
+  if (/iPhone|iPad/.test(ua)) os = 'iOS';
+  else if (ua.includes('Android')) os = 'Android';
+  else if (ua.includes('Windows')) os = 'Windows';
+  else if (ua.includes('Mac OS')) os = 'macOS';
+  else if (ua.includes('Linux')) os = 'Linux';
+  return os ? `${browser} · ${os}` : browser;
+}
+
 app.post('/api/push/subscribe', (req, res) => {
   const sub = req.body;
   if (!sub?.endpoint) return res.status(400).json({ error: 'Suscripción inválida' });
+  const ua = parseUserAgent(req.get('User-Agent'));
   db.prepare(`
-    INSERT OR REPLACE INTO push_subscriptions (id, account_id, endpoint, subscription_json)
-    VALUES (?, ?, ?, ?)
-  `).run(newId(), req.accountId, sub.endpoint, JSON.stringify(sub));
+    INSERT OR REPLACE INTO push_subscriptions (id, account_id, user_id, user_agent, endpoint, subscription_json)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(newId(), req.accountId, req.session.userId, ua, sub.endpoint, JSON.stringify(sub));
   res.json({ ok: true });
 });
 

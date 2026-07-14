@@ -609,6 +609,8 @@ export interface PushSubscriptionInfo {
   accountId: string;
   accountName: string | null;
   inviteCode: string | null;
+  username: string | null;
+  userAgent: string | null;
   endpoint: string;
   createdAt: string;
 }

@@ -795,21 +795,29 @@ export function PushBroadcastView() {
                     <span className="text-xs text-gray-400 ml-auto">{accountSubs.length} {accountSubs.length === 1 ? 'dispositivo' : 'dispositivos'}</span>
                   </div>
                   <div className="divide-y divide-gray-50">
-                    {accountSubs.map(s => (
-                      <div key={s.id} className="px-4 py-3 flex items-center gap-3">
-                        <span className="text-lg">📱</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-gray-500 truncate font-mono">{s.endpoint.split('/').pop()?.slice(0, 24)}…</p>
-                          <p className="text-xs text-gray-400">Suscrito el {formatDt(s.createdAt)}</p>
+                    {accountSubs.map(s => {
+                      const isIOS = s.userAgent?.includes('iOS');
+                      const isAndroid = s.userAgent?.includes('Android');
+                      const icon = isIOS || isAndroid ? '📱' : '💻';
+                      return (
+                        <div key={s.id} className="px-4 py-3 flex items-center gap-3">
+                          <span className="text-lg shrink-0">{icon}</span>
+                          <div className="flex-1 min-w-0">
+                            {s.username && (
+                              <p className="text-sm font-medium text-gray-800">{s.username}</p>
+                            )}
+                            <p className="text-xs text-gray-500">{s.userAgent ?? 'Dispositivo desconocido'}</p>
+                            <p className="text-xs text-gray-400">Suscrito el {formatDt(s.createdAt)}</p>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteSub(s.id)}
+                            className="text-red-400 text-xs bg-red-50 px-2.5 py-1.5 rounded-lg active:bg-red-100 touch-manipulation shrink-0"
+                          >
+                            Eliminar
+                          </button>
                         </div>
-                        <button
-                          onClick={() => handleDeleteSub(s.id)}
-                          className="text-red-400 text-xs bg-red-50 px-2.5 py-1.5 rounded-lg active:bg-red-100 touch-manipulation shrink-0"
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               );
