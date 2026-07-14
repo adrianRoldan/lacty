@@ -539,6 +539,17 @@ app.get('/api/admin/stats', requireAdmin, (req, res) => {
     LIMIT 10
   `).all();
 
+  const families = db.prepare(`
+    SELECT a.id, a.name, a.invite_code,
+           COUNT(DISTINCT ps.endpoint) AS subscriber_count
+    FROM accounts a
+    LEFT JOIN push_subscriptions ps ON ps.account_id = a.id
+    GROUP BY a.id
+    ORDER BY a.created_at
+  `).all().map(r => ({ id: r.id, name: r.name ?? null, inviteCode: r.invite_code, subscriberCount: r.subscriber_count }));
+
+  const totalSubscribers = db.prepare(`SELECT COUNT(*) AS n FROM push_subscriptions`).get().n;
+
   res.json({
     totalUsers, totalFamilies, totalBabies,
     activeToday, active7d, active30d,
@@ -546,7 +557,37 @@ app.get('/api/admin/stats', requireAdmin, (req, res) => {
     feedingsToday, feedings7d,
     inactiveFamiliesCount,
     recentLogins,
+    families,
+    totalSubscribers,
   });
+});
+
+app.post('/api/admin/push/broadcast', requireAdmin, async (req, res) => {
+  const { title, body, url, accountId } = req.body ?? {};
+  if (!title || !body) return res.status(400).json({ error: 'Faltan título y cuerpo' });
+
+  const subs = accountId
+    ? db.prepare(`SELECT endpoint, subscription_json FROM push_subscriptions WHERE account_id = ?`).all(accountId)
+    : db.prepare(`SELECT endpoint, subscription_json FROM push_subscriptions`).all();
+
+  if (subs.length === 0) return res.json({ ok: true, sent: 0, failed: 0 });
+
+  const payload = JSON.stringify({ title, body, tag: 'broadcast', ...(url ? { url } : {}) });
+
+  const results = await Promise.allSettled(
+    subs.map(row =>
+      webpush.sendNotification(JSON.parse(row.subscription_json), payload).catch(err => {
+        if (err.statusCode === 410 || err.statusCode === 404) {
+          db.prepare(`DELETE FROM push_subscriptions WHERE endpoint = ?`).run(row.endpoint);
+        }
+        throw err;
+      })
+    )
+  );
+
+  const sent = results.filter(r => r.status === 'fulfilled').length;
+  const failed = results.filter(r => r.status === 'rejected').length;
+  res.json({ ok: true, sent, failed });
 });
 
 // ── Versiones (polling de respaldo) ─────────────────────────────────────────────

@@ -585,10 +585,39 @@ function formatDt(iso: string): string {
 export function ActivityDashboard() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pushTitle, setPushTitle] = useState('');
+  const [pushBody, setPushBody] = useState('');
+  const [pushAccountId, setPushAccountId] = useState('');
+  const [pushSending, setPushSending] = useState(false);
+  const [pushResult, setPushResult] = useState<{ sent: number; failed: number } | null>(null);
+  const [pushError, setPushError] = useState('');
 
   useEffect(() => {
     api.getAdminStats().then(setStats).finally(() => setLoading(false));
   }, []);
+
+  async function handleBroadcast(e: React.FormEvent) {
+    e.preventDefault();
+    if (!pushTitle.trim() || !pushBody.trim()) return;
+    setPushSending(true);
+    setPushResult(null);
+    setPushError('');
+    try {
+      const result = await api.sendPushBroadcast({
+        title: pushTitle.trim(),
+        body: pushBody.trim(),
+        accountId: pushAccountId || undefined,
+      });
+      setPushResult(result);
+      setPushTitle('');
+      setPushBody('');
+      setPushAccountId('');
+    } catch (e: any) {
+      setPushError(e.message);
+    } finally {
+      setPushSending(false);
+    }
+  }
 
   if (loading) return <p className="text-center text-gray-400 py-12 text-sm">Cargando…</p>;
   if (!stats) return <p className="text-center text-red-400 py-12 text-sm">Error al cargar estadísticas</p>;
@@ -640,6 +669,67 @@ export function ActivityDashboard() {
           </div>
         </section>
       )}
+
+      {/* Push broadcast */}
+      <section>
+        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Enviar notificación push</h2>
+        <div className="bg-white rounded-2xl shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-sm text-gray-500">
+              📲 {stats.totalSubscribers} {stats.totalSubscribers === 1 ? 'dispositivo suscrito' : 'dispositivos suscritos'} en total
+            </span>
+          </div>
+          <form onSubmit={handleBroadcast} className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Destinatario</label>
+              <select
+                value={pushAccountId}
+                onChange={e => setPushAccountId(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-400"
+              >
+                <option value="">Todos los usuarios ({stats.totalSubscribers} dispositivos)</option>
+                {stats.families.filter(f => f.subscriberCount > 0).map(f => (
+                  <option key={f.id} value={f.id}>
+                    {f.name ?? 'Familia sin nombre'} {f.inviteCode ? `(${f.inviteCode})` : ''} — {f.subscriberCount} {f.subscriberCount === 1 ? 'dispositivo' : 'dispositivos'}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Título</label>
+              <input
+                type="text" value={pushTitle} onChange={e => setPushTitle(e.target.value)}
+                placeholder="Ej. Nueva funcionalidad disponible"
+                required
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Mensaje</label>
+              <textarea
+                value={pushBody} onChange={e => setPushBody(e.target.value)}
+                placeholder="Ej. Ahora puedes registrar pañales desde la pantalla de hoy."
+                required rows={3}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-400 resize-none"
+              />
+            </div>
+            {pushError && <p className="text-xs text-red-500">{pushError}</p>}
+            {pushResult && (
+              <p className="text-xs text-sage-700 bg-sage-50 rounded-xl px-3 py-2">
+                ✅ Enviado a {pushResult.sent} {pushResult.sent === 1 ? 'dispositivo' : 'dispositivos'}
+                {pushResult.failed > 0 ? ` · ${pushResult.failed} fallidos (suscripciones expiradas eliminadas)` : ''}
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={pushSending || !pushTitle.trim() || !pushBody.trim()}
+              className="w-full bg-sage-600 text-white font-semibold text-sm py-3 rounded-xl active:bg-sage-700 disabled:opacity-50 touch-manipulation"
+            >
+              {pushSending ? 'Enviando…' : '📢 Enviar notificación'}
+            </button>
+          </form>
+        </div>
+      </section>
 
       {/* Últimos logins */}
       <section>

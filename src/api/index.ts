@@ -49,7 +49,9 @@ export interface AdminStats {
   feedingsToday: number;
   feedings7d: number;
   inactiveFamiliesCount: number;
+  totalSubscribers: number;
   recentLogins: { username: string; last_login_at: string }[];
+  families: { id: string; name: string | null; inviteCode: string | null; subscriberCount: number }[];
 }
 
 export interface AdminUserInfo {
@@ -600,6 +602,20 @@ export async function exitImpersonation(): Promise<void> {
 
 export async function getAdminStats(): Promise<AdminStats> {
   return json(await fetch(`${BASE}/admin/stats`, { credentials: 'include' }));
+}
+
+export async function sendPushBroadcast(opts: { title: string; body: string; url?: string; accountId?: string }): Promise<{ sent: number; failed: number }> {
+  const res = await fetch(`${BASE}/admin/push/broadcast`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(opts),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Error al enviar');
+  }
+  return res.json();
 }
 
 export async function regenerateInviteCode(accountId: string): Promise<string> {
