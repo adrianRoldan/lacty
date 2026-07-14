@@ -5,10 +5,8 @@ import { useConfirm } from './ConfirmDialog';
 
 type SheetPage = 'actions' | 'edit' | 'password' | 'move' | 'familyRole';
 type Sheet = { user: AdminUserInfo; page: SheetPage } | null;
-type AdminTab = 'users' | 'activity';
 
 export default function AdminView() {
-  const [adminTab, setAdminTab] = useState<AdminTab>('users');
   const confirm = useConfirm();
   const [users, setUsers] = useState<AdminUserInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +85,7 @@ export default function AdminView() {
   }
 
   async function handleImpersonate(user: AdminUserInfo) {
-    if (!await confirm(`¿Iniciar sesión como "${user.username}"? La página se recargará.`)) return;
+    if (!await confirm({ message: `¿Iniciar sesión como "${user.username}"? La página se recargará.`, confirmLabel: 'Iniciar sesión', danger: false })) return;
     await sheetAction(async () => {
       await api.impersonateUser(user.id);
       window.location.reload();
@@ -218,32 +216,16 @@ export default function AdminView() {
   return (
     <div className="p-4 pb-24">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Admin</h1>
-        {adminTab === 'users' && (
-          <button
-            onClick={() => { setCreating(true); setCreateError(''); }}
-            className="flex items-center gap-1.5 bg-sage-600 text-white text-sm font-semibold px-3 py-2 rounded-xl active:bg-sage-700 touch-manipulation"
-          >
-            <span className="text-base leading-none">＋</span> Nuevo usuario
-          </button>
-        )}
-      </div>
-
-      {/* Tab switcher */}
-      <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5 mb-4">
-        <button onClick={() => setAdminTab('users')}
-          className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors ${adminTab === 'users' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
-          👤 Usuarios
-        </button>
-        <button onClick={() => setAdminTab('activity')}
-          className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors ${adminTab === 'activity' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
-          📊 Actividad
+        <h1 className="text-2xl font-bold text-gray-900">Usuarios</h1>
+        <button
+          onClick={() => { setCreating(true); setCreateError(''); }}
+          className="flex items-center gap-1.5 bg-sage-600 text-white text-sm font-semibold px-3 py-2 rounded-xl active:bg-sage-700 touch-manipulation"
+        >
+          <span className="text-base leading-none">＋</span> Nuevo usuario
         </button>
       </div>
 
-      {adminTab === 'activity' && <ActivityDashboard />}
-
-      {adminTab === 'users' && (loading ? (
+      {loading ? (
         <p className="text-center text-gray-400 py-12 text-sm">Cargando…</p>
       ) : (
         <>
@@ -359,7 +341,7 @@ export default function AdminView() {
             </div>
           )}
         </>
-      ))}
+      )}
 
       {/* Sheet: user actions */}
       {sheet && (
@@ -600,7 +582,7 @@ function formatDt(iso: string): string {
   return new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: '2-digit' });
 }
 
-function ActivityDashboard() {
+export function ActivityDashboard() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
 
