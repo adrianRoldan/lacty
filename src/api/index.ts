@@ -35,6 +35,7 @@ export interface AdminUserInfo {
   id: string;
   username: string;
   role: string;
+  familyRole: string;
   accountId: string;
   accountName?: string;
   inviteCode?: string;
@@ -483,6 +484,85 @@ export async function deleteUser(userId: string): Promise<void> {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error ?? 'Error al eliminar');
   }
+}
+
+export async function createAdminUser(opts: { username: string; password: string; accountId?: string }): Promise<{ id: string; accountId: string }> {
+  const res = await fetch(`${BASE}/admin/users`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(opts),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Error al crear usuario');
+  }
+  return res.json();
+}
+
+export async function updateAdminUsername(userId: string, username: string): Promise<void> {
+  const res = await fetch(`${BASE}/admin/users/${userId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ username }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Error al actualizar');
+  }
+}
+
+export async function resetAdminPassword(userId: string, password: string): Promise<void> {
+  const res = await fetch(`${BASE}/admin/users/${userId}/password`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ password }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Error al cambiar contraseña');
+  }
+}
+
+export async function setUserFamilyRole(userId: string, familyRole: string): Promise<void> {
+  const res = await fetch(`${BASE}/admin/users/${userId}/family-role`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ familyRole }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Error al cambiar rol');
+  }
+}
+
+export async function moveUserToAccount(userId: string, accountId: string): Promise<void> {
+  const res = await fetch(`${BASE}/admin/users/${userId}/account`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ accountId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Error al mover usuario');
+  }
+}
+
+export async function regenerateInviteCode(accountId: string): Promise<string> {
+  const res = await fetch(`${BASE}/admin/accounts/${accountId}/invite-code`, {
+    method: 'PUT',
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Error al regenerar código');
+  }
+  const data = await res.json();
+  return data.inviteCode as string;
 }
 
 // ── Push notifications ─────────────────────────────────────────────────────────

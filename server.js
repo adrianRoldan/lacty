@@ -329,7 +329,7 @@ function requireAdmin(req, res, next) {
 
 app.get('/api/admin/users', requireAdmin, (_req, res) => {
   const users = db.prepare(`
-    SELECT u.id, u.username, u.role, u.account_id, u.created_at, u.last_login_at,
+    SELECT u.id, u.username, u.role, u.family_role, u.account_id, u.created_at, u.last_login_at,
            a.invite_code, a.name AS account_name
     FROM users u
     LEFT JOIN accounts a ON a.id = u.account_id
@@ -349,6 +349,7 @@ app.get('/api/admin/users', requireAdmin, (_req, res) => {
     id: u.id,
     username: u.username,
     role: u.role ?? 'user',
+    familyRole: u.family_role ?? 'editor',
     accountId: u.account_id,
     accountName: u.account_name ?? null,
     inviteCode: u.invite_code,
@@ -382,6 +383,93 @@ app.delete('/api/admin/users/:id', requireAdmin, (req, res) => {
     db.prepare(`DELETE FROM accounts WHERE id = ?`).run(user.account_id);
   }
   res.json({ ok: true });
+});
+
+app.post('/api/admin/users', requireAdmin, async (req, res) => {
+  const { username, password, accountId } = req.body ?? {};
+  if (!username || !password) return res.status(400).json({ error: 'Faltan campos' });
+  if (String(password).length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+  const exists = db.prepare('SELECT 1 FROM users WHERE username = ?').get(username);
+  if (exists) return res.status(409).json({ error: 'Ese usuario ya existe' });
+
+  const userId = newId();
+  const hash = bcrypt.hashSync(String(password), 12);
+
+  if (accountId) {
+    const acc = db.prepare(`SELECT id FROM accounts WHERE id = ?`).get(accountId);
+    if (!acc) return res.status(404).json({ error: 'Familia no encontrada' });
+    db.prepare(`INSERT INTO users (id, account_id, username, password_hash) VALUES (?, ?, ?, ?)`)
+      .run(userId, accountId, username, hash);
+    res.status(201).json({ ok: true, id: userId, accountId });
+  } else {
+    const newAccountId = newId();
+    const babyId = newId();
+    db.transaction(() => {
+      db.prepare(`INSERT INTO accounts (id, invite_code) VALUES (?, ?)`).run(newAccountId, newInvite());
+      db.prepare(`INSERT INTO users (id, account_id, username, password_hash) VALUES (?, ?, ?, ?)`)
+        .run(userId, newAccountId, username, hash);
+      const babyData = { id: babyId, daysOfLifeAtSetup: 1, setupDate: new Date().toISOString().slice(0, 10) };
+      db.prepare(`INSERT INTO babies (id, account_id, data) VALUES (?, ?, ?)`)
+        .run(babyId, newAccountId, JSON.stringify(babyData));
+    })();
+    res.status(201).json({ ok: true, id: userId, accountId: newAccountId });
+  }
+});
+
+app.put('/api/admin/users/:id', requireAdmin, (req, res) => {
+  const { username } = req.body ?? {};
+  if (!username) return res.status(400).json({ error: 'Falta el nombre de usuario' });
+  const dup = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(username, req.params.id);
+  if (dup) return res.status(409).json({ error: 'Ese usuario ya existe' });
+  const updated = db.prepare(`UPDATE users SET username = ? WHERE id = ?`).run(username, req.params.id);
+  if (updated.changes === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+  res.json({ ok: true });
+});
+
+app.put('/api/admin/users/:id/password', requireAdmin, async (req, res) => {
+  const { password } = req.body ?? {};
+  if (!password) return res.status(400).json({ error: 'Falta la contraseña' });
+  if (String(password).length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+  const hash = bcrypt.hashSync(String(password), 12);
+  const updated = db.prepare(`UPDATE users SET password_hash = ? WHERE id = ?`).run(hash, req.params.id);
+  if (updated.changes === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+  res.json({ ok: true });
+});
+
+app.put('/api/admin/users/:id/family-role', requireAdmin, (req, res) => {
+  const { familyRole } = req.body ?? {};
+  if (!['owner', 'editor', 'viewer'].includes(familyRole)) return res.status(400).json({ error: 'Rol no válido' });
+  const updated = db.prepare(`UPDATE users SET family_role = ? WHERE id = ?`).run(familyRole, req.params.id);
+  if (updated.changes === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+  res.json({ ok: true });
+});
+
+app.put('/api/admin/users/:id/account', requireAdmin, (req, res) => {
+  const { accountId } = req.body ?? {};
+  if (!accountId) return res.status(400).json({ error: 'Falta el ID de familia' });
+  const acc = db.prepare(`SELECT id FROM accounts WHERE id = ?`).get(accountId);
+  if (!acc) return res.status(404).json({ error: 'Familia no encontrada' });
+  const user = db.prepare(`SELECT account_id FROM users WHERE id = ?`).get(req.params.id);
+  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+  if (user.account_id === accountId) return res.status(400).json({ error: 'El usuario ya pertenece a esa familia' });
+  const oldAccountId = user.account_id;
+  db.prepare(`UPDATE users SET account_id = ? WHERE id = ?`).run(accountId, req.params.id);
+  const remaining = db.prepare(`SELECT COUNT(*) AS c FROM users WHERE account_id = ?`).get(oldAccountId);
+  if (remaining.c === 0) {
+    for (const t of DATA_TABLES) db.prepare(`DELETE FROM ${t} WHERE baby_id IN (SELECT id FROM babies WHERE account_id = ?)`).run(oldAccountId);
+    db.prepare(`DELETE FROM babies WHERE account_id = ?`).run(oldAccountId);
+    db.prepare(`DELETE FROM push_subscriptions WHERE account_id = ?`).run(oldAccountId);
+    db.prepare(`DELETE FROM notification_prefs WHERE account_id = ?`).run(oldAccountId);
+    db.prepare(`DELETE FROM accounts WHERE id = ?`).run(oldAccountId);
+  }
+  res.json({ ok: true });
+});
+
+app.put('/api/admin/accounts/:accountId/invite-code', requireAdmin, (req, res) => {
+  const code = newInvite();
+  const updated = db.prepare(`UPDATE accounts SET invite_code = ? WHERE id = ?`).run(code, req.params.accountId);
+  if (updated.changes === 0) return res.status(404).json({ error: 'Familia no encontrada' });
+  res.json({ ok: true, inviteCode: code });
 });
 
 // ── Versiones (polling de respaldo) ─────────────────────────────────────────────
