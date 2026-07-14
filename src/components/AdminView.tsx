@@ -585,6 +585,78 @@ function formatDt(iso: string): string {
 export function ActivityDashboard() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.getAdminStats().then(setStats).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <p className="text-center text-gray-400 py-12 text-sm">Cargando…</p>;
+  if (!stats) return <p className="text-center text-red-400 py-12 text-sm">Error al cargar estadísticas</p>;
+
+  return (
+    <div className="space-y-5">
+      <section>
+        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Usuarios activos</h2>
+        <div className="grid grid-cols-3 gap-2">
+          <MetricCard label="Hoy" value={stats.activeToday} total={stats.totalUsers} color="sage" />
+          <MetricCard label="7 días" value={stats.active7d} total={stats.totalUsers} color="lagoon" />
+          <MetricCard label="30 días" value={stats.active30d} total={stats.totalUsers} color="mustard" />
+        </div>
+        {stats.newUsers7d > 0 && (
+          <p className="text-xs text-sage-700 bg-sage-50 rounded-xl px-3 py-2 mt-2">
+            🆕 {stats.newUsers7d} nuevo{stats.newUsers7d !== 1 ? 's' : ''} usuario{stats.newUsers7d !== 1 ? 's' : ''} esta semana
+          </p>
+        )}
+      </section>
+
+      <section>
+        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tomas registradas</h2>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-white rounded-xl p-3 shadow-sm text-center">
+            <p className="text-2xl font-bold text-gray-900">{stats.feedingsToday}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Hoy</p>
+          </div>
+          <div className="bg-white rounded-xl p-3 shadow-sm text-center">
+            <p className="text-2xl font-bold text-gray-900">{stats.feedings7d}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Últimos 7 días</p>
+          </div>
+        </div>
+      </section>
+
+      {stats.inactiveFamiliesCount > 0 && (
+        <section>
+          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Alertas</h2>
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
+            <span className="text-xl">⚠️</span>
+            <div>
+              <p className="text-sm font-medium text-amber-800">
+                {stats.inactiveFamiliesCount} {stats.inactiveFamiliesCount === 1 ? 'familia' : 'familias'} sin actividad en 30 días
+              </p>
+              <p className="text-xs text-amber-600 mt-0.5">Sin login de ningún miembro en el último mes</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section>
+        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Últimos accesos</h2>
+        <div className="bg-white rounded-2xl shadow-sm divide-y divide-gray-50">
+          {stats.recentLogins.map((l, i) => (
+            <div key={i} className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-sm font-medium text-gray-800">{l.username}</span>
+              <span className="text-xs text-gray-400">{formatDt(l.last_login_at)}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export function PushBroadcastView() {
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [subs, setSubs] = useState<api.PushSubscriptionInfo[]>([]);
+  const [loading, setLoading] = useState(true);
   const [pushTitle, setPushTitle] = useState('');
   const [pushBody, setPushBody] = useState('');
   const [pushAccountId, setPushAccountId] = useState('');
@@ -593,7 +665,9 @@ export function ActivityDashboard() {
   const [pushError, setPushError] = useState('');
 
   useEffect(() => {
-    api.getAdminStats().then(setStats).finally(() => setLoading(false));
+    Promise.all([api.getAdminStats(), api.getPushSubscriptions()])
+      .then(([s, sub]) => { setStats(s); setSubs(sub); })
+      .finally(() => setLoading(false));
   }, []);
 
   async function handleBroadcast(e: React.FormEvent) {
@@ -619,66 +693,38 @@ export function ActivityDashboard() {
     }
   }
 
+  async function handleDeleteSub(id: string) {
+    try {
+      await api.adminDeletePushSubscription(id);
+      setSubs(prev => prev.filter(s => s.id !== id));
+      setStats(prev => prev ? { ...prev, totalSubscribers: prev.totalSubscribers - 1 } : prev);
+    } catch (e: any) {
+      alert(e.message);
+    }
+  }
+
   if (loading) return <p className="text-center text-gray-400 py-12 text-sm">Cargando…</p>;
-  if (!stats) return <p className="text-center text-red-400 py-12 text-sm">Error al cargar estadísticas</p>;
+
+  const totalSubscribers = stats?.totalSubscribers ?? subs.length;
+  const families = stats?.families ?? [];
+
+  // Agrupar suscripciones por familia
+  const subsByAccount = new Map<string, api.PushSubscriptionInfo[]>();
+  for (const s of subs) {
+    const list = subsByAccount.get(s.accountId) ?? [];
+    list.push(s);
+    subsByAccount.set(s.accountId, list);
+  }
 
   return (
     <div className="space-y-5">
-      {/* Usuarios activos */}
+      {/* Enviar notificación */}
       <section>
-        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Usuarios activos</h2>
-        <div className="grid grid-cols-3 gap-2">
-          <MetricCard label="Hoy" value={stats.activeToday} total={stats.totalUsers} color="sage" />
-          <MetricCard label="7 días" value={stats.active7d} total={stats.totalUsers} color="lagoon" />
-          <MetricCard label="30 días" value={stats.active30d} total={stats.totalUsers} color="mustard" />
-        </div>
-        {stats.newUsers7d > 0 && (
-          <p className="text-xs text-sage-700 bg-sage-50 rounded-xl px-3 py-2 mt-2">
-            🆕 {stats.newUsers7d} nuevo{stats.newUsers7d !== 1 ? 's' : ''} usuario{stats.newUsers7d !== 1 ? 's' : ''} esta semana
-          </p>
-        )}
-      </section>
-
-      {/* Contenido */}
-      <section>
-        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tomas registradas</h2>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="bg-white rounded-xl p-3 shadow-sm text-center">
-            <p className="text-2xl font-bold text-gray-900">{stats.feedingsToday}</p>
-            <p className="text-xs text-gray-500 mt-0.5">Hoy</p>
-          </div>
-          <div className="bg-white rounded-xl p-3 shadow-sm text-center">
-            <p className="text-2xl font-bold text-gray-900">{stats.feedings7d}</p>
-            <p className="text-xs text-gray-500 mt-0.5">Últimos 7 días</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Alertas */}
-      {stats.inactiveFamiliesCount > 0 && (
-        <section>
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Alertas</h2>
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
-            <span className="text-xl">⚠️</span>
-            <div>
-              <p className="text-sm font-medium text-amber-800">
-                {stats.inactiveFamiliesCount} {stats.inactiveFamiliesCount === 1 ? 'familia' : 'familias'} sin actividad en 30 días
-              </p>
-              <p className="text-xs text-amber-600 mt-0.5">Sin login de ningún miembro en el último mes</p>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Push broadcast */}
-      <section>
-        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Enviar notificación push</h2>
+        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Enviar notificación</h2>
         <div className="bg-white rounded-2xl shadow-sm p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-sm text-gray-500">
-              📲 {stats.totalSubscribers} {stats.totalSubscribers === 1 ? 'dispositivo suscrito' : 'dispositivos suscritos'} en total
-            </span>
-          </div>
+          <p className="text-xs text-gray-500 mb-3">
+            📲 {totalSubscribers} {totalSubscribers === 1 ? 'dispositivo suscrito' : 'dispositivos suscritos'} en total
+          </p>
           <form onSubmit={handleBroadcast} className="space-y-3">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Destinatario</label>
@@ -687,8 +733,8 @@ export function ActivityDashboard() {
                 onChange={e => setPushAccountId(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-400"
               >
-                <option value="">Todos los usuarios ({stats.totalSubscribers} dispositivos)</option>
-                {stats.families.filter(f => f.subscriberCount > 0).map(f => (
+                <option value="">Todos los usuarios ({totalSubscribers} dispositivos)</option>
+                {families.filter(f => f.subscriberCount > 0).map(f => (
                   <option key={f.id} value={f.id}>
                     {f.name ?? 'Familia sin nombre'} {f.inviteCode ? `(${f.inviteCode})` : ''} — {f.subscriberCount} {f.subscriberCount === 1 ? 'dispositivo' : 'dispositivos'}
                   </option>
@@ -699,8 +745,7 @@ export function ActivityDashboard() {
               <label className="block text-xs font-medium text-gray-500 mb-1">Título</label>
               <input
                 type="text" value={pushTitle} onChange={e => setPushTitle(e.target.value)}
-                placeholder="Ej. Nueva funcionalidad disponible"
-                required
+                placeholder="Ej. Nueva funcionalidad disponible" required
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-400"
               />
             </div>
@@ -717,7 +762,7 @@ export function ActivityDashboard() {
             {pushResult && (
               <p className="text-xs text-sage-700 bg-sage-50 rounded-xl px-3 py-2">
                 ✅ Enviado a {pushResult.sent} {pushResult.sent === 1 ? 'dispositivo' : 'dispositivos'}
-                {pushResult.failed > 0 ? ` · ${pushResult.failed} fallidos (suscripciones expiradas eliminadas)` : ''}
+                {pushResult.failed > 0 ? ` · ${pushResult.failed} fallidos eliminados` : ''}
               </p>
             )}
             <button
@@ -731,17 +776,46 @@ export function ActivityDashboard() {
         </div>
       </section>
 
-      {/* Últimos logins */}
+      {/* Dispositivos suscritos */}
       <section>
-        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Últimos accesos</h2>
-        <div className="bg-white rounded-2xl shadow-sm divide-y divide-gray-50">
-          {stats.recentLogins.map((l, i) => (
-            <div key={i} className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-sm font-medium text-gray-800">{l.username}</span>
-              <span className="text-xs text-gray-400">{formatDt(l.last_login_at)}</span>
-            </div>
-          ))}
-        </div>
+        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Dispositivos suscritos</h2>
+        {subs.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-6">Ningún dispositivo suscrito</p>
+        ) : (
+          <div className="space-y-3">
+            {[...subsByAccount.entries()].map(([accountId, accountSubs]) => {
+              const first = accountSubs[0];
+              return (
+                <div key={accountId} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                  <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+                    <span className="text-xs font-semibold text-gray-700">{first.accountName ?? 'Familia sin nombre'}</span>
+                    {first.inviteCode && (
+                      <span className="text-xs bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded font-mono">{first.inviteCode}</span>
+                    )}
+                    <span className="text-xs text-gray-400 ml-auto">{accountSubs.length} {accountSubs.length === 1 ? 'dispositivo' : 'dispositivos'}</span>
+                  </div>
+                  <div className="divide-y divide-gray-50">
+                    {accountSubs.map(s => (
+                      <div key={s.id} className="px-4 py-3 flex items-center gap-3">
+                        <span className="text-lg">📱</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-gray-500 truncate font-mono">{s.endpoint.split('/').pop()?.slice(0, 24)}…</p>
+                          <p className="text-xs text-gray-400">Suscrito el {formatDt(s.createdAt)}</p>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteSub(s.id)}
+                          className="text-red-400 text-xs bg-red-50 px-2.5 py-1.5 rounded-lg active:bg-red-100 touch-manipulation shrink-0"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
     </div>
   );

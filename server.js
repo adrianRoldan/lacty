@@ -590,6 +590,30 @@ app.post('/api/admin/push/broadcast', requireAdmin, async (req, res) => {
   res.json({ ok: true, sent, failed });
 });
 
+app.get('/api/admin/push/subscriptions', requireAdmin, (req, res) => {
+  const rows = db.prepare(`
+    SELECT ps.id, ps.account_id, ps.endpoint, ps.created_at,
+           a.name AS account_name, a.invite_code
+    FROM push_subscriptions ps
+    LEFT JOIN accounts a ON a.id = ps.account_id
+    ORDER BY ps.created_at DESC
+  `).all();
+  res.json(rows.map(r => ({
+    id: r.id,
+    accountId: r.account_id,
+    accountName: r.account_name ?? null,
+    inviteCode: r.invite_code ?? null,
+    endpoint: r.endpoint,
+    createdAt: r.created_at,
+  })));
+});
+
+app.delete('/api/admin/push/subscriptions/:id', requireAdmin, (req, res) => {
+  const updated = db.prepare(`DELETE FROM push_subscriptions WHERE id = ?`).run(req.params.id);
+  if (updated.changes === 0) return res.status(404).json({ error: 'Suscripción no encontrada' });
+  res.json({ ok: true });
+});
+
 // ── Versiones (polling de respaldo) ─────────────────────────────────────────────
 
 app.get('/api/version', (req, res) => res.json(getRevs(req.accountId)));

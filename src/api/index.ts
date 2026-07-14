@@ -604,6 +604,30 @@ export async function getAdminStats(): Promise<AdminStats> {
   return json(await fetch(`${BASE}/admin/stats`, { credentials: 'include' }));
 }
 
+export interface PushSubscriptionInfo {
+  id: string;
+  accountId: string;
+  accountName: string | null;
+  inviteCode: string | null;
+  endpoint: string;
+  createdAt: string;
+}
+
+export async function getPushSubscriptions(): Promise<PushSubscriptionInfo[]> {
+  return json(await fetch(`${BASE}/admin/push/subscriptions`, { credentials: 'include' }));
+}
+
+export async function adminDeletePushSubscription(id: string): Promise<void> {
+  const res = await fetch(`${BASE}/admin/push/subscriptions/${id}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Error al eliminar');
+  }
+}
+
 export async function sendPushBroadcast(opts: { title: string; body: string; url?: string; accountId?: string }): Promise<{ sent: number; failed: number }> {
   const res = await fetch(`${BASE}/admin/push/broadcast`, {
     method: 'POST',

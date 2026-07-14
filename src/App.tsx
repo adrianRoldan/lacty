@@ -23,12 +23,12 @@ import AppSettings from './components/AppSettings';
 import MilestonesView from './components/MilestonesView';
 import VaccinesView from './components/VaccinesView';
 import PediatraSummary from './components/PediatraSummary';
-import AdminView, { ActivityDashboard } from './components/AdminView';
+import AdminView, { ActivityDashboard, PushBroadcastView } from './components/AdminView';
 import ThemeSelector from './components/ThemeSelector';
 import { Toaster, toast } from './toast';
 const ChartsView = lazy(() => import('./components/ChartsView'));
 
-type Tab = 'hoy' | 'graficas' | 'historial' | 'hitos' | 'vacunas' | 'referencia' | 'visitas' | 'consultas' | 'config' | 'familia' | 'admin-users' | 'admin-activity' | 'admin-settings';
+type Tab = 'hoy' | 'graficas' | 'historial' | 'hitos' | 'vacunas' | 'referencia' | 'visitas' | 'consultas' | 'config' | 'familia' | 'admin-users' | 'admin-activity' | 'admin-push' | 'admin-settings';
 type Screen =
   | Tab
   | 'nueva-toma'
@@ -724,6 +724,7 @@ export default function App() {
             {isAdmin ? (<>
               <SidebarButton label="Usuarios" icon={FamilyIcon} active={activeTab === 'admin-users'} onClick={() => navigate('admin-users')} />
               <SidebarButton label="Actividad" icon={ChartIcon} active={activeTab === 'admin-activity'} onClick={() => navigate('admin-activity')} />
+              <SidebarButton label="Notificaciones" icon={BellIcon} active={activeTab === 'admin-push'} onClick={() => navigate('admin-push')} />
               <SidebarButton label="Ajustes" icon={SettingsIcon} active={activeTab === 'admin-settings'} onClick={() => navigate('admin-settings')} />
             </>) : (<>
               <SidebarButton label="Hoy" icon={HomeIcon} active={activeTab === 'hoy'} onClick={() => navigate('hoy')} />
@@ -1043,6 +1044,13 @@ export default function App() {
           </div>
         )}
 
+        {screen === 'admin-push' && (
+          <div className="p-4 pb-24">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Notificaciones</h1>
+            <PushBroadcastView />
+          </div>
+        )}
+
         {screen === 'admin-settings' && (
           <div className="p-4 pb-24">
             <div className="flex items-center gap-3 mb-6 lg:hidden">
@@ -1121,6 +1129,7 @@ export default function App() {
           {isAdmin ? (<>
             <NavButton label="Usuarios" icon={FamilyIcon} active={activeTab === 'admin-users'} onClick={() => navigate('admin-users')} />
             <NavButton label="Actividad" icon={ChartIcon} active={activeTab === 'admin-activity'} onClick={() => navigate('admin-activity')} />
+            <NavButton label="Push" icon={BellIcon} active={activeTab === 'admin-push'} onClick={() => navigate('admin-push')} />
             <NavButton label="Ajustes" icon={SettingsIcon} active={activeTab === 'admin-settings'} onClick={() => navigate('admin-settings')} />
           </>) : (<>
             <NavButton label="Hoy" icon={HomeIcon} active={activeTab === 'hoy'} onClick={() => navigate('hoy')} />
@@ -1467,6 +1476,15 @@ function SettingsIcon({ active }: { active: boolean }) {
     <svg xmlns="http://www.w3.org/2000/svg" {...navIconProps(active)}>
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
+function BellIcon({ active }: { active: boolean }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" {...navIconProps(active)}>
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
     </svg>
   );
 }
