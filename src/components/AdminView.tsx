@@ -1,12 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { AdminUserInfo } from '../api';
+import type { AdminUserInfo, AdminStats } from '../api';
 import * as api from '../api';
 import { useConfirm } from './ConfirmDialog';
 
 type SheetPage = 'actions' | 'edit' | 'password' | 'move' | 'familyRole';
 type Sheet = { user: AdminUserInfo; page: SheetPage } | null;
+type AdminTab = 'users' | 'activity';
 
 export default function AdminView() {
+  const [adminTab, setAdminTab] = useState<AdminTab>('users');
   const confirm = useConfirm();
   const [users, setUsers] = useState<AdminUserInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,6 +83,14 @@ export default function AdminView() {
       await api.setUserRole(user.id, newRole);
       setUsers(prev => prev.map(u => u.id === user.id ? { ...u, role: newRole } : u));
       closeSheet();
+    });
+  }
+
+  async function handleImpersonate(user: AdminUserInfo) {
+    if (!await confirm(`¿Iniciar sesión como "${user.username}"? La página se recargará.`)) return;
+    await sheetAction(async () => {
+      await api.impersonateUser(user.id);
+      window.location.reload();
     });
   }
 
@@ -208,16 +218,32 @@ export default function AdminView() {
   return (
     <div className="p-4 pb-24">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Usuarios</h1>
-        <button
-          onClick={() => { setCreating(true); setCreateError(''); }}
-          className="flex items-center gap-1.5 bg-sage-600 text-white text-sm font-semibold px-3 py-2 rounded-xl active:bg-sage-700 touch-manipulation"
-        >
-          <span className="text-base leading-none">＋</span> Nuevo usuario
+        <h1 className="text-2xl font-bold text-gray-900">Admin</h1>
+        {adminTab === 'users' && (
+          <button
+            onClick={() => { setCreating(true); setCreateError(''); }}
+            className="flex items-center gap-1.5 bg-sage-600 text-white text-sm font-semibold px-3 py-2 rounded-xl active:bg-sage-700 touch-manipulation"
+          >
+            <span className="text-base leading-none">＋</span> Nuevo usuario
+          </button>
+        )}
+      </div>
+
+      {/* Tab switcher */}
+      <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5 mb-4">
+        <button onClick={() => setAdminTab('users')}
+          className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors ${adminTab === 'users' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
+          👤 Usuarios
+        </button>
+        <button onClick={() => setAdminTab('activity')}
+          className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors ${adminTab === 'activity' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
+          📊 Actividad
         </button>
       </div>
 
-      {loading ? (
+      {adminTab === 'activity' && <ActivityDashboard />}
+
+      {adminTab === 'users' && (loading ? (
         <p className="text-center text-gray-400 py-12 text-sm">Cargando…</p>
       ) : (
         <>
@@ -333,7 +359,7 @@ export default function AdminView() {
             </div>
           )}
         </>
-      )}
+      ))}
 
       {/* Sheet: user actions */}
       {sheet && (
@@ -361,6 +387,12 @@ export default function AdminView() {
                     icon="🛡️"
                     label={sheet.user.role === 'admin' ? 'Quitar rol admin' : 'Hacer admin del sistema'}
                     onClick={() => handleToggleRole(sheet.user)}
+                    loading={sheetLoading}
+                  />
+                  <ActionBtn
+                    icon="👁️"
+                    label="Iniciar sesión como este usuario"
+                    onClick={() => handleImpersonate(sheet.user)}
                     loading={sheetLoading}
                   />
                   <div className="pt-2 border-t border-gray-100">
@@ -566,4 +598,95 @@ function ActionBtn({ icon, label, sub, onClick, danger, loading }: {
 
 function formatDt(iso: string): string {
   return new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: '2-digit' });
+}
+
+function ActivityDashboard() {
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.getAdminStats().then(setStats).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <p className="text-center text-gray-400 py-12 text-sm">Cargando…</p>;
+  if (!stats) return <p className="text-center text-red-400 py-12 text-sm">Error al cargar estadísticas</p>;
+
+  return (
+    <div className="space-y-5">
+      {/* Usuarios activos */}
+      <section>
+        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Usuarios activos</h2>
+        <div className="grid grid-cols-3 gap-2">
+          <MetricCard label="Hoy" value={stats.activeToday} total={stats.totalUsers} color="sage" />
+          <MetricCard label="7 días" value={stats.active7d} total={stats.totalUsers} color="lagoon" />
+          <MetricCard label="30 días" value={stats.active30d} total={stats.totalUsers} color="mustard" />
+        </div>
+        {stats.newUsers7d > 0 && (
+          <p className="text-xs text-sage-700 bg-sage-50 rounded-xl px-3 py-2 mt-2">
+            🆕 {stats.newUsers7d} nuevo{stats.newUsers7d !== 1 ? 's' : ''} usuario{stats.newUsers7d !== 1 ? 's' : ''} esta semana
+          </p>
+        )}
+      </section>
+
+      {/* Contenido */}
+      <section>
+        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tomas registradas</h2>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-white rounded-xl p-3 shadow-sm text-center">
+            <p className="text-2xl font-bold text-gray-900">{stats.feedingsToday}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Hoy</p>
+          </div>
+          <div className="bg-white rounded-xl p-3 shadow-sm text-center">
+            <p className="text-2xl font-bold text-gray-900">{stats.feedings7d}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Últimos 7 días</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Alertas */}
+      {stats.inactiveFamiliesCount > 0 && (
+        <section>
+          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Alertas</h2>
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
+            <span className="text-xl">⚠️</span>
+            <div>
+              <p className="text-sm font-medium text-amber-800">
+                {stats.inactiveFamiliesCount} {stats.inactiveFamiliesCount === 1 ? 'familia' : 'familias'} sin actividad en 30 días
+              </p>
+              <p className="text-xs text-amber-600 mt-0.5">Sin login de ningún miembro en el último mes</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Últimos logins */}
+      <section>
+        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Últimos accesos</h2>
+        <div className="bg-white rounded-2xl shadow-sm divide-y divide-gray-50">
+          {stats.recentLogins.map((l, i) => (
+            <div key={i} className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-sm font-medium text-gray-800">{l.username}</span>
+              <span className="text-xs text-gray-400">{formatDt(l.last_login_at)}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function MetricCard({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+  const barColor = color === 'sage' ? 'bg-sage-500' : color === 'lagoon' ? 'bg-lagoon-500' : 'bg-mustard-500';
+  const textColor = color === 'sage' ? 'text-sage-700' : color === 'lagoon' ? 'text-lagoon-700' : 'text-mustard-700';
+  return (
+    <div className="bg-white rounded-xl p-3 shadow-sm">
+      <p className={`text-xl font-bold ${textColor}`}>{value}</p>
+      <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+      <div className="mt-2 h-1 bg-gray-100 rounded-full overflow-hidden">
+        <div className={`h-full ${barColor} rounded-full`} style={{ width: `${pct}%` }} />
+      </div>
+      <p className="text-xs text-gray-400 mt-1">{pct}% del total</p>
+    </div>
+  );
 }

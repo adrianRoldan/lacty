@@ -239,7 +239,14 @@ app.get('/api/app-info', (_, res) => res.json({ app: 'Lacty' }));
 app.get('/api/auth/me', (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: 'No autenticado' });
   const user = db.prepare(`SELECT role, family_role FROM users WHERE id = ?`).get(req.session.userId);
-  res.json({ username: req.session.username, accountId: req.session.accountId, role: user?.role ?? 'user', familyRole: user?.family_role ?? 'editor' });
+  res.json({
+    username: req.session.username,
+    accountId: req.session.accountId,
+    role: user?.role ?? 'user',
+    familyRole: user?.family_role ?? 'editor',
+    impersonating: !!req.session.originalUserId,
+    originalUsername: req.session.originalUsername ?? null,
+  });
 });
 
 app.post('/api/auth/signup', authLimiter, async (req, res) => {
@@ -470,6 +477,76 @@ app.put('/api/admin/accounts/:accountId/invite-code', requireAdmin, (req, res) =
   const updated = db.prepare(`UPDATE accounts SET invite_code = ? WHERE id = ?`).run(code, req.params.accountId);
   if (updated.changes === 0) return res.status(404).json({ error: 'Familia no encontrada' });
   res.json({ ok: true, inviteCode: code });
+});
+
+app.post('/api/admin/users/:id/impersonate', requireAdmin, (req, res) => {
+  const target = db.prepare(`SELECT id, username, account_id, role, family_role FROM users WHERE id = ?`).get(req.params.id);
+  if (!target) return res.status(404).json({ error: 'Usuario no encontrado' });
+  if (target.role === 'admin') return res.status(403).json({ error: 'No puedes impersonar a otro administrador' });
+  req.session.originalUserId = req.session.userId;
+  req.session.originalUsername = req.session.username;
+  req.session.originalAccountId = req.session.accountId;
+  req.session.userId = target.id;
+  req.session.username = target.username;
+  req.session.accountId = target.account_id;
+  req.session.role = target.role ?? 'user';
+  req.session.familyRole = target.family_role ?? 'editor';
+  res.json({ ok: true, username: target.username });
+});
+
+app.post('/api/admin/impersonate/exit', (req, res) => {
+  if (!req.session?.originalUserId) return res.status(400).json({ error: 'No estás en modo impersonación' });
+  req.session.userId = req.session.originalUserId;
+  req.session.username = req.session.originalUsername;
+  req.session.accountId = req.session.originalAccountId;
+  req.session.role = 'admin';
+  req.session.familyRole = 'owner';
+  delete req.session.originalUserId;
+  delete req.session.originalUsername;
+  delete req.session.originalAccountId;
+  res.json({ ok: true });
+});
+
+app.get('/api/admin/stats', requireAdmin, (req, res) => {
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const d7 = new Date(now.getTime() - 7 * 86400000).toISOString();
+  const d30 = new Date(now.getTime() - 30 * 86400000).toISOString();
+
+  const totalUsers = db.prepare(`SELECT COUNT(*) AS n FROM users`).get().n;
+  const totalFamilies = db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get().n;
+  const totalBabies = db.prepare(`SELECT COUNT(*) AS n FROM babies`).get().n;
+
+  const activeToday = db.prepare(`SELECT COUNT(*) AS n FROM users WHERE last_login_at >= ?`).get(today).n;
+  const active7d = db.prepare(`SELECT COUNT(*) AS n FROM users WHERE last_login_at >= ?`).get(d7).n;
+  const active30d = db.prepare(`SELECT COUNT(*) AS n FROM users WHERE last_login_at >= ?`).get(d30).n;
+  const newUsers7d = db.prepare(`SELECT COUNT(*) AS n FROM users WHERE created_at >= ?`).get(d7).n;
+
+  const feedingsToday = db.prepare(`SELECT COUNT(*) AS n FROM feedings WHERE json_extract(data, '$.timestamp') >= ?`).get(today).n;
+  const feedings7d = db.prepare(`SELECT COUNT(*) AS n FROM feedings WHERE json_extract(data, '$.timestamp') >= ?`).get(d7).n;
+
+  const inactiveFamiliesCount = db.prepare(`
+    SELECT COUNT(DISTINCT a.id) AS n FROM accounts a
+    WHERE NOT EXISTS (
+      SELECT 1 FROM users u WHERE u.account_id = a.id AND u.last_login_at >= ?
+    )
+  `).get(d30).n;
+
+  const recentLogins = db.prepare(`
+    SELECT username, last_login_at FROM users
+    WHERE last_login_at IS NOT NULL
+    ORDER BY last_login_at DESC
+    LIMIT 10
+  `).all();
+
+  res.json({
+    totalUsers, totalFamilies, totalBabies,
+    activeToday, active7d, active30d,
+    newUsers7d,
+    feedingsToday, feedings7d,
+    inactiveFamiliesCount,
+    recentLogins,
+  });
 });
 
 // ── Versiones (polling de respaldo) ─────────────────────────────────────────────

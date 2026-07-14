@@ -29,7 +29,28 @@ async function json<T>(res: Response): Promise<T> {
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
-export interface AuthUser { username: string; accountId: string; role: 'admin' | 'user'; familyRole: 'owner' | 'editor' | 'viewer'; }
+export interface AuthUser {
+  username: string;
+  accountId: string;
+  role: 'admin' | 'user';
+  familyRole: 'owner' | 'editor' | 'viewer';
+  impersonating?: boolean;
+  originalUsername?: string;
+}
+
+export interface AdminStats {
+  totalUsers: number;
+  totalFamilies: number;
+  totalBabies: number;
+  activeToday: number;
+  active7d: number;
+  active30d: number;
+  newUsers7d: number;
+  feedingsToday: number;
+  feedings7d: number;
+  inactiveFamiliesCount: number;
+  recentLogins: { username: string; last_login_at: string }[];
+}
 
 export interface AdminUserInfo {
   id: string;
@@ -49,7 +70,14 @@ export async function checkAuth(): Promise<AuthUser | null> {
     const res = await fetch(`${BASE}/auth/me`, { credentials: 'include' });
     if (!res.ok) return null;
     const data = await res.json();
-    return { username: data.username, accountId: data.accountId, role: data.role ?? 'user', familyRole: data.familyRole ?? 'editor' };
+    return {
+      username: data.username,
+      accountId: data.accountId,
+      role: data.role ?? 'user',
+      familyRole: data.familyRole ?? 'editor',
+      impersonating: data.impersonating ?? false,
+      originalUsername: data.originalUsername ?? undefined,
+    };
   } catch {
     return null;
   }
@@ -550,6 +578,28 @@ export async function moveUserToAccount(userId: string, accountId: string): Prom
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error ?? 'Error al mover usuario');
   }
+}
+
+export async function impersonateUser(userId: string): Promise<void> {
+  const res = await fetch(`${BASE}/admin/users/${userId}/impersonate`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Error al impersonar');
+  }
+}
+
+export async function exitImpersonation(): Promise<void> {
+  await fetch(`${BASE}/admin/impersonate/exit`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+}
+
+export async function getAdminStats(): Promise<AdminStats> {
+  return json(await fetch(`${BASE}/admin/stats`, { credentials: 'include' }));
 }
 
 export async function regenerateInviteCode(accountId: string): Promise<string> {

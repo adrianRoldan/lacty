@@ -67,6 +67,8 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<'admin' | 'user'>('user');
   const [familyRole, setFamilyRole] = useState<'owner' | 'editor' | 'viewer'>('editor');
+  const [impersonating, setImpersonating] = useState(false);
+  const [originalUsername, setOriginalUsername] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(false);
@@ -164,6 +166,8 @@ export default function App() {
       setCurrentUser(auth?.username ?? null);
       setUserRole(auth?.role ?? 'user');
       setFamilyRole(auth?.familyRole ?? 'editor');
+      setImpersonating(auth?.impersonating ?? false);
+      setOriginalUsername(auth?.originalUsername ?? null);
       if (auth?.role === 'admin') { setActiveTab('admin-users'); setScreen('admin-users'); }
       setAuthChecked(true);
       if (!auth) { setLoading(false); return; }
@@ -690,8 +694,22 @@ export default function App() {
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
+  async function handleExitImpersonation() {
+    await api.exitImpersonation();
+    window.location.reload();
+  }
+
   return (
-    <div className="flex flex-col lg:flex-row min-h-svh bg-cream-50">
+    <>
+    {impersonating && (
+      <div className="fixed top-0 inset-x-0 z-50 bg-amber-500 text-white text-xs flex items-center justify-between px-4 py-2">
+        <span>Viendo la app como <strong>{currentUser}</strong> (admin: {originalUsername})</span>
+        <button onClick={handleExitImpersonation} className="font-semibold underline touch-manipulation ml-4">
+          Salir
+        </button>
+      </div>
+    )}
+    <div className={`flex flex-col lg:flex-row min-h-svh bg-cream-50${impersonating ? ' pt-8' : ''}`}>
       {/* Sidebar — solo desktop */}
       {!showForm && (
         <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 lg:sticky lg:top-0 lg:h-svh bg-white border-r border-gray-200 px-3 py-5">
@@ -1148,6 +1166,7 @@ export default function App() {
       </div>
       <Toaster />
     </div>
+    </>
   );
 }
 
