@@ -201,6 +201,14 @@ export default function DailySummary({
   const feedingAlertMin = reference ? Math.round((24 * 60) / reference.feedsPerDayMin) : 180;
   const isFeedingAlert = lastFeedingElapsed !== null && lastFeedingElapsed >= feedingAlertMin;
 
+  const restInProgress = rests.some((r) => r.endTime == null);
+  const lastCompletedRest = rests
+    .filter((r) => r.endTime != null)
+    .sort((a, b) => new Date(b.endTime!).getTime() - new Date(a.endTime!).getTime())[0] ?? null;
+  const lastRestElapsed = lastCompletedRest && !restInProgress
+    ? Math.floor((Date.now() - new Date(lastCompletedRest.endTime!).getTime()) / 60000)
+    : null;
+
   const awakeMin = getAwakeMinutes(rests);
   const isAwakeAlert = awakeMin !== null && awakeMin >= sleepRef.awakeWindowMaxMin;
   const isAwakeSevere = awakeMin !== null && awakeMin >= sleepRef.awakeWindowMaxMin * 2;
@@ -250,17 +258,33 @@ export default function DailySummary({
           )}
         </div>
         <div className="flex items-center justify-between px-3 py-2 bg-gray-50/50 border-t border-gray-100 text-xs">
-          <div className="text-gray-500">
-            {lastFeedingInProgress && (
-              <span className="text-pink-500 font-medium animate-pulse">🤱 En curso…</span>
+          <div className="flex items-center gap-2.5 text-gray-500 min-w-0">
+            <span className="shrink-0">
+              {lastFeedingInProgress && (
+                <span className="text-pink-500 font-medium animate-pulse">🤱 En curso…</span>
+              )}
+              {lastFeedingElapsed !== null && !isFeedingAlert && (
+                <>🍽️ Hace <span className="font-semibold text-gray-700">{formatElapsed(lastFeedingElapsed)}</span></>
+              )}
+              {isFeedingAlert && lastFeedingElapsed !== null && (
+                <span className="font-bold text-red-600">⚠️ {formatElapsed(lastFeedingElapsed)} sin comer</span>
+              )}
+              {!lastFeeding && <span className="text-gray-400">Sin tomas aún</span>}
+            </span>
+            {(lastRestElapsed !== null || restInProgress || rests.length === 0) && (
+              <>
+                <span className="text-gray-200">·</span>
+                <span className="shrink-0">
+                  {restInProgress && (
+                    <span className="text-lagoon-600 font-medium animate-pulse">🌙 En curso…</span>
+                  )}
+                  {lastRestElapsed !== null && (
+                    <>🌙 Hace <span className="font-semibold text-gray-700">{formatElapsed(lastRestElapsed)}</span></>
+                  )}
+                  {rests.length === 0 && <span className="text-gray-400">Sin siestas</span>}
+                </span>
+              </>
             )}
-            {lastFeedingElapsed !== null && !isFeedingAlert && (
-              <>🕐 Hace <span className="font-semibold text-gray-700">{formatElapsed(lastFeedingElapsed)}</span></>
-            )}
-            {isFeedingAlert && lastFeedingElapsed !== null && (
-              <span className="font-bold text-red-600">⚠️ {formatElapsed(lastFeedingElapsed)} sin comer</span>
-            )}
-            {!lastFeeding && <span className="text-gray-400">Sin tomas aún</span>}
           </div>
           <button
             onClick={() => setDetailsOpen((o) => !o)}
