@@ -247,6 +247,7 @@ export default function App() {
       setUserRole(role);
       setFamilyRole(fRole);
       if (role === 'admin') { setActiveTab('admin-users'); setScreen('admin-users'); }
+      else { setActiveTab('hoy'); setScreen('hoy'); }
       setLoading(true);
       loadAllData()
         .then(() => setApiError(false))
