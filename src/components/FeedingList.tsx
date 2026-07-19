@@ -344,7 +344,7 @@ export default function FeedingList({
                                   ? gapMinutes(item.data.timestamp, recentTs)
                                   : null;
                                 return (
-                                  <div key={item.data.id}>
+                                  <div key={`${item.type}-${item.data.id}`}>
                                     {gap !== null && <GapLine minutes={gap} />}
                                     {item.type === 'feeding' ? (
                                       <FeedingItem feeding={item.data} onEdit={onEditFeeding} onDelete={onDeleteFeeding} readOnly={readOnly} />

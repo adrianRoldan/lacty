@@ -181,14 +181,14 @@ function buildCareItems(careLogs: CareLogInputs): TimelineItem[] {
   for (const l of careLogs.vitaminDLogs ?? []) {
     items.push({
       type: 'care',
-      data: { id: l.id, icon: '💊', label: `Administrado ${careLogs.vitaminDLabel || 'Vitamina D3'}`, timestamp: l.givenAt },
+      data: { id: `vitd-${l.id}`, icon: '💊', label: `Administrado ${careLogs.vitaminDLabel || 'Vitamina D3'}`, timestamp: l.givenAt },
       sortKey: l.givenAt,
     });
   }
   for (const l of careLogs.probioticLogs ?? []) {
     items.push({
       type: 'care',
-      data: { id: l.id, icon: '🦠', label: `Administrado ${careLogs.probioticLabel || 'Probiótico'}`, timestamp: l.givenAt },
+      data: { id: `prob-${l.id}`, icon: '🦠', label: `Administrado ${careLogs.probioticLabel || 'Probiótico'}`, timestamp: l.givenAt },
       sortKey: l.givenAt,
     });
   }
@@ -204,7 +204,7 @@ function buildCareItems(careLogs: CareLogInputs): TimelineItem[] {
     sorted.forEach((m, idx) => {
       items.push({
         type: 'care',
-        data: { id: m.id, icon: '👅', label: `Masaje #${idx + 1} realizado`, timestamp: m.performedAt },
+        data: { id: `mas-${m.id}`, icon: '👅', label: `Masaje #${idx + 1} realizado`, timestamp: m.performedAt },
         sortKey: m.performedAt,
       });
     });

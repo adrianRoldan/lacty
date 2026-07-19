@@ -383,7 +383,7 @@ export default function DailySummary({
                 ? gapMinutes(item.data.timestamp, morerecentTs)
                 : null;
             return (
-              <div key={item.data.id}>
+              <div key={`${item.type}-${item.data.id}`}>
                 {gap !== null && <GapLine minutes={gap} />}
                 {item.type === 'feeding' ? (
                   <FeedingItem feeding={item.data} onEdit={onEditFeeding} onDelete={onDeleteFeeding} onStop={onStopFeeding} listDay={today} readOnly={readOnly} />
