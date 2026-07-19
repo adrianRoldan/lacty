@@ -106,10 +106,18 @@ export interface DiaperChange {
   notes?: string;
 }
 
+export interface CareEntry {
+  id: string;
+  icon: string;
+  label: string;
+  timestamp: string;
+}
+
 export type TimelineItem =
   | { type: 'feeding'; data: Feeding; sortKey: string }
   | { type: 'rest'; data: Rest; sortKey: string }
-  | { type: 'diaper'; data: DiaperChange; sortKey: string };
+  | { type: 'diaper'; data: DiaperChange; sortKey: string }
+  | { type: 'care'; data: CareEntry; sortKey: string };
 
 export type EventCategory = 'pediatra' | 'matrona' | 'fisio' | 'vacuna' | 'analisis' | 'revision' | 'otro';
 

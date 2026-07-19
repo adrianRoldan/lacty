@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Feeding, Rest, TimelineItem, VitaminDLog, ProbioticLog, MassageLog, DiaperChange } from '../types';
 import { BreastIcon } from './FeedingItem';
 import { DiaperIcon } from './DiaperItem';
-import { formatDate, formatDateShort, formatMinutes, gapMinutes, localDateOf } from '../utils/dateUtils';
+import { formatDate, formatDateShort, formatMinutes, formatTime, gapMinutes, localDateOf } from '../utils/dateUtils';
 import {
   groupTimelineByDay,
   getTotalSupplementMl,
@@ -109,7 +109,17 @@ export default function FeedingList({
   const filteredRests    = (filterType === 'feedings' || filterType === 'diapers') ? [] : periodRests;
   const filteredDiapers  = (filterType === 'feedings' || filterType === 'rests')   ? [] : periodDiapers;
 
-  const groups = groupTimelineByDay(filteredFeedings, filteredRests, filteredDiapers);
+  // Los cuidados (vitamina D, probiótico, masaje) solo se muestran sin filtro de tipo activo
+  const showCare = filterType === 'all';
+  const periodVitaminDLogs  = vitaminDLogs.filter(l => !cutoff || l.date >= cutoff);
+  const periodProbioticLogs = probioticLogs.filter(l => !cutoff || l.date >= cutoff);
+  const periodMassageLogs   = massageLogs.filter(l => !cutoff || l.date >= cutoff);
+
+  const groups = groupTimelineByDay(filteredFeedings, filteredRests, filteredDiapers, {
+    vitaminDLogs:  showCare ? periodVitaminDLogs  : [],
+    probioticLogs: showCare ? periodProbioticLogs : [],
+    massageLogs:   showCare ? periodMassageLogs   : [],
+  });
   const days   = Object.keys(groups).sort((a, b) => b.localeCompare(a));
 
   // Group days by month
@@ -327,23 +337,6 @@ export default function FeedingList({
                                   : <span className="text-red-400 font-medium">· 👅 0/5</span>;
                               })()}
                             </div>
-                            {/* Masajes detalle */}
-                            {isInFrenectomyPeriod(day) && (() => {
-                              const dayMassages = massageLogs
-                                .filter((m) => m.date === day)
-                                .sort((a, b) => a.performedAt.localeCompare(b.performedAt));
-                              if (dayMassages.length === 0) return null;
-                              return (
-                                <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-                                  <span className="text-xs text-gray-400">👅</span>
-                                  {dayMassages.map((m) => (
-                                    <span key={m.id} className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
-                                      {new Date(m.performedAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                  ))}
-                                </div>
-                              );
-                            })()}
                             <div>
                               {items.map((item, i) => {
                                 const recentTs = morerecentFeedingTimestamp(items, i);
@@ -357,8 +350,10 @@ export default function FeedingList({
                                       <FeedingItem feeding={item.data} onEdit={onEditFeeding} onDelete={onDeleteFeeding} readOnly={readOnly} />
                                     ) : item.type === 'rest' ? (
                                       <RestItem rest={item.data} onEdit={onEditRest} onDelete={onDeleteRest} readOnly={readOnly} />
-                                    ) : (
+                                    ) : item.type === 'diaper' ? (
                                       <DiaperItem diaper={item.data} onEdit={onEditDiaper} onDelete={onDeleteDiaper} readOnly={readOnly} />
+                                    ) : (
+                                      <CareLine icon={item.data.icon} label={item.data.label} time={formatTime(item.data.timestamp)} />
                                     )}
                                   </div>
                                 );
@@ -396,6 +391,21 @@ function GapLine({ minutes }: { minutes: number }) {
     <div className="flex items-center gap-2 my-1 px-1">
       <div className="flex-1 border-t border-dashed border-gray-200" />
       <span className="text-xs text-gray-400 shrink-0">{formatMinutes(minutes)}</span>
+      <div className="flex-1 border-t border-dashed border-gray-200" />
+    </div>
+  );
+}
+
+function CareLine({ icon, label, time }: { icon: string; label: string; time: string }) {
+  return (
+    <div className="flex items-center gap-2 my-1 px-1">
+      <div className="flex-1 border-t border-dashed border-gray-200" />
+      <span className="text-xs text-gray-400 shrink-0 inline-flex items-center gap-1">
+        <span>{icon}</span>
+        <span>{label}</span>
+        <span className="text-gray-300">·</span>
+        <span className="font-medium text-gray-500">{time}</span>
+      </span>
       <div className="flex-1 border-t border-dashed border-gray-200" />
     </div>
   );

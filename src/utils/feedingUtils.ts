@@ -1,4 +1,4 @@
-import type { Feeding, Rest, TimelineItem, DiaperChange } from '../types';
+import type { Feeding, Rest, TimelineItem, DiaperChange, VitaminDLog, ProbioticLog, MassageLog } from '../types';
 import { isSameDay, todayIso, localDateOf } from './dateUtils';
 import { getReferenceForDay } from '../data/referenceTable';
 
@@ -168,10 +168,45 @@ export function getTodayDiapers(diapers: DiaperChange[], day?: string): DiaperCh
   return diapers.filter((diaper) => isSameDay(diaper.timestamp, d));
 }
 
+export interface CareLogInputs {
+  vitaminDLogs?: VitaminDLog[];
+  vitaminDLabel?: string;
+  probioticLogs?: ProbioticLog[];
+  probioticLabel?: string;
+  massageLogs?: MassageLog[];
+}
+
+function buildCareItems(careLogs: CareLogInputs): TimelineItem[] {
+  const items: TimelineItem[] = [];
+  for (const l of careLogs.vitaminDLogs ?? []) {
+    items.push({
+      type: 'care',
+      data: { id: l.id, icon: '💊', label: careLogs.vitaminDLabel || 'Vitamina D3', timestamp: l.givenAt },
+      sortKey: l.givenAt,
+    });
+  }
+  for (const l of careLogs.probioticLogs ?? []) {
+    items.push({
+      type: 'care',
+      data: { id: l.id, icon: '🦠', label: careLogs.probioticLabel || 'Probiótico', timestamp: l.givenAt },
+      sortKey: l.givenAt,
+    });
+  }
+  for (const l of careLogs.massageLogs ?? []) {
+    items.push({
+      type: 'care',
+      data: { id: l.id, icon: '👅', label: 'Masaje', timestamp: l.performedAt },
+      sortKey: l.performedAt,
+    });
+  }
+  return items;
+}
+
 export function buildTimeline(
   feedings: Feeding[],
   rests: Rest[],
   diapers: DiaperChange[],
+  careLogs?: CareLogInputs,
   dayFilter?: string
 ): TimelineItem[] {
   const day = dayFilter ?? todayIso();
@@ -185,6 +220,7 @@ export function buildTimeline(
     ...diapers
       .filter((d) => isSameDay(d.timestamp, day))
       .map((d) => ({ type: 'diaper' as const, data: d, sortKey: d.timestamp })),
+    ...buildCareItems(careLogs ?? {}).filter((c) => isSameDay(c.sortKey, day)),
   ];
   return items.sort((a, b) => b.sortKey.localeCompare(a.sortKey));
 }
@@ -342,7 +378,8 @@ export function generateId(): string {
 export function groupTimelineByDay(
   feedings: Feeding[],
   rests: Rest[],
-  diapers: DiaperChange[]
+  diapers: DiaperChange[],
+  careLogs?: CareLogInputs
 ): Record<string, TimelineItem[]> {
   const groups: Record<string, TimelineItem[]> = {};
 
@@ -360,6 +397,11 @@ export function groupTimelineByDay(
     const day = localDateOf(d.timestamp);
     if (!groups[day]) groups[day] = [];
     groups[day].push({ type: 'diaper', data: d, sortKey: d.timestamp });
+  }
+  for (const c of buildCareItems(careLogs ?? {})) {
+    const day = localDateOf(c.sortKey);
+    if (!groups[day]) groups[day] = [];
+    groups[day].push(c);
   }
 
   for (const day of Object.keys(groups)) {

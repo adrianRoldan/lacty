@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { BabyConfig, Feeding, Rest, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent, DiaperChange } from '../types';
-import { getCurrentDaysOfLife, formatBabyAge, formatMinutes, gapMinutes, isSameDay, todayIso } from '../utils/dateUtils';
+import { getCurrentDaysOfLife, formatBabyAge, formatMinutes, formatTime, gapMinutes, isSameDay, todayIso } from '../utils/dateUtils';
 import {
   getTodayFeedings,
   getTotalSupplementMl,
@@ -107,7 +107,13 @@ export default function DailySummary({
   const todayDiapers = getTodayDiapers(diapers);
   const wetCount = todayDiapers.filter((d) => d.content === 'wet' || d.content === 'both').length;
   const dirtyCount = todayDiapers.filter((d) => d.content === 'dirty' || d.content === 'both').length;
-  const timeline = buildTimeline(feedings, rests, diapers);
+  const timeline = buildTimeline(feedings, rests, diapers, {
+    vitaminDLogs: vitaminDLogs,
+    vitaminDLabel: config.vitaminDMedName,
+    probioticLogs: probioticLogs,
+    probioticLabel: config.probioticMedName,
+    massageLogs: massageLogs,
+  });
   const reference = getEffectiveReference(daysOfLife, currentWeightKg);
   const sleepRef = getSleepReference(daysOfLife);
 
@@ -383,8 +389,10 @@ export default function DailySummary({
                   <FeedingItem feeding={item.data} onEdit={onEditFeeding} onDelete={onDeleteFeeding} onStop={onStopFeeding} listDay={today} readOnly={readOnly} />
                 ) : item.type === 'rest' ? (
                   <RestItem rest={item.data} onEdit={onEditRest} onDelete={onDeleteRest} onStop={onStopRest} listDay={today} readOnly={readOnly} />
-                ) : (
+                ) : item.type === 'diaper' ? (
                   <DiaperItem diaper={item.data} onEdit={onEditDiaper} onDelete={onDeleteDiaper} readOnly={readOnly} />
+                ) : (
+                  <CareLine icon={item.data.icon} label={item.data.label} time={formatTime(item.data.timestamp)} />
                 )}
               </div>
             );
@@ -538,6 +546,21 @@ function GapLine({ minutes }: { minutes: number }) {
     <div className="flex items-center gap-2 my-1 px-1">
       <div className="flex-1 border-t border-dashed border-gray-200" />
       <span className="text-xs text-gray-400 shrink-0">{formatMinutes(minutes)} desde la última toma</span>
+      <div className="flex-1 border-t border-dashed border-gray-200" />
+    </div>
+  );
+}
+
+function CareLine({ icon, label, time }: { icon: string; label: string; time: string }) {
+  return (
+    <div className="flex items-center gap-2 my-1 px-1">
+      <div className="flex-1 border-t border-dashed border-gray-200" />
+      <span className="text-xs text-gray-400 shrink-0 inline-flex items-center gap-1">
+        <span>{icon}</span>
+        <span>{label}</span>
+        <span className="text-gray-300">·</span>
+        <span className="font-medium text-gray-500">{time}</span>
+      </span>
       <div className="flex-1 border-t border-dashed border-gray-200" />
     </div>
   );
