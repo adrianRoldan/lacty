@@ -398,15 +398,10 @@ function GapLine({ minutes }: { minutes: number }) {
 
 function CareLine({ icon, label, time }: { icon: string; label: string; time: string }) {
   return (
-    <div className="flex items-center gap-2 my-1 px-1">
-      <div className="flex-1 border-t border-dashed border-gray-200" />
-      <span className="text-xs text-gray-400 shrink-0 inline-flex items-center gap-1">
-        <span className="font-medium text-gray-500">{time}</span>
-        <span className="text-gray-300">·</span>
-        <span>{icon}</span>
-        <span>{label}</span>
-      </span>
-      <div className="flex-1 border-t border-dashed border-gray-200" />
+    <div className="flex items-center gap-1.5 pl-4 pr-3 py-1 my-0.5 text-xs text-gray-400">
+      <span>{icon}</span>
+      <span className="font-medium text-gray-500">{time}</span>
+      <span>{label}</span>
     </div>
   );
 }
