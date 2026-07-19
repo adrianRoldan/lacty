@@ -556,10 +556,10 @@ function CareLine({ icon, label, time }: { icon: string; label: string; time: st
     <div className="flex items-center gap-2 my-1 px-1">
       <div className="flex-1 border-t border-dashed border-gray-200" />
       <span className="text-xs text-gray-400 shrink-0 inline-flex items-center gap-1">
+        <span className="font-medium text-gray-500">{time}</span>
+        <span className="text-gray-300">·</span>
         <span>{icon}</span>
         <span>{label}</span>
-        <span className="text-gray-300">·</span>
-        <span className="font-medium text-gray-500">{time}</span>
       </span>
       <div className="flex-1 border-t border-dashed border-gray-200" />
     </div>

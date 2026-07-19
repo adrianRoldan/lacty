@@ -181,24 +181,35 @@ function buildCareItems(careLogs: CareLogInputs): TimelineItem[] {
   for (const l of careLogs.vitaminDLogs ?? []) {
     items.push({
       type: 'care',
-      data: { id: l.id, icon: '💊', label: careLogs.vitaminDLabel || 'Vitamina D3', timestamp: l.givenAt },
+      data: { id: l.id, icon: '💊', label: `Administrado ${careLogs.vitaminDLabel || 'Vitamina D3'}`, timestamp: l.givenAt },
       sortKey: l.givenAt,
     });
   }
   for (const l of careLogs.probioticLogs ?? []) {
     items.push({
       type: 'care',
-      data: { id: l.id, icon: '🦠', label: careLogs.probioticLabel || 'Probiótico', timestamp: l.givenAt },
+      data: { id: l.id, icon: '🦠', label: `Administrado ${careLogs.probioticLabel || 'Probiótico'}`, timestamp: l.givenAt },
       sortKey: l.givenAt,
     });
   }
-  for (const l of careLogs.massageLogs ?? []) {
-    items.push({
-      type: 'care',
-      data: { id: l.id, icon: '👅', label: 'Masaje', timestamp: l.performedAt },
-      sortKey: l.performedAt,
+
+  // Numerar los masajes según su orden dentro de cada día (Masaje #1, #2, ...)
+  const massagesByDate = new Map<string, MassageLog[]>();
+  for (const m of careLogs.massageLogs ?? []) {
+    if (!massagesByDate.has(m.date)) massagesByDate.set(m.date, []);
+    massagesByDate.get(m.date)!.push(m);
+  }
+  for (const dayMassages of massagesByDate.values()) {
+    const sorted = [...dayMassages].sort((a, b) => a.performedAt.localeCompare(b.performedAt));
+    sorted.forEach((m, idx) => {
+      items.push({
+        type: 'care',
+        data: { id: m.id, icon: '👅', label: `Masaje #${idx + 1} realizado`, timestamp: m.performedAt },
+        sortKey: m.performedAt,
+      });
     });
   }
+
   return items;
 }
 
