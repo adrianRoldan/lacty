@@ -31,6 +31,7 @@ async function json<T>(res: Response): Promise<T> {
 
 export interface AuthUser {
   username: string;
+  email?: string | null;
   accountId: string;
   role: 'admin' | 'user';
   familyRole: 'owner' | 'editor' | 'viewer';
@@ -57,6 +58,7 @@ export interface AdminStats {
 export interface AdminUserInfo {
   id: string;
   username: string;
+  email: string | null;
   role: string;
   familyRole: string;
   accountId: string;
@@ -74,6 +76,7 @@ export async function checkAuth(): Promise<AuthUser | null> {
     const data = await res.json();
     return {
       username: data.username,
+      email: data.email ?? null,
       accountId: data.accountId,
       role: data.role ?? 'user',
       familyRole: data.familyRole ?? 'editor',
@@ -83,6 +86,20 @@ export async function checkAuth(): Promise<AuthUser | null> {
   } catch {
     return null;
   }
+}
+
+export async function updateProfile(username: string, email: string): Promise<{ username: string; email: string }> {
+  const res = await fetch(`${BASE}/auth/profile`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ username, email }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Error al actualizar el perfil');
+  }
+  return res.json();
 }
 
 export async function login(username: string, password: string): Promise<AuthUser> {
@@ -516,7 +533,7 @@ export async function deleteUser(userId: string): Promise<void> {
   }
 }
 
-export async function createAdminUser(opts: { username: string; password: string; accountId?: string }): Promise<{ id: string; accountId: string }> {
+export async function createAdminUser(opts: { username: string; email: string; password: string; accountId?: string }): Promise<{ id: string; accountId: string }> {
   const res = await fetch(`${BASE}/admin/users`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -530,12 +547,12 @@ export async function createAdminUser(opts: { username: string; password: string
   return res.json();
 }
 
-export async function updateAdminUsername(userId: string, username: string): Promise<void> {
+export async function updateAdminUser(userId: string, username: string, email: string): Promise<void> {
   const res = await fetch(`${BASE}/admin/users/${userId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ username }),
+    body: JSON.stringify({ username, email }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

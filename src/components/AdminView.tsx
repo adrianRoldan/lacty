@@ -22,12 +22,14 @@ export default function AdminView() {
 
   // Sheet form fields
   const [editUsername, setEditUsername] = useState('');
+  const [editEmail, setEditEmail] = useState('');
   const [editPassword, setEditPassword] = useState('');
   const [targetAccountId, setTargetAccountId] = useState('');
   const [familyRoleVal, setFamilyRoleVal] = useState('editor');
 
   // Create user form
   const [newUsername, setNewUsername] = useState('');
+  const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newFamilyType, setNewFamilyType] = useState<'new' | 'existing'>('existing');
   const [newAccountId, setNewAccountId] = useState('');
@@ -50,7 +52,7 @@ export default function AdminView() {
     setSheet({ user, page });
     setSheetError('');
     setSheetLoading(false);
-    if (page === 'edit') setEditUsername(user.username);
+    if (page === 'edit') { setEditUsername(user.username); setEditEmail(user.email ?? ''); }
     if (page === 'password') setEditPassword('');
     if (page === 'move') setTargetAccountId('');
     if (page === 'familyRole') setFamilyRoleVal(user.familyRole);
@@ -105,11 +107,11 @@ export default function AdminView() {
     });
   }
 
-  async function handleEditUsername(user: AdminUserInfo) {
-    if (!editUsername.trim()) return;
+  async function handleEditProfile(user: AdminUserInfo) {
+    if (!editUsername.trim() || !editEmail.trim()) return;
     await sheetAction(async () => {
-      await api.updateAdminUsername(user.id, editUsername.trim());
-      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, username: editUsername.trim() } : u));
+      await api.updateAdminUser(user.id, editUsername.trim(), editEmail.trim());
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, username: editUsername.trim(), email: editEmail.trim() } : u));
       closeSheet();
     });
   }
@@ -157,12 +159,13 @@ export default function AdminView() {
 
   async function handleCreateUser(e: React.FormEvent) {
     e.preventDefault();
-    if (!newUsername.trim() || !newPassword) return;
+    if (!newUsername.trim() || !newEmail.trim() || !newPassword) return;
     setCreateError('');
     setCreateLoading(true);
     try {
       const result = await api.createAdminUser({
         username: newUsername.trim(),
+        email: newEmail.trim(),
         password: newPassword,
         accountId: newFamilyType === 'existing' && newAccountId ? newAccountId : undefined,
       });
@@ -171,6 +174,7 @@ export default function AdminView() {
       setUsers(updated);
       setCreating(false);
       setNewUsername('');
+      setNewEmail('');
       setNewPassword('');
       setNewAccountId('');
       setNewFamilyType('existing');
@@ -188,6 +192,7 @@ export default function AdminView() {
       if (roleFilter !== 'all' && u.role !== roleFilter) return false;
       if (!q) return true;
       return u.username.toLowerCase().includes(q)
+        || (u.email ?? '').toLowerCase().includes(q)
         || u.babies.some(b => b.name.toLowerCase().includes(q))
         || (u.inviteCode ?? '').toLowerCase().includes(q);
     });
@@ -321,6 +326,7 @@ export default function AdminView() {
                                 {u.familyRole}
                               </span>
                             </div>
+                            {u.email && <p className="text-xs text-gray-400 truncate mt-0.5">{u.email}</p>}
                             <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-400 mt-0.5">
                               <span>Alta: {formatDt(u.createdAt)}</span>
                               <span>{u.lastLoginAt ? `Login: ${formatDt(u.lastLoginAt)}` : 'Nunca ha entrado'}</span>
@@ -361,7 +367,7 @@ export default function AdminView() {
 
               {sheet.page === 'actions' && (
                 <div className="space-y-2">
-                  <ActionBtn icon="✏️" label="Editar nombre de usuario" onClick={() => openSheet(sheet.user, 'edit')} />
+                  <ActionBtn icon="✏️" label="Editar usuario y email" onClick={() => openSheet(sheet.user, 'edit')} />
                   <ActionBtn icon="🔑" label="Cambiar contraseña" onClick={() => openSheet(sheet.user, 'password')} />
                   <ActionBtn icon="👨‍👩‍👧" label="Cambiar de familia" onClick={() => openSheet(sheet.user, 'move')} />
                   <ActionBtn icon="🎭" label="Rol familiar" sub={sheet.user.familyRole} onClick={() => openSheet(sheet.user, 'familyRole')} />
@@ -385,9 +391,15 @@ export default function AdminView() {
 
               {sheet.page === 'edit' && (
                 <div>
-                  <p className="text-sm font-medium text-gray-700 mb-3">Nombre de usuario</p>
+                  <p className="text-sm font-medium text-gray-700 mb-1">Nombre de usuario</p>
                   <input
                     type="text" value={editUsername} onChange={e => setEditUsername(e.target.value)}
+                    autoCapitalize="none" autoCorrect="off"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-500 mb-3"
+                  />
+                  <p className="text-sm font-medium text-gray-700 mb-1">Email</p>
+                  <input
+                    type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)}
                     autoCapitalize="none" autoCorrect="off"
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-500 mb-4"
                   />
@@ -395,7 +407,7 @@ export default function AdminView() {
                     <button onClick={closeSheet} className="flex-1 py-3 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 active:bg-gray-200 touch-manipulation">
                       Cancelar
                     </button>
-                    <button onClick={() => handleEditUsername(sheet.user)} disabled={sheetLoading || !editUsername.trim()}
+                    <button onClick={() => handleEditProfile(sheet.user)} disabled={sheetLoading || !editUsername.trim() || !editEmail.trim()}
                       className="flex-1 py-3 rounded-xl text-sm font-semibold text-white bg-sage-600 active:bg-sage-700 disabled:opacity-50 touch-manipulation">
                       {sheetLoading ? 'Guardando…' : 'Guardar'}
                     </button>
@@ -497,6 +509,14 @@ export default function AdminView() {
                 />
               </div>
               <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Email</label>
+                <input
+                  type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)}
+                  autoCapitalize="none" autoCorrect="off" required
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-500"
+                />
+              </div>
+              <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">Contraseña</label>
                 <input
                   type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
@@ -539,7 +559,7 @@ export default function AdminView() {
                   className="flex-1 py-3 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 active:bg-gray-200 touch-manipulation">
                   Cancelar
                 </button>
-                <button type="submit" disabled={createLoading || !newUsername.trim() || newPassword.length < 6}
+                <button type="submit" disabled={createLoading || !newUsername.trim() || !newEmail.trim() || newPassword.length < 6}
                   className="flex-1 py-3 rounded-xl text-sm font-semibold text-white bg-sage-600 active:bg-sage-700 disabled:opacity-50 touch-manipulation">
                   {createLoading ? 'Creando…' : 'Crear usuario'}
                 </button>

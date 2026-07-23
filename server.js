@@ -18,6 +18,7 @@ const DB_PATH = process.env.DB_PATH || join(DATA_DIR, 'lacty.db');
 
 const newId = () => randomBytes(9).toString('base64url');
 const newInvite = () => Array.from({ length: 6 }, () => 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 31)]).join('');
+const isValidEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
 // Secret de sesión persistente: variable de entorno, o un archivo local generado
 // una sola vez (nunca hardcodeado ni en el repositorio).
@@ -245,9 +246,10 @@ app.get('/api/app-info', (_, res) => res.json({ app: 'Lacty' }));
 
 app.get('/api/auth/me', (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: 'No autenticado' });
-  const user = db.prepare(`SELECT role, family_role FROM users WHERE id = ?`).get(req.session.userId);
+  const user = db.prepare(`SELECT email, role, family_role FROM users WHERE id = ?`).get(req.session.userId);
   res.json({
     username: req.session.username,
+    email: user?.email ?? null,
     accountId: req.session.accountId,
     role: user?.role ?? 'user',
     familyRole: user?.family_role ?? 'editor',
@@ -256,11 +258,30 @@ app.get('/api/auth/me', (req, res) => {
   });
 });
 
+// El propio usuario edita su nombre de usuario y/o email.
+app.put('/api/auth/profile', (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ error: 'No autenticado' });
+  const { username, email } = req.body ?? {};
+  const trimmedUsername = String(username ?? '').trim();
+  if (!trimmedUsername || !email) return res.status(400).json({ error: 'Faltan campos' });
+  const normalizedEmail = String(email).trim().toLowerCase();
+  if (!isValidEmail(normalizedEmail)) return res.status(400).json({ error: 'Email no válido' });
+
+  const dupUsername = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(trimmedUsername, req.session.userId);
+  if (dupUsername) return res.status(409).json({ error: 'Ese usuario ya existe' });
+  const dupEmail = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(normalizedEmail, req.session.userId);
+  if (dupEmail) return res.status(409).json({ error: 'Ese email ya está registrado' });
+
+  db.prepare(`UPDATE users SET username = ?, email = ? WHERE id = ?`).run(trimmedUsername, normalizedEmail, req.session.userId);
+  req.session.username = trimmedUsername;
+  res.json({ ok: true, username: trimmedUsername, email: normalizedEmail });
+});
+
 app.post('/api/auth/signup', authLimiter, async (req, res) => {
   const { username, email, password, babyName, inviteCode } = req.body ?? {};
   if (!username || !email || !password) return res.status(400).json({ error: 'Faltan campos' });
   const normalizedEmail = String(email).trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) return res.status(400).json({ error: 'Email no válido' });
+  if (!isValidEmail(normalizedEmail)) return res.status(400).json({ error: 'Email no válido' });
   if (String(password).length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
   const exists = db.prepare('SELECT 1 FROM users WHERE username = ?').get(username);
   if (exists) return res.status(409).json({ error: 'Ese usuario ya existe' });
@@ -350,7 +371,7 @@ function requireAdmin(req, res, next) {
 
 app.get('/api/admin/users', requireAdmin, (_req, res) => {
   const users = db.prepare(`
-    SELECT u.id, u.username, u.role, u.family_role, u.account_id, u.created_at, u.last_login_at,
+    SELECT u.id, u.username, u.email, u.role, u.family_role, u.account_id, u.created_at, u.last_login_at,
            a.invite_code, a.name AS account_name
     FROM users u
     LEFT JOIN accounts a ON a.id = u.account_id
@@ -369,6 +390,7 @@ app.get('/api/admin/users', requireAdmin, (_req, res) => {
   const result = users.map(u => ({
     id: u.id,
     username: u.username,
+    email: u.email ?? null,
     role: u.role ?? 'user',
     familyRole: u.family_role ?? 'editor',
     accountId: u.account_id,
@@ -407,11 +429,15 @@ app.delete('/api/admin/users/:id', requireAdmin, (req, res) => {
 });
 
 app.post('/api/admin/users', requireAdmin, async (req, res) => {
-  const { username, password, accountId } = req.body ?? {};
-  if (!username || !password) return res.status(400).json({ error: 'Faltan campos' });
+  const { username, email, password, accountId } = req.body ?? {};
+  if (!username || !email || !password) return res.status(400).json({ error: 'Faltan campos' });
+  const normalizedEmail = String(email).trim().toLowerCase();
+  if (!isValidEmail(normalizedEmail)) return res.status(400).json({ error: 'Email no válido' });
   if (String(password).length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
   const exists = db.prepare('SELECT 1 FROM users WHERE username = ?').get(username);
   if (exists) return res.status(409).json({ error: 'Ese usuario ya existe' });
+  const emailExists = db.prepare('SELECT 1 FROM users WHERE email = ?').get(normalizedEmail);
+  if (emailExists) return res.status(409).json({ error: 'Ese email ya está registrado' });
 
   const userId = newId();
   const hash = bcrypt.hashSync(String(password), 12);
@@ -419,16 +445,16 @@ app.post('/api/admin/users', requireAdmin, async (req, res) => {
   if (accountId) {
     const acc = db.prepare(`SELECT id FROM accounts WHERE id = ?`).get(accountId);
     if (!acc) return res.status(404).json({ error: 'Familia no encontrada' });
-    db.prepare(`INSERT INTO users (id, account_id, username, password_hash) VALUES (?, ?, ?, ?)`)
-      .run(userId, accountId, username, hash);
+    db.prepare(`INSERT INTO users (id, account_id, username, email, password_hash) VALUES (?, ?, ?, ?, ?)`)
+      .run(userId, accountId, username, normalizedEmail, hash);
     res.status(201).json({ ok: true, id: userId, accountId });
   } else {
     const newAccountId = newId();
     const babyId = newId();
     db.transaction(() => {
       db.prepare(`INSERT INTO accounts (id, invite_code) VALUES (?, ?)`).run(newAccountId, newInvite());
-      db.prepare(`INSERT INTO users (id, account_id, username, password_hash) VALUES (?, ?, ?, ?)`)
-        .run(userId, newAccountId, username, hash);
+      db.prepare(`INSERT INTO users (id, account_id, username, email, password_hash) VALUES (?, ?, ?, ?, ?)`)
+        .run(userId, newAccountId, username, normalizedEmail, hash);
       const babyData = { id: babyId, daysOfLifeAtSetup: 1, setupDate: new Date().toISOString().slice(0, 10) };
       db.prepare(`INSERT INTO babies (id, account_id, data) VALUES (?, ?, ?)`)
         .run(babyId, newAccountId, JSON.stringify(babyData));
@@ -438,11 +464,15 @@ app.post('/api/admin/users', requireAdmin, async (req, res) => {
 });
 
 app.put('/api/admin/users/:id', requireAdmin, (req, res) => {
-  const { username } = req.body ?? {};
-  if (!username) return res.status(400).json({ error: 'Falta el nombre de usuario' });
-  const dup = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(username, req.params.id);
-  if (dup) return res.status(409).json({ error: 'Ese usuario ya existe' });
-  const updated = db.prepare(`UPDATE users SET username = ? WHERE id = ?`).run(username, req.params.id);
+  const { username, email } = req.body ?? {};
+  if (!username || !email) return res.status(400).json({ error: 'Faltan campos' });
+  const normalizedEmail = String(email).trim().toLowerCase();
+  if (!isValidEmail(normalizedEmail)) return res.status(400).json({ error: 'Email no válido' });
+  const dupUsername = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(username, req.params.id);
+  if (dupUsername) return res.status(409).json({ error: 'Ese usuario ya existe' });
+  const dupEmail = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(normalizedEmail, req.params.id);
+  if (dupEmail) return res.status(409).json({ error: 'Ese email ya está registrado' });
+  const updated = db.prepare(`UPDATE users SET username = ?, email = ? WHERE id = ?`).run(username, normalizedEmail, req.params.id);
   if (updated.changes === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
   res.json({ ok: true });
 });

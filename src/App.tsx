@@ -1016,6 +1016,7 @@ export default function App() {
             onCreateBaby={handleCreateBaby}
             onDeleteBaby={handleDeleteBaby}
             onLogout={async () => { await api.logout(); setCurrentUser(null); }}
+            onUpdateUsername={setCurrentUser}
           />
         )}
 
