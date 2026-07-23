@@ -9,6 +9,8 @@ interface Props {
 export default function MyDataView({ onBack, onUpdateUsername }: Props) {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -25,12 +27,18 @@ export default function MyDataView({ onBack, onUpdateUsername }: Props) {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!username.trim() || !email.trim()) return;
+    if (newPassword || confirmPassword) {
+      if (newPassword.length < 6) { setError('La nueva contraseña debe tener al menos 6 caracteres'); return; }
+      if (newPassword !== confirmPassword) { setError('Las contraseñas no coinciden'); return; }
+    }
     setSaving(true);
     setSaved(false);
     setError('');
     try {
-      const result = await api.updateProfile(username.trim(), email.trim());
+      const result = await api.updateProfile(username.trim(), email.trim(), newPassword || undefined);
       onUpdateUsername(result.username);
+      setNewPassword('');
+      setConfirmPassword('');
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (e: any) {
@@ -69,6 +77,26 @@ export default function MyDataView({ onBack, onUpdateUsername }: Props) {
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-gray-900 outline-none focus:ring-2 focus:ring-sage-400"
             />
           </div>
+          <div className="pt-2 border-t border-gray-100">
+            <label className="text-xs font-medium text-gray-500 block mb-1">
+              Nueva contraseña <span className="text-gray-300">(opcional)</span>
+            </label>
+            <input
+              type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+              autoComplete="new-password" placeholder="Déjalo en blanco para no cambiarla"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-gray-900 outline-none focus:ring-2 focus:ring-sage-400"
+            />
+          </div>
+          {newPassword && (
+            <div>
+              <label className="text-xs font-medium text-gray-500 block mb-1">Confirmar contraseña</label>
+              <input
+                type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-gray-900 outline-none focus:ring-2 focus:ring-sage-400"
+              />
+            </div>
+          )}
           {error && <p className="text-xs text-red-500">{error}</p>}
           <div className="flex items-center gap-3">
             <button

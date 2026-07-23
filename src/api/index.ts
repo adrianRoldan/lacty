@@ -88,12 +88,12 @@ export async function checkAuth(): Promise<AuthUser | null> {
   }
 }
 
-export async function updateProfile(username: string, email: string): Promise<{ username: string; email: string }> {
+export async function updateProfile(username: string, email: string, password?: string): Promise<{ username: string; email: string }> {
   const res = await fetch(`${BASE}/auth/profile`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ username, email }),
+    body: JSON.stringify({ username, email, password: password || undefined }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

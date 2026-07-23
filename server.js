@@ -261,18 +261,25 @@ app.get('/api/auth/me', (req, res) => {
 // El propio usuario edita su nombre de usuario y/o email.
 app.put('/api/auth/profile', (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: 'No autenticado' });
-  const { username, email } = req.body ?? {};
+  const { username, email, password } = req.body ?? {};
   const trimmedUsername = String(username ?? '').trim();
   if (!trimmedUsername || !email) return res.status(400).json({ error: 'Faltan campos' });
   const normalizedEmail = String(email).trim().toLowerCase();
   if (!isValidEmail(normalizedEmail)) return res.status(400).json({ error: 'Email no válido' });
+  if (password && String(password).length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
 
   const dupUsername = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(trimmedUsername, req.session.userId);
   if (dupUsername) return res.status(409).json({ error: 'Ese usuario ya existe' });
   const dupEmail = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(normalizedEmail, req.session.userId);
   if (dupEmail) return res.status(409).json({ error: 'Ese email ya está registrado' });
 
-  db.prepare(`UPDATE users SET username = ?, email = ? WHERE id = ?`).run(trimmedUsername, normalizedEmail, req.session.userId);
+  if (password) {
+    const hash = bcrypt.hashSync(String(password), 12);
+    db.prepare(`UPDATE users SET username = ?, email = ?, password_hash = ? WHERE id = ?`)
+      .run(trimmedUsername, normalizedEmail, hash, req.session.userId);
+  } else {
+    db.prepare(`UPDATE users SET username = ?, email = ? WHERE id = ?`).run(trimmedUsername, normalizedEmail, req.session.userId);
+  }
   req.session.username = trimmedUsername;
   res.json({ ok: true, username: trimmedUsername, email: normalizedEmail });
 });
