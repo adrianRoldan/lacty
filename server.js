@@ -86,6 +86,7 @@ db.exec(`
     id            TEXT PRIMARY KEY,
     account_id    TEXT,
     username      TEXT UNIQUE NOT NULL,
+    email         TEXT,
     password_hash TEXT NOT NULL,
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
   );
@@ -110,6 +111,10 @@ ensureColumn('users', 'account_id');
 ensureColumn('users', 'role', "TEXT NOT NULL DEFAULT 'user'");
 ensureColumn('users', 'family_role', "TEXT NOT NULL DEFAULT 'editor'");
 ensureColumn('users', 'last_login_at');
+ensureColumn('users', 'email');
+// Índice único parcial: permite NULL para usuarios antiguos sin email, pero
+// impide duplicados entre los que sí lo tienen.
+db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL`);
 ensureColumn('accounts', 'invite_code');
 ensureColumn('accounts', 'name');
 ensureColumn('push_subscriptions', 'user_id');
@@ -252,11 +257,15 @@ app.get('/api/auth/me', (req, res) => {
 });
 
 app.post('/api/auth/signup', authLimiter, async (req, res) => {
-  const { username, password, babyName, inviteCode } = req.body ?? {};
-  if (!username || !password) return res.status(400).json({ error: 'Faltan campos' });
+  const { username, email, password, babyName, inviteCode } = req.body ?? {};
+  if (!username || !email || !password) return res.status(400).json({ error: 'Faltan campos' });
+  const normalizedEmail = String(email).trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) return res.status(400).json({ error: 'Email no válido' });
   if (String(password).length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
   const exists = db.prepare('SELECT 1 FROM users WHERE username = ?').get(username);
   if (exists) return res.status(409).json({ error: 'Ese usuario ya existe' });
+  const emailExists = db.prepare('SELECT 1 FROM users WHERE email = ?').get(normalizedEmail);
+  if (emailExists) return res.status(409).json({ error: 'Ese email ya está registrado' });
 
   const userId = newId();
   const hash = bcrypt.hashSync(String(password), 12);
@@ -267,16 +276,16 @@ app.post('/api/auth/signup', authLimiter, async (req, res) => {
     const acc = db.prepare(`SELECT id FROM accounts WHERE invite_code = ?`).get(String(inviteCode).trim().toUpperCase());
     if (!acc) return res.status(404).json({ error: 'Código de invitación no válido' });
     accountId = acc.id;
-    db.prepare(`INSERT INTO users (id, account_id, username, password_hash) VALUES (?, ?, ?, ?)`)
-      .run(userId, accountId, username, hash);
+    db.prepare(`INSERT INTO users (id, account_id, username, email, password_hash) VALUES (?, ?, ?, ?, ?)`)
+      .run(userId, accountId, username, normalizedEmail, hash);
   } else {
     // Crear cuenta nueva + primer bebé
     accountId = newId();
     const babyId = newId();
     const tx = db.transaction(() => {
       db.prepare(`INSERT INTO accounts (id, invite_code) VALUES (?, ?)`).run(accountId, newInvite());
-      db.prepare(`INSERT INTO users (id, account_id, username, password_hash) VALUES (?, ?, ?, ?)`)
-        .run(userId, accountId, username, hash);
+      db.prepare(`INSERT INTO users (id, account_id, username, email, password_hash) VALUES (?, ?, ?, ?, ?)`)
+        .run(userId, accountId, username, normalizedEmail, hash);
       const babyData = { id: babyId, name: babyName || undefined, daysOfLifeAtSetup: 1, setupDate: new Date().toISOString().slice(0, 10) };
       db.prepare(`INSERT INTO babies (id, account_id, data) VALUES (?, ?, ?)`)
         .run(babyId, accountId, JSON.stringify(babyData));
@@ -295,7 +304,10 @@ app.post('/api/auth/signup', authLimiter, async (req, res) => {
 app.post('/api/auth/login', authLimiter, async (req, res) => {
   const { username, password } = req.body ?? {};
   if (!username || !password) return res.status(400).json({ error: 'Faltan campos' });
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+  // El campo "username" del login acepta tanto el nombre de usuario como el email.
+  const identifier = String(username).trim();
+  const user = db.prepare('SELECT * FROM users WHERE username = ? OR email = ?')
+    .get(identifier, identifier.toLowerCase());
   if (!user) return res.status(401).json({ error: 'Credenciales incorrectas' });
   const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) return res.status(401).json({ error: 'Credenciales incorrectas' });

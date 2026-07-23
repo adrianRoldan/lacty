@@ -12,6 +12,7 @@ export default function LoginScreen({ onLogin }: Props) {
     window.location.search.includes('registro') ? 'signup' : 'login'
   );
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [babyName, setBabyName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
@@ -30,6 +31,7 @@ export default function LoginScreen({ onLogin }: Props) {
       } else {
         const user = await api.signup({
           username: username.trim(),
+          email: email.trim(),
           password,
           babyName: joinExisting ? undefined : babyName.trim() || undefined,
           inviteCode: joinExisting ? inviteCode.trim() : undefined,
@@ -61,13 +63,25 @@ export default function LoginScreen({ onLogin }: Props) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">Usuario</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">
+              {mode === 'login' ? 'Usuario o email' : 'Usuario'}
+            </label>
             <input
               type="text" value={username} onChange={(e) => setUsername(e.target.value)}
               autoCapitalize="none" autoCorrect="off" autoComplete="username" required
               className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-500"
             />
           </div>
+          {mode === 'signup' && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">Email</label>
+              <input
+                type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                autoCapitalize="none" autoCorrect="off" autoComplete="email" required
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-500"
+              />
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">Contraseña</label>
             <input

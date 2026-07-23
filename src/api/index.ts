@@ -100,7 +100,7 @@ export async function login(username: string, password: string): Promise<AuthUse
   return { username: data.username, accountId: data.accountId, role: data.role ?? 'user', familyRole: data.familyRole ?? 'editor' };
 }
 
-export async function signup(opts: { username: string; password: string; babyName?: string; inviteCode?: string }): Promise<AuthUser> {
+export async function signup(opts: { username: string; email: string; password: string; babyName?: string; inviteCode?: string }): Promise<AuthUser> {
   const res = await fetch(`${BASE}/auth/signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
