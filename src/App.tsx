@@ -19,6 +19,7 @@ import ReferenceView from './components/ReferenceView';
 import VisitasView from './components/VisitasView';
 import ConsultationsView from './components/ConsultationsView';
 import FamilyView from './components/FamilyView';
+import MyDataView from './components/MyDataView';
 import AppSettings from './components/AppSettings';
 import MilestonesView from './components/MilestonesView';
 import VaccinesView from './components/VaccinesView';
@@ -43,6 +44,7 @@ type Screen =
   | 'nuevo-pc'
   | 'editar-pc'
   | 'ajustes'
+  | 'mis-datos'
   | 'resumen-pediatra'
   | 'nuevo-pañal'
   | 'editar-pañal';
@@ -747,6 +749,7 @@ export default function App() {
             <AccountMenu
               variant="sidebar"
               currentUser={currentUser}
+              onOpenProfile={() => setScreen('mis-datos')}
               onOpenSettings={isAdmin ? () => navigate('admin-settings') : () => setScreen('ajustes')}
               onLogout={async () => { await api.logout(); setCurrentUser(null); }}
             />
@@ -762,6 +765,7 @@ export default function App() {
           activeId={config.id}
           onSwitch={switchBaby}
           currentUser={currentUser}
+          onOpenProfile={() => setScreen('mis-datos')}
           onOpenSettings={() => setScreen('ajustes')}
           onLogout={async () => { await api.logout(); setCurrentUser(null); }}
           onOpenDrawer={() => setDrawerOpen(true)}
@@ -777,6 +781,7 @@ export default function App() {
             <AccountMenu
               variant="avatar"
               currentUser={currentUser}
+              onOpenProfile={() => setScreen('mis-datos')}
               onOpenSettings={() => navigate('admin-settings')}
               onLogout={async () => { await api.logout(); setCurrentUser(null); }}
             />
@@ -1016,12 +1021,15 @@ export default function App() {
             onCreateBaby={handleCreateBaby}
             onDeleteBaby={handleDeleteBaby}
             onLogout={async () => { await api.logout(); setCurrentUser(null); }}
-            onUpdateUsername={setCurrentUser}
           />
         )}
 
         {screen === 'ajustes' && (
           <AppSettings onBack={() => setScreen(activeTab)} baby={config} />
+        )}
+
+        {screen === 'mis-datos' && (
+          <MyDataView onBack={() => setScreen(activeTab)} onUpdateUsername={setCurrentUser} />
         )}
 
         {screen === 'resumen-pediatra' && config && (
@@ -1184,6 +1192,7 @@ export default function App() {
               <AccountMenu
                 variant="sidebar"
                 currentUser={currentUser}
+                onOpenProfile={() => { setDrawerOpen(false); setScreen('mis-datos'); }}
                 onOpenSettings={() => { setDrawerOpen(false); setScreen('ajustes'); }}
                 onLogout={async () => { await api.logout(); setCurrentUser(null); }}
               />
@@ -1199,9 +1208,10 @@ export default function App() {
   );
 }
 
-function AccountMenu({ variant, currentUser, onOpenSettings, onLogout }: {
+function AccountMenu({ variant, currentUser, onOpenProfile, onOpenSettings, onLogout }: {
   variant: 'sidebar' | 'avatar';
   currentUser: string | null;
+  onOpenProfile: () => void;
   onOpenSettings?: () => void;
   onLogout: () => void;
 }) {
@@ -1259,6 +1269,12 @@ function AccountMenu({ variant, currentUser, onOpenSettings, onLogout }: {
               <p className="text-xs text-gray-500">Sesión iniciada</p>
             </div>
           )}
+          <button
+            onClick={() => { setOpen(false); onOpenProfile(); }}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 active:bg-gray-50 touch-manipulation"
+          >
+            <span>🪪</span> Mis datos
+          </button>
           {onOpenSettings && (
             <button
               onClick={() => { setOpen(false); onOpenSettings(); }}
@@ -1279,11 +1295,12 @@ function AccountMenu({ variant, currentUser, onOpenSettings, onLogout }: {
   );
 }
 
-function BabyBar({ babies, activeId, onSwitch, currentUser, onOpenSettings, onLogout, onOpenDrawer }: {
+function BabyBar({ babies, activeId, onSwitch, currentUser, onOpenProfile, onOpenSettings, onLogout, onOpenDrawer }: {
   babies: BabyConfig[];
   activeId: string;
   onSwitch: (id: string) => void;
   currentUser: string | null;
+  onOpenProfile: () => void;
   onOpenSettings: () => void;
   onLogout: () => void;
   onOpenDrawer: () => void;
@@ -1310,6 +1327,7 @@ function BabyBar({ babies, activeId, onSwitch, currentUser, onOpenSettings, onLo
         <AccountMenu
           variant="avatar"
           currentUser={currentUser}
+          onOpenProfile={onOpenProfile}
           onOpenSettings={onOpenSettings}
           onLogout={onLogout}
         />
