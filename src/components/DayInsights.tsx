@@ -7,6 +7,7 @@ import {
   getAvgGapMinutes,
   getAvgSupplementMl,
   getAvgRestMinutes,
+  getAvgAwakeWindowMinutes,
 } from '../utils/feedingUtils';
 import { formatMinutes } from '../utils/dateUtils';
 
@@ -54,6 +55,7 @@ export default function DayInsights({ feedings, rests, reference, sleepRef, toda
   const avgGap = getAvgGapMinutes(feedings);
   const avgMl = getAvgSupplementMl(feedings);
   const avgRest = getAvgRestMinutes(rests);
+  const avgAwakeWindow = getAvgAwakeWindowMinutes(rests);
   const totalRestToday = todayRestMinutes;
 
   const hasAnyData = totalFeedings > 0 || rests.length > 0;
@@ -108,7 +110,7 @@ export default function DayInsights({ feedings, rests, reference, sleepRef, toda
       )}
 
       {/* Averages */}
-      {(avgGap !== null || avgMl !== null || avgRest !== null || totalRestToday > 0) && (
+      {(avgGap !== null || avgMl !== null || avgRest !== null || avgAwakeWindow !== null || totalRestToday > 0) && (
         <div className="bg-white rounded-2xl p-4 shadow-sm">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
             Medias del día
@@ -122,6 +124,9 @@ export default function DayInsights({ feedings, rests, reference, sleepRef, toda
             )}
             {avgRest !== null && (
               <AverageRow icon="🌙" label="Duración sueño" value={formatMinutes(avgRest)} />
+            )}
+            {avgAwakeWindow !== null && (
+              <AverageRow icon="⏳" label="Ventana de sueño" value={formatMinutes(avgAwakeWindow)} />
             )}
             {totalRestToday > 0 && (
               <AverageRow icon="🌙" label="Sueño hoy" value={formatMinutes(totalRestToday)} />

@@ -186,6 +186,9 @@ export default function FeedingList({
               {summary.avgRestMinutes > 0 && (
                 <SummaryRow icon="💤" label="Sueño/siesta"  value={formatMinutes(summary.avgRestMinutes)} />
               )}
+              {summary.avgAwakeWindowMin > 0 && (
+                <SummaryRow icon="⏳" label="Ventana de sueño" value={formatMinutes(summary.avgAwakeWindowMin)} />
+              )}
             </div>
           </div>
         )}

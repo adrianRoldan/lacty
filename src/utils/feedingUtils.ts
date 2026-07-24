@@ -102,6 +102,22 @@ export function getAvgRestMinutes(rests: Rest[]): number | null {
   return Math.round(total / completed.length);
 }
 
+// Ventana de sueño media: minutos despierto entre el final de un sueño y el
+// inicio del siguiente. Solo considera sueños completados (con endTime).
+export function getAvgAwakeWindowMinutes(rests: Rest[]): number | null {
+  const completed = [...rests]
+    .filter((r) => r.endTime != null)
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  if (completed.length < 2) return null;
+  let total = 0;
+  let count = 0;
+  for (let i = 1; i < completed.length; i++) {
+    const gap = (new Date(completed[i].startTime).getTime() - new Date(completed[i - 1].endTime!).getTime()) / 60000;
+    if (gap >= 0) { total += gap; count++; }
+  }
+  return count > 0 ? Math.round(total / count) : null;
+}
+
 export function getRestDurationMinutes(rest: Rest): number | null {
   if (!rest.endTime) return null;
   return Math.round(
@@ -293,6 +309,7 @@ export interface HistorySummary {
   avgRestMinutes: number;
   avgRestMinPerDay: number;
   avgSleepsPerDay: number; // nº de sueños/siestas por día con sueño
+  avgAwakeWindowMin: number; // ventana de sueño media (minutos despierto entre siestas)
 }
 
 export function getHistorySummary(feedings: Feeding[], rests: Rest[]): HistorySummary | null {
@@ -378,8 +395,9 @@ export function getHistorySummary(feedings: Feeding[], rests: Rest[]): HistorySu
   const avgSleepsPerDay = restDayCount > 0
     ? Math.round((totalSleepsByDay / restDayCount) * 10) / 10
     : 0;
+  const avgAwakeWindowMin = getAvgAwakeWindowMinutes(rests) ?? 0;
 
-  return { totalDays, avgFeedingsPerDay, avgBreastFeedsPerDay, avgBottleFeedsPerDay, avgSyringeFeedsPerDay, avgTotalMlPerDay, avgTotalMlPerFeeding, avgBreastMinPerDay, avgRestMinutes, avgRestMinPerDay, avgSleepsPerDay };
+  return { totalDays, avgFeedingsPerDay, avgBreastFeedsPerDay, avgBottleFeedsPerDay, avgSyringeFeedsPerDay, avgTotalMlPerDay, avgTotalMlPerFeeding, avgBreastMinPerDay, avgRestMinutes, avgRestMinPerDay, avgSleepsPerDay, avgAwakeWindowMin };
 }
 
 export function generateId(): string {
