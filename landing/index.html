@@ -3,83 +3,188 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lacty — El compañero digital de tu bebé</title>
-  <meta name="description" content="Registra tomas, sueño, pañales y crecimiento de tu bebé. Sincronizado en tiempo real con toda la familia." />
+
+  <!-- ── SEO básico ─────────────────────────────────────────── -->
+  <title>App para registrar tomas, sueño y pañales del bebé | Lacty</title>
+  <meta name="description" content="App gratuita para llevar el control de las tomas, el sueño, los pañales y el crecimiento de tu bebé. Sin instalar nada y sincronizada con toda la familia." />
+  <link rel="canonical" href="https://lacty.es/" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+  <meta name="author" content="Lacty" />
+  <meta name="theme-color" content="#7D9E82" />
+
+  <!-- ── Open Graph (Facebook, WhatsApp, LinkedIn) ──────────── -->
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="es_ES" />
+  <meta property="og:site_name" content="Lacty" />
+  <meta property="og:title" content="Lacty — App gratis para registrar las tomas, el sueño y los pañales del bebé" />
+  <meta property="og:description" content="Registra tomas, sueño, pañales y crecimiento desde el móvil. Gratis, sin instalar y sincronizado en tiempo real con tu pareja y tu familia." />
+  <meta property="og:url" content="https://lacty.es/" />
+  <meta property="og:image" content="https://lacty.es/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Lacty, la app para el seguimiento diario de tu bebé" />
+
+  <!-- ── Twitter / X ────────────────────────────────────────── -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Lacty — App gratis para el seguimiento diario de tu bebé" />
+  <meta name="twitter:description" content="Tomas, sueño, pañales y crecimiento en un solo sitio. Gratis, sin instalar y compartido con toda la familia." />
+  <meta name="twitter:image" content="https://lacty.es/og-image.png" />
+
+  <!-- ── Iconos ─────────────────────────────────────────────── -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+  <!-- ── Estilos (compilados, sin CDN que bloquee el render) ── -->
+  <link rel="stylesheet" href="/styles.css" />
+
+  <!-- ── Fuente, cargada sin bloquear el render ─────────────── -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            sage:    { 50:'#EEF4EF', 100:'#D0E4D3', 200:'#A8C9AC', 600:'#7D9E82', 700:'#5A7F5F', 800:'#3B5C40' },
-            lagoon:  { 100:'#D4EEF0', 200:'#A8DDE2', 300:'#5BBCC6', 600:'#1A8A96', 700:'#14707A', 800:'#0E535B' },
-            mustard: { 100:'#F5E6C4', 300:'#D4AD4A', 600:'#B08C1E' },
-            coral:   { 100:'#FDE0D8', 300:'#F0907A', 600:'#E05A3E' },
-            cream:   { 50:'#F5F4F2', 100:'#EDE5D8', 200:'#DDD2C0' },
-            taupe:   { 100:'#E1D8D4', 200:'#C4B5AF', 600:'#8B7D75', 700:'#6B5E57' },
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'" />
+  <noscript>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  </noscript>
+
+  <!-- ── Datos estructurados ────────────────────────────────── -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://lacty.es/#organization",
+        "name": "Lacty",
+        "url": "https://lacty.es/",
+        "logo": "https://lacty.es/icon-512.png",
+        "description": "Aplicación web para el seguimiento diario de bebés: tomas, sueño, pañales y crecimiento."
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://lacty.es/#website",
+        "url": "https://lacty.es/",
+        "name": "Lacty",
+        "inLanguage": "es-ES",
+        "publisher": { "@id": "https://lacty.es/#organization" }
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://lacty.es/#app",
+        "name": "Lacty",
+        "url": "https://lacty.es/",
+        "applicationCategory": "HealthApplication",
+        "applicationSubCategory": "Seguimiento de bebés",
+        "operatingSystem": "Web, iOS, Android",
+        "inLanguage": "es-ES",
+        "description": "App gratuita para registrar las tomas (pecho, biberón y jeringa-dedo), el sueño, los pañales, el peso y la talla del bebé, sincronizada en tiempo real entre varios cuidadores.",
+        "browserRequirements": "Requiere un navegador moderno. No necesita instalación.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "EUR",
+          "availability": "https://schema.org/InStock"
+        },
+        "featureList": [
+          "Registro de tomas de pecho, biberón y jeringa-dedo",
+          "Seguimiento del sueño y ventanas de sueño",
+          "Control de pañales con color y consistencia",
+          "Gráficas de peso, talla y perímetro cefálico con percentiles OMS",
+          "Sincronización en tiempo real entre varios cuidadores",
+          "Calendario de vacunas y agenda de citas",
+          "Protocolo de masajes post-frenectomía",
+          "Notificaciones de vitamina D y probiótico"
+        ],
+        "publisher": { "@id": "https://lacty.es/#organization" }
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://lacty.es/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "¿Lacty es gratis?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Sí. Puedes crear tu cuenta y usar todas las funciones sin coste, sin tarjeta de crédito y sin suscripciones. Tampoco mostramos anuncios."
+            }
           },
-          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
-        }
+          {
+            "@type": "Question",
+            "name": "¿Tengo que instalar una app en el móvil?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Lacty funciona en el navegador, así que sirve igual en iPhone, Android, tablet u ordenador. Si quieres, puedes añadirla a la pantalla de inicio y se comporta como una app nativa, con notificaciones incluidas."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Puedo compartir el seguimiento del bebé con mi pareja?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Sí. Compartes un código de invitación y quien lo use entra en tu misma familia. Todos los cuidadores ven los mismos datos actualizados al instante, así que nadie repite ni se pierde una toma. También puedes dar acceso de solo lectura a los abuelos o a la niñera."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Qué puedo registrar exactamente?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Tomas de pecho (izquierdo y derecho, con minutos), biberón y jeringa-dedo con mililitros exactos; sueños y siestas con su duración; cambios de pañal con color y consistencia; peso, talla y perímetro cefálico; vitamina D, probiótico y masajes; además de vacunas, citas médicas e hitos del desarrollo."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Cómo sé si mi bebé está comiendo lo suficiente?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Lacty compara lo que lleva registrado el bebé con los rangos de referencia por edad y peso, y te muestra si el día va dentro de lo esperado en número de tomas, mililitros y horas de sueño. Es una orientación para hablar con tu pediatra, nunca un diagnóstico."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Qué son las ventanas de sueño?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Es el tiempo que un bebé aguanta despierto entre una siesta y la siguiente sin sobrecansarse, y cambia con la edad. Lacty calcula la ventana de sueño media de tu bebé a partir de sus siestas reales y te avisa cuando lleva demasiado rato despierto."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Sirve para el seguimiento después de una frenectomía?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Sí. Lacty nació precisamente en un post-frenectomía. Incluye un módulo con el cronograma de los 21 días de recuperación, el registro de las 5 sesiones diarias de masajes con recordatorios por hora y el seguimiento de la lactancia con jeringa-dedo en mililitros."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Puedo llevar el control de más de un bebé?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Sí. Puedes añadir varios bebés a la misma cuenta, cada uno con su propio historial y sus propias gráficas, y cambiar entre ellos con un toque. Va bien para mellizos, gemelos o para hermanos de distintas edades."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Qué pasa con mis datos?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Tus datos son solo tuyos y de las personas a las que invites a tu familia. No los vendemos ni los cedemos a terceros, no hay anuncios y puedes eliminar tu cuenta y todo su historial cuando quieras."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Puedo enseñarle los datos a la pediatra?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Sí. Hay un resumen pensado para la consulta con lo importante de los últimos días, y un apartado donde ir anotando las dudas que te surgen entre visitas para llegar a la cita con todo preparado."
+            }
+          }
+        ]
       }
-    }
+    ]
+  }
   </script>
-  <style>
-    html { scroll-behavior: smooth; }
-    body { overflow-x: hidden; }
-
-    .hero-bg {
-      background: linear-gradient(145deg, #EEF4EF 0%, #D4EEF0 55%, #EDE5D8 100%);
-    }
-
-    .feature-card {
-      transition: transform 0.22s ease, box-shadow 0.22s ease;
-    }
-    .feature-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 20px 40px -12px rgba(0,0,0,0.12);
-    }
-
-    .btn-primary {
-      background: #7D9E82;
-      color: white;
-      transition: background 0.18s, transform 0.12s;
-    }
-    .btn-primary:hover { background: #5A7F5F; transform: translateY(-1px); }
-
-    .btn-secondary {
-      background: white;
-      color: #5A7F5F;
-      border: 2px solid #A8C9AC;
-      transition: background 0.18s, border-color 0.18s, transform 0.12s;
-    }
-    .btn-secondary:hover { background: #EEF4EF; border-color: #7D9E82; transform: translateY(-1px); }
-
-    .phone-screen {
-      background: #F5F4F2;
-      border-radius: 28px;
-      overflow: hidden;
-    }
-
-    @keyframes float {
-      0%, 100% { transform: translateY(0px); }
-      50%       { transform: translateY(-10px); }
-    }
-    .float { animation: float 4s ease-in-out infinite; }
-
-    @media (min-width: 768px) {
-      .step-line::after {
-        content: '';
-        position: absolute;
-        top: 28px;
-        left: calc(50% + 28px);
-        width: calc(100% - 56px);
-        height: 2px;
-        background: #D0E4D3;
-      }
-    }
-  </style>
 </head>
 
 <body class="font-sans bg-white text-gray-900 antialiased">
@@ -87,29 +192,32 @@
   <!-- ── NAV ─────────────────────────────────────────────────── -->
   <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
     <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-      <a href="#" class="flex items-center gap-2.5">
+      <a href="/" class="flex items-center gap-2.5" aria-label="Lacty, inicio">
         <div class="w-8 h-8 bg-sage-600 rounded-xl flex items-center justify-center">
           <span class="text-white text-sm font-bold">L</span>
         </div>
         <span class="text-xl font-bold text-gray-900">Lacty</span>
       </a>
 
-      <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-taupe-700">
+      <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-taupe-700" aria-label="Principal">
         <a href="#funcionalidades" class="hover:text-sage-700 transition-colors">Funcionalidades</a>
         <a href="#como-funciona"   class="hover:text-sage-700 transition-colors">Cómo funciona</a>
         <a href="#para-quien"      class="hover:text-sage-700 transition-colors">Para quién</a>
+        <a href="#preguntas"       class="hover:text-sage-700 transition-colors">Preguntas</a>
       </nav>
 
       <div class="flex items-center gap-3">
-        <a href="https://app.lacty.es" class="text-sm font-semibold text-sage-700 hover:text-sage-800 transition-colors px-3 py-2">
+        <a href="https://app.lacty.es" class="hidden sm:inline-block text-sm font-semibold text-sage-700 hover:text-sage-800 transition-colors px-3 py-2 whitespace-nowrap">
           Iniciar sesión
         </a>
-        <a href="https://app.lacty.es?registro" class="btn-primary text-sm font-semibold px-5 py-2.5 rounded-xl">
+        <a href="https://app.lacty.es?registro" class="btn-primary text-sm font-semibold px-5 py-2.5 rounded-xl whitespace-nowrap">
           Empezar gratis
         </a>
       </div>
     </div>
   </header>
+
+  <main>
 
   <!-- ── HERO ────────────────────────────────────────────────── -->
   <section class="hero-bg pt-20 pb-24 px-6 overflow-hidden">
@@ -118,26 +226,28 @@
       <!-- Texto -->
       <div>
         <span class="inline-block bg-sage-100 text-sage-700 text-xs font-semibold px-3 py-1.5 rounded-full mb-6 tracking-wide uppercase">
-          El diario digital de tu bebé
+          Gratis · Sin instalar · En español
         </span>
         <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 leading-tight mb-6">
-          Todo lo que necesitas<br/>
-          <span class="text-sage-600">en los primeros meses</span>
+          La app para registrar<br/>
+          <span class="text-sage-600">las tomas, el sueño y los pañales</span><br/>
+          de tu bebé
         </h1>
         <p class="text-lg text-taupe-700 leading-relaxed mb-10 max-w-lg">
-          Registra tomas, sueño, pañales y crecimiento desde cualquier dispositivo.
-          Comparte el seguimiento con tu pareja y familia en tiempo real.
+          Apunta cada toma de pecho, biberón o jeringa en dos toques, controla las siestas
+          y el crecimiento, y ten el historial completo siempre a mano.
+          Tu pareja y tu familia lo ven todo actualizado en tiempo real.
         </p>
         <div class="flex flex-wrap gap-4">
           <a href="https://app.lacty.es?registro" class="btn-primary font-semibold px-7 py-3.5 rounded-xl text-base inline-flex items-center gap-2">
             Crear cuenta gratis
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </a>
           <a href="https://app.lacty.es" class="btn-secondary font-semibold px-7 py-3.5 rounded-xl text-base">
             Iniciar sesión
           </a>
         </div>
-        <p class="text-sm text-taupe-600 mt-5">Sin tarjeta de crédito · Gratuito</p>
+        <p class="text-sm text-taupe-600 mt-5">Sin tarjeta de crédito · Sin anuncios · Listo en 2 minutos</p>
       </div>
 
       <!-- Mockup del teléfono -->
@@ -153,7 +263,7 @@
                   <span class="text-white text-xs font-medium opacity-80">Hoy</span>
                   <span class="text-white text-xs font-medium opacity-80">9:41</span>
                 </div>
-                <p class="text-white text-[11px] opacity-70 mb-3">dom, 13 jul 2025 · 2 meses y 1 semana</p>
+                <p class="text-white text-[11px] opacity-70 mb-3">dom, 13 jul · 2 meses y 1 semana</p>
                 <!-- Stats row -->
                 <div class="grid grid-cols-4 gap-1">
                   <div class="bg-white/20 rounded-xl p-2 text-center">
@@ -177,35 +287,30 @@
 
               <!-- Timeline -->
               <div class="px-3 py-3 space-y-2">
-                <!-- Feeding item -->
                 <div class="bg-mustard-100 border-l-4 border-mustard-300 rounded-r-xl px-2.5 py-2">
                   <div class="flex items-center gap-1.5 flex-wrap">
                     <span class="text-[11px] font-bold text-gray-800">🤱 09:15 → 09:37</span>
                     <span class="bg-pink-100 text-pink-700 text-[9px] font-semibold px-1.5 py-0.5 rounded-full">🤱 22m</span>
                   </div>
                 </div>
-                <!-- Rest item -->
                 <div class="bg-lagoon-100 border-l-4 border-lagoon-300 rounded-r-xl px-2.5 py-2">
                   <div class="flex items-center gap-1.5">
                     <span class="text-[11px] font-bold text-gray-800">🌙 10:00 → 11:30</span>
                     <span class="bg-taupe-100 text-taupe-700 text-[9px] font-semibold px-1.5 py-0.5 rounded-full">1h 30m</span>
                   </div>
                 </div>
-                <!-- Feeding item -->
                 <div class="bg-mustard-100 border-l-4 border-mustard-300 rounded-r-xl px-2.5 py-2">
                   <div class="flex items-center gap-1.5 flex-wrap">
                     <span class="text-[11px] font-bold text-gray-800">🍼 11:45 → 12:05</span>
                     <span class="bg-blue-100 text-blue-700 text-[9px] font-semibold px-1.5 py-0.5 rounded-full">🍼 80 ml</span>
                   </div>
                 </div>
-                <!-- Diaper -->
                 <div class="bg-sky-50 border-l-4 border-sky-200 rounded-r-xl px-2.5 py-2">
                   <div class="flex items-center gap-1.5">
                     <span class="text-[11px] font-bold text-gray-800">🩲 12:10</span>
                     <span class="bg-sky-100 text-sky-700 text-[9px] font-semibold px-1.5 py-0.5 rounded-full">💧💩 Pipí + caca</span>
                   </div>
                 </div>
-                <!-- Feeding in progress -->
                 <div class="bg-mustard-100 border-l-4 border-mustard-300 rounded-r-xl px-2.5 py-2">
                   <div class="flex items-center gap-1.5">
                     <span class="text-[11px] font-bold text-gray-800">🤱 En curso</span>
@@ -235,68 +340,68 @@
     <div class="max-w-6xl mx-auto">
       <div class="text-center mb-16">
         <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">
-          Todo lo que necesitas, en un solo lugar
+          Todo el seguimiento de tu bebé, en un solo lugar
         </h2>
         <p class="text-lg text-taupe-700 max-w-2xl mx-auto">
-          Diseñado junto a familias reales para cubrir cada aspecto del cuidado diario del bebé.
+          Diseñada junto a familias reales para cubrir cada aspecto del cuidado diario, sin apuntar nada en papel.
         </p>
       </div>
 
       <div class="grid md:grid-cols-3 gap-6">
 
-        <!-- Tomas -->
-        <div class="feature-card bg-mustard-100 rounded-2xl p-7 border border-mustard-300/40">
-          <div class="w-12 h-12 bg-mustard-300/40 rounded-2xl flex items-center justify-center text-2xl mb-5">🤱</div>
-          <h3 class="text-lg font-bold text-gray-900 mb-2">Tomas completas</h3>
+        <article class="feature-card bg-mustard-100 rounded-2xl p-7 border border-mustard-300/40">
+          <div class="w-12 h-12 bg-mustard-300/40 rounded-2xl flex items-center justify-center text-2xl mb-5" aria-hidden="true">🤱</div>
+          <h3 class="text-lg font-bold text-gray-900 mb-2">Registro de tomas</h3>
           <p class="text-taupe-700 text-sm leading-relaxed">
-            Registra pecho (izquierdo y derecho), biberón con leche materna o fórmula, y jeringa-dedo. Con tiempos, mililitros y hora de fin.
+            Pecho izquierdo y derecho con minutos, biberón de leche materna o fórmula y jeringa-dedo
+            con mililitros exactos. Con hora de inicio, hora de fin y tiempo transcurrido desde la toma anterior.
           </p>
-        </div>
+        </article>
 
-        <!-- Sueño -->
-        <div class="feature-card bg-lagoon-100 rounded-2xl p-7 border border-lagoon-200/60">
-          <div class="w-12 h-12 bg-lagoon-200/60 rounded-2xl flex items-center justify-center text-2xl mb-5">🌙</div>
-          <h3 class="text-lg font-bold text-gray-900 mb-2">Seguimiento del sueño</h3>
+        <article class="feature-card bg-lagoon-100 rounded-2xl p-7 border border-lagoon-200/60">
+          <div class="w-12 h-12 bg-lagoon-200/60 rounded-2xl flex items-center justify-center text-2xl mb-5" aria-hidden="true">🌙</div>
+          <h3 class="text-lg font-bold text-gray-900 mb-2">Control del sueño</h3>
           <p class="text-taupe-700 text-sm leading-relaxed">
-            Registra siesta y sueño nocturno con duración exacta. Visualiza patrones de descanso y tiempo despierto entre tomas.
+            Siestas y sueño nocturno con su duración exacta. Lacty calcula la ventana de sueño media
+            de tu bebé y te avisa cuando lleva demasiado rato despierto para su edad.
           </p>
-        </div>
+        </article>
 
-        <!-- Crecimiento -->
-        <div class="feature-card bg-sage-50 rounded-2xl p-7 border border-sage-200/60">
-          <div class="w-12 h-12 bg-sage-100 rounded-2xl flex items-center justify-center text-2xl mb-5">📊</div>
-          <h3 class="text-lg font-bold text-gray-900 mb-2">Control de crecimiento</h3>
+        <article class="feature-card bg-sage-50 rounded-2xl p-7 border border-sage-200/60">
+          <div class="w-12 h-12 bg-sage-100 rounded-2xl flex items-center justify-center text-2xl mb-5" aria-hidden="true">📊</div>
+          <h3 class="text-lg font-bold text-gray-900 mb-2">Peso, talla y percentiles</h3>
           <p class="text-taupe-700 text-sm leading-relaxed">
-            Registra peso, talla y perímetro cefálico. Compara con las curvas de la OMS y visualiza la evolución con gráficas.
+            Anota peso, talla y perímetro cefálico y compáralos con las curvas de crecimiento de la OMS
+            por sexo y edad. La evolución, siempre en una gráfica clara.
           </p>
-        </div>
+        </article>
 
-        <!-- Pañales -->
-        <div class="feature-card bg-sky-50 rounded-2xl p-7 border border-sky-200/60">
-          <div class="w-12 h-12 bg-sky-100 rounded-2xl flex items-center justify-center text-2xl mb-5">🩲</div>
+        <article class="feature-card bg-sky-50 rounded-2xl p-7 border border-sky-200/60">
+          <div class="w-12 h-12 bg-sky-100 rounded-2xl flex items-center justify-center text-2xl mb-5" aria-hidden="true">🩲</div>
           <h3 class="text-lg font-bold text-gray-900 mb-2">Control de pañales</h3>
           <p class="text-taupe-700 text-sm leading-relaxed">
-            Registra cada cambio con detalle: pipí, caca, color y consistencia. Alertas automáticas para colores de alarma (rojo, blanco).
+            Cada cambio con su detalle: pipí, caca, color y consistencia. Con aviso automático
+            ante los colores que conviene consultar con la pediatra, como el rojo o el blanco.
           </p>
-        </div>
+        </article>
 
-        <!-- Frenectomía -->
-        <div class="feature-card bg-coral-100 rounded-2xl p-7 border border-coral-300/40">
-          <div class="w-12 h-12 bg-coral-300/30 rounded-2xl flex items-center justify-center text-2xl mb-5">👅</div>
+        <article class="feature-card bg-coral-100 rounded-2xl p-7 border border-coral-300/40">
+          <div class="w-12 h-12 bg-coral-300/30 rounded-2xl flex items-center justify-center text-2xl mb-5" aria-hidden="true">👅</div>
           <h3 class="text-lg font-bold text-gray-900 mb-2">Post-frenectomía</h3>
           <p class="text-taupe-700 text-sm leading-relaxed">
-            Seguimiento específico de masajes y ejercicios de lengua tras la frenectomía. Recordatorios y registro de las 5 sesiones diarias.
+            Seguimiento de los masajes y ejercicios de lengua tras la intervención del frenillo lingual,
+            con recordatorios y registro de las 5 sesiones diarias durante los 21 días de recuperación.
           </p>
-        </div>
+        </article>
 
-        <!-- Sincronización -->
-        <div class="feature-card bg-cream-100 rounded-2xl p-7 border border-taupe-200/60">
-          <div class="w-12 h-12 bg-taupe-100 rounded-2xl flex items-center justify-center text-2xl mb-5">📱</div>
+        <article class="feature-card bg-cream-100 rounded-2xl p-7 border border-taupe-200/60">
+          <div class="w-12 h-12 bg-taupe-100 rounded-2xl flex items-center justify-center text-2xl mb-5" aria-hidden="true">📱</div>
           <h3 class="text-lg font-bold text-gray-900 mb-2">Sincronización en tiempo real</h3>
           <p class="text-taupe-700 text-sm leading-relaxed">
-            Varios dispositivos y familiares conectados al instante. Papá, mamá y abuelos ven siempre los datos más actualizados.
+            Varios dispositivos y cuidadores conectados al instante. Si tu pareja apunta una toma,
+            tú la ves al segundo: se acabó el «¿le has dado ya?».
           </p>
-        </div>
+        </article>
 
       </div>
     </div>
@@ -309,7 +414,7 @@
         <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">
           En marcha en menos de 2 minutos
         </h2>
-        <p class="text-lg text-taupe-700">Sin instalaciones. Funciona en cualquier navegador.</p>
+        <p class="text-lg text-taupe-700">Sin descargas ni instalaciones. Funciona en cualquier navegador.</p>
       </div>
 
       <div class="grid md:grid-cols-3 gap-8 relative">
@@ -337,7 +442,7 @@
       <div class="text-center mt-14">
         <a href="https://app.lacty.es?registro" class="btn-primary font-semibold px-8 py-4 rounded-xl text-base inline-flex items-center gap-2">
           Empezar ahora
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </a>
       </div>
     </div>
@@ -348,39 +453,43 @@
     <div class="max-w-6xl mx-auto">
       <div class="text-center mb-16">
         <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">
-          Pensado para cada familia
+          Pensada para cada familia
         </h2>
       </div>
 
       <div class="grid md:grid-cols-2 gap-8">
 
-        <div class="rounded-3xl bg-gradient-to-br from-sage-50 to-lagoon-100 p-10 border border-sage-200/50">
-          <span class="text-4xl mb-5 block">👶</span>
-          <h3 class="text-2xl font-bold text-gray-900 mb-4">Padres de recién nacidos</h3>
+        <article class="rounded-3xl bg-linear-to-br from-sage-50 to-lagoon-100 p-10 border border-sage-200/50">
+          <span class="text-4xl mb-5 block" aria-hidden="true">👶</span>
+          <h3 class="text-2xl font-bold text-gray-900 mb-4">Padres y madres de recién nacidos</h3>
           <p class="text-taupe-700 leading-relaxed mb-6">
-            Los primeros meses son intensos. Lacty te ayuda a tener todo bajo control: cuándo fue la última toma, cuánto ha dormido, cuántos pañales ha tenido. Sin agobios, sin perder información.
+            Los primeros meses son intensos y con el cansancio se olvida todo. Lacty responde en un vistazo
+            a las preguntas de siempre: cuándo fue la última toma, cuánto ha dormido hoy, cuántos pañales lleva.
+            Sin agobios y sin perder información por el camino.
           </p>
           <ul class="space-y-2.5 text-sm text-taupe-700">
-            <li class="flex items-center gap-2.5"><span class="text-sage-600 font-bold">✓</span> Historial completo de tomas y sueño</li>
-            <li class="flex items-center gap-2.5"><span class="text-sage-600 font-bold">✓</span> Referencia de ml por día según edad y peso</li>
-            <li class="flex items-center gap-2.5"><span class="text-sage-600 font-bold">✓</span> Compartido con pareja e familiares</li>
-            <li class="flex items-center gap-2.5"><span class="text-sage-600 font-bold">✓</span> Resumen diario para la pediatra</li>
+            <li class="flex items-center gap-2.5"><span class="text-sage-600 font-bold" aria-hidden="true">✓</span> Historial completo de tomas y sueño</li>
+            <li class="flex items-center gap-2.5"><span class="text-sage-600 font-bold" aria-hidden="true">✓</span> Referencia de ml al día según edad y peso</li>
+            <li class="flex items-center gap-2.5"><span class="text-sage-600 font-bold" aria-hidden="true">✓</span> Compartido con tu pareja y tus familiares</li>
+            <li class="flex items-center gap-2.5"><span class="text-sage-600 font-bold" aria-hidden="true">✓</span> Resumen listo para la consulta de pediatría</li>
           </ul>
-        </div>
+        </article>
 
-        <div class="rounded-3xl bg-gradient-to-br from-coral-100 to-mustard-100 p-10 border border-coral-300/30">
-          <span class="text-4xl mb-5 block">👅</span>
-          <h3 class="text-2xl font-bold text-gray-900 mb-4">Familias post-frenectomía</h3>
+        <article class="rounded-3xl bg-linear-to-br from-coral-100 to-mustard-100 p-10 border border-coral-300/30">
+          <span class="text-4xl mb-5 block" aria-hidden="true">👅</span>
+          <h3 class="text-2xl font-bold text-gray-900 mb-4">Familias tras una frenectomía</h3>
           <p class="text-taupe-700 leading-relaxed mb-6">
-            Tras la frenectomía, el protocolo de masajes y el seguimiento de la lactancia dedo-jeringa son críticos. Lacty tiene un módulo específico diseñado para este proceso.
+            Tras la intervención del frenillo lingual, el protocolo de masajes y el seguimiento de la
+            lactancia con jeringa-dedo son críticos y no admiten despistes. Lacty tiene un módulo
+            específico para este proceso, porque nació justo de esa necesidad.
           </p>
           <ul class="space-y-2.5 text-sm text-taupe-700">
-            <li class="flex items-center gap-2.5"><span class="text-coral-600 font-bold">✓</span> Registro de jeringa-dedo con ml exactos</li>
-            <li class="flex items-center gap-2.5"><span class="text-coral-600 font-bold">✓</span> Seguimiento de las 5 sesiones de masajes diarias</li>
-            <li class="flex items-center gap-2.5"><span class="text-coral-600 font-bold">✓</span> Recordatorios personalizados por hora</li>
-            <li class="flex items-center gap-2.5"><span class="text-coral-600 font-bold">✓</span> Cronograma de los 21 días de recuperación</li>
+            <li class="flex items-center gap-2.5"><span class="text-coral-600 font-bold" aria-hidden="true">✓</span> Registro de jeringa-dedo con ml exactos</li>
+            <li class="flex items-center gap-2.5"><span class="text-coral-600 font-bold" aria-hidden="true">✓</span> Seguimiento de las 5 sesiones de masajes diarias</li>
+            <li class="flex items-center gap-2.5"><span class="text-coral-600 font-bold" aria-hidden="true">✓</span> Recordatorios personalizados por hora</li>
+            <li class="flex items-center gap-2.5"><span class="text-coral-600 font-bold" aria-hidden="true">✓</span> Cronograma de los 21 días de recuperación</li>
           </ul>
-        </div>
+        </article>
 
       </div>
     </div>
@@ -392,47 +501,237 @@
       <h2 class="text-2xl font-extrabold text-gray-900 text-center mb-12">Y mucho más</h2>
       <div class="grid sm:grid-cols-2 gap-4">
         <div class="flex items-start gap-4 bg-white rounded-2xl p-5 border border-gray-100">
-          <span class="text-2xl shrink-0">📅</span>
+          <span class="text-2xl shrink-0" aria-hidden="true">📅</span>
           <div>
-            <h4 class="font-semibold text-gray-900 mb-1">Agenda y citas</h4>
-            <p class="text-sm text-taupe-700">Organiza revisiones, vacunas y citas médicas con recordatorios.</p>
+            <h3 class="font-semibold text-gray-900 mb-1">Agenda y citas médicas</h3>
+            <p class="text-sm text-taupe-700">Organiza revisiones, vacunas y citas con recordatorios.</p>
           </div>
         </div>
         <div class="flex items-start gap-4 bg-white rounded-2xl p-5 border border-gray-100">
-          <span class="text-2xl shrink-0">💉</span>
+          <span class="text-2xl shrink-0" aria-hidden="true">💉</span>
           <div>
-            <h4 class="font-semibold text-gray-900 mb-1">Calendario de vacunas</h4>
+            <h3 class="font-semibold text-gray-900 mb-1">Calendario de vacunas</h3>
             <p class="text-sm text-taupe-700">Calendario oficial de vacunación con seguimiento de las dosis recibidas.</p>
           </div>
         </div>
         <div class="flex items-start gap-4 bg-white rounded-2xl p-5 border border-gray-100">
-          <span class="text-2xl shrink-0">🏆</span>
+          <span class="text-2xl shrink-0" aria-hidden="true">🏆</span>
           <div>
-            <h4 class="font-semibold text-gray-900 mb-1">Hitos del desarrollo</h4>
+            <h3 class="font-semibold text-gray-900 mb-1">Hitos del desarrollo</h3>
             <p class="text-sm text-taupe-700">Registra los primeros logros de tu bebé mes a mes.</p>
           </div>
         </div>
         <div class="flex items-start gap-4 bg-white rounded-2xl p-5 border border-gray-100">
-          <span class="text-2xl shrink-0">🩺</span>
+          <span class="text-2xl shrink-0" aria-hidden="true">🩺</span>
           <div>
-            <h4 class="font-semibold text-gray-900 mb-1">Dudas para la pediatra</h4>
+            <h3 class="font-semibold text-gray-900 mb-1">Dudas para la pediatra</h3>
             <p class="text-sm text-taupe-700">Anota preguntas entre consultas y tenlas listas para la próxima visita.</p>
           </div>
         </div>
         <div class="flex items-start gap-4 bg-white rounded-2xl p-5 border border-gray-100">
-          <span class="text-2xl shrink-0">📈</span>
+          <span class="text-2xl shrink-0" aria-hidden="true">📈</span>
           <div>
-            <h4 class="font-semibold text-gray-900 mb-1">Gráficas comparativas</h4>
-            <p class="text-sm text-taupe-700">Peso, talla y PC comparados con percentiles OMS por sexo y edad.</p>
+            <h3 class="font-semibold text-gray-900 mb-1">Gráficas comparativas</h3>
+            <p class="text-sm text-taupe-700">Peso, talla y perímetro cefálico frente a los percentiles de la OMS.</p>
           </div>
         </div>
         <div class="flex items-start gap-4 bg-white rounded-2xl p-5 border border-gray-100">
-          <span class="text-2xl shrink-0">🔔</span>
+          <span class="text-2xl shrink-0" aria-hidden="true">🔔</span>
           <div>
-            <h4 class="font-semibold text-gray-900 mb-1">Notificaciones push</h4>
-            <p class="text-sm text-taupe-700">Alertas de vitamina D, probiótico y masajes para no olvidar nada.</p>
+            <h3 class="font-semibold text-gray-900 mb-1">Notificaciones push</h3>
+            <p class="text-sm text-taupe-700">Avisos de vitamina D, probiótico y masajes para no olvidar nada.</p>
           </div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CONTENIDO / POR QUÉ REGISTRAR ───────────────────────── -->
+  <section id="por-que" class="py-24 px-6 bg-white">
+    <div class="max-w-3xl mx-auto">
+      <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-6">
+        ¿Por qué llevar un registro de las tomas y el sueño del bebé?
+      </h2>
+      <div class="space-y-6 text-taupe-700 leading-relaxed">
+        <p>
+          Durante las primeras semanas, la pediatra y la matrona preguntan casi siempre lo mismo:
+          cuántas tomas hace al día, cuánto rato mama en cada pecho, cuántos pañales moja
+          y cuánto está durmiendo. Son las señales que permiten saber si un bebé está comiendo
+          e hidratándose bien, y responderlas de memoria a las cuatro de la mañana es prácticamente imposible.
+        </p>
+        <p>
+          Llevar el registro en una libreta funciona hasta que la libreta se queda en la otra
+          habitación, o hasta que la persona que apuntó la última toma está durmiendo.
+          Por eso Lacty guarda cada registro con su hora exacta y lo sincroniza al instante
+          entre todos los cuidadores: cualquiera puede apuntar y todos ven lo mismo.
+        </p>
+
+        <h3 class="text-xl font-bold text-gray-900 pt-2">Cuántas tomas y cuántos mililitros necesita</h3>
+        <p>
+          La cantidad de leche cambia mucho según la edad y el peso, y crece semana a semana.
+          Lacty compara lo que llevas registrado con los rangos de referencia orientativos por edad
+          y te indica si el día va corto, en rango o por encima, tanto en número de tomas como
+          en mililitros y en horas de sueño. Sirve para ir con datos a la consulta, nunca para
+          sustituir el criterio de tu profesional sanitario.
+        </p>
+
+        <h3 class="text-xl font-bold text-gray-900 pt-2">Ventanas de sueño: el rato que aguanta despierto</h3>
+        <p>
+          La ventana de sueño es el tiempo que un bebé puede estar despierto entre siesta y siesta
+          sin llegar a sobrecansarse, y se alarga a medida que crece. Cuando se pasa de largo,
+          suele costar mucho más dormirle y el sueño se vuelve más frágil.
+          Lacty calcula la ventana media real de tu bebé a partir de sus siestas registradas
+          y te avisa cuando lleva demasiado rato despierto para su edad.
+        </p>
+
+        <h3 class="text-xl font-bold text-gray-900 pt-2">Lactancia con jeringa-dedo y frenectomía</h3>
+        <p>
+          Cuando hay un frenillo lingual corto, es habitual pasar por una frenectomía y seguir
+          después un protocolo de masajes varias veces al día durante unas tres semanas,
+          combinado con suplementación mediante jeringa-dedo. Es un proceso exigente y fácil de
+          descuadrar entre tomas nocturnas. Lacty incluye el cronograma completo, el recuento de
+          las sesiones diarias de masajes y los mililitros de cada suplemento.
+        </p>
+      </div>
+
+      <p class="mt-8 text-sm text-taupe-600 bg-cream-50 border border-cream-200 rounded-2xl p-5 leading-relaxed">
+        <strong class="text-gray-800">Aviso:</strong> Lacty es una herramienta de registro y organización familiar.
+        La información que muestra es orientativa y no constituye consejo médico ni sustituye
+        la valoración de tu pediatra, matrona o asesora de lactancia.
+      </p>
+    </div>
+  </section>
+
+  <!-- ── PREGUNTAS FRECUENTES ─────────────────────────────────── -->
+  <section id="preguntas" class="py-24 px-6 bg-cream-50">
+    <div class="max-w-3xl mx-auto">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">Preguntas frecuentes</h2>
+        <p class="text-lg text-taupe-700">Lo que más nos preguntan las familias antes de empezar.</p>
+      </div>
+
+      <div class="space-y-3">
+
+        <details class="faq-item bg-white rounded-2xl border border-gray-100 p-5" open>
+          <summary class="flex items-center justify-between gap-4">
+            <h3 class="text-base font-bold text-gray-900">¿Lacty es gratis?</h3>
+            <svg class="faq-chevron shrink-0 text-sage-600" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="text-sm text-taupe-700 leading-relaxed mt-3">
+            Sí. Puedes crear tu cuenta y usar todas las funciones sin coste, sin tarjeta de crédito
+            y sin suscripciones. Tampoco mostramos anuncios.
+          </p>
+        </details>
+
+        <details class="faq-item bg-white rounded-2xl border border-gray-100 p-5">
+          <summary class="flex items-center justify-between gap-4">
+            <h3 class="text-base font-bold text-gray-900">¿Tengo que instalar una app en el móvil?</h3>
+            <svg class="faq-chevron shrink-0 text-sage-600" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="text-sm text-taupe-700 leading-relaxed mt-3">
+            No. Lacty funciona en el navegador, así que sirve igual en iPhone, Android, tablet u ordenador.
+            Si quieres, puedes añadirla a la pantalla de inicio y se comporta como una app nativa,
+            con notificaciones incluidas.
+          </p>
+        </details>
+
+        <details class="faq-item bg-white rounded-2xl border border-gray-100 p-5">
+          <summary class="flex items-center justify-between gap-4">
+            <h3 class="text-base font-bold text-gray-900">¿Puedo compartir el seguimiento con mi pareja?</h3>
+            <svg class="faq-chevron shrink-0 text-sage-600" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="text-sm text-taupe-700 leading-relaxed mt-3">
+            Sí. Compartes un código de invitación y quien lo use entra en tu misma familia.
+            Todos los cuidadores ven los mismos datos actualizados al instante, así que nadie repite
+            ni se pierde una toma. También puedes dar acceso de solo lectura a los abuelos o a la niñera.
+          </p>
+        </details>
+
+        <details class="faq-item bg-white rounded-2xl border border-gray-100 p-5">
+          <summary class="flex items-center justify-between gap-4">
+            <h3 class="text-base font-bold text-gray-900">¿Qué puedo registrar exactamente?</h3>
+            <svg class="faq-chevron shrink-0 text-sage-600" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="text-sm text-taupe-700 leading-relaxed mt-3">
+            Tomas de pecho (izquierdo y derecho, con minutos), biberón y jeringa-dedo con mililitros exactos;
+            sueños y siestas con su duración; cambios de pañal con color y consistencia; peso, talla y
+            perímetro cefálico; vitamina D, probiótico y masajes; además de vacunas, citas médicas
+            e hitos del desarrollo.
+          </p>
+        </details>
+
+        <details class="faq-item bg-white rounded-2xl border border-gray-100 p-5">
+          <summary class="flex items-center justify-between gap-4">
+            <h3 class="text-base font-bold text-gray-900">¿Cómo sé si mi bebé está comiendo lo suficiente?</h3>
+            <svg class="faq-chevron shrink-0 text-sage-600" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="text-sm text-taupe-700 leading-relaxed mt-3">
+            Lacty compara lo que lleva registrado el bebé con los rangos de referencia por edad y peso,
+            y te muestra si el día va dentro de lo esperado en número de tomas, mililitros y horas de sueño.
+            Es una orientación para hablar con tu pediatra, nunca un diagnóstico.
+          </p>
+        </details>
+
+        <details class="faq-item bg-white rounded-2xl border border-gray-100 p-5">
+          <summary class="flex items-center justify-between gap-4">
+            <h3 class="text-base font-bold text-gray-900">¿Qué son las ventanas de sueño?</h3>
+            <svg class="faq-chevron shrink-0 text-sage-600" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="text-sm text-taupe-700 leading-relaxed mt-3">
+            Es el tiempo que un bebé aguanta despierto entre una siesta y la siguiente sin sobrecansarse,
+            y cambia con la edad. Lacty calcula la ventana de sueño media de tu bebé a partir de sus
+            siestas reales y te avisa cuando lleva demasiado rato despierto.
+          </p>
+        </details>
+
+        <details class="faq-item bg-white rounded-2xl border border-gray-100 p-5">
+          <summary class="flex items-center justify-between gap-4">
+            <h3 class="text-base font-bold text-gray-900">¿Sirve para el seguimiento después de una frenectomía?</h3>
+            <svg class="faq-chevron shrink-0 text-sage-600" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="text-sm text-taupe-700 leading-relaxed mt-3">
+            Sí. Lacty nació precisamente en un post-frenectomía. Incluye el cronograma de los 21 días
+            de recuperación, el registro de las 5 sesiones diarias de masajes con recordatorios por hora
+            y el seguimiento de la lactancia con jeringa-dedo en mililitros.
+          </p>
+        </details>
+
+        <details class="faq-item bg-white rounded-2xl border border-gray-100 p-5">
+          <summary class="flex items-center justify-between gap-4">
+            <h3 class="text-base font-bold text-gray-900">¿Puedo llevar el control de más de un bebé?</h3>
+            <svg class="faq-chevron shrink-0 text-sage-600" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="text-sm text-taupe-700 leading-relaxed mt-3">
+            Sí. Puedes añadir varios bebés a la misma cuenta, cada uno con su propio historial y sus
+            propias gráficas, y cambiar entre ellos con un toque. Va bien para mellizos, gemelos
+            o para hermanos de distintas edades.
+          </p>
+        </details>
+
+        <details class="faq-item bg-white rounded-2xl border border-gray-100 p-5">
+          <summary class="flex items-center justify-between gap-4">
+            <h3 class="text-base font-bold text-gray-900">¿Qué pasa con mis datos?</h3>
+            <svg class="faq-chevron shrink-0 text-sage-600" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="text-sm text-taupe-700 leading-relaxed mt-3">
+            Tus datos son solo tuyos y de las personas a las que invites a tu familia. No los vendemos
+            ni los cedemos a terceros, no hay anuncios y puedes eliminar tu cuenta y todo su historial
+            cuando quieras. Tienes el detalle en la <a href="/privacidad.html" class="text-sage-700 font-semibold underline">política de privacidad</a>.
+          </p>
+        </details>
+
+        <details class="faq-item bg-white rounded-2xl border border-gray-100 p-5">
+          <summary class="flex items-center justify-between gap-4">
+            <h3 class="text-base font-bold text-gray-900">¿Puedo enseñarle los datos a la pediatra?</h3>
+            <svg class="faq-chevron shrink-0 text-sage-600" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <p class="text-sm text-taupe-700 leading-relaxed mt-3">
+            Sí. Hay un resumen pensado para la consulta con lo importante de los últimos días,
+            y un apartado donde ir anotando las dudas que te surgen entre visitas para llegar
+            a la cita con todo preparado.
+          </p>
+        </details>
+
       </div>
     </div>
   </section>
@@ -444,12 +743,12 @@
         Empieza hoy, de forma gratuita
       </h2>
       <p class="text-sage-100 text-lg mb-10 leading-relaxed">
-        Sin instalaciones. Sin suscripciones. Accede desde el móvil, tablet u ordenador.
+        Sin instalaciones. Sin suscripciones. Accede desde el móvil, la tablet o el ordenador.
       </p>
       <div class="flex flex-wrap justify-center gap-4">
         <a href="https://app.lacty.es?registro" class="bg-white text-sage-700 font-bold px-8 py-4 rounded-xl text-base hover:bg-cream-50 transition-colors inline-flex items-center gap-2">
           Crear cuenta gratis
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </a>
         <a href="https://app.lacty.es" class="bg-sage-700 text-white font-semibold px-8 py-4 rounded-xl text-base hover:bg-sage-800 transition-colors border border-sage-500">
           Ya tengo cuenta
@@ -458,19 +757,34 @@
     </div>
   </section>
 
+  </main>
+
   <!-- ── FOOTER ───────────────────────────────────────────────── -->
   <footer class="bg-gray-900 text-gray-400 py-12 px-6">
-    <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-      <div class="flex items-center gap-2.5">
-        <div class="w-7 h-7 bg-sage-600 rounded-lg flex items-center justify-center">
-          <span class="text-white text-xs font-bold">L</span>
+    <div class="max-w-6xl mx-auto">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+        <div class="flex items-center gap-2.5">
+          <div class="w-7 h-7 bg-sage-600 rounded-lg flex items-center justify-center">
+            <span class="text-white text-xs font-bold">L</span>
+          </div>
+          <span class="text-white font-semibold">Lacty</span>
         </div>
-        <span class="text-white font-semibold">Lacty</span>
+        <p class="text-sm text-center">App gratuita para el seguimiento diario de tu bebé.</p>
+        <a href="https://app.lacty.es" class="text-sage-300 hover:text-sage-200 text-sm font-medium transition-colors">
+          Acceder a la app →
+        </a>
       </div>
-      <p class="text-sm text-center">El compañero digital para los primeros meses de tu bebé.</p>
-      <a href="https://app.lacty.es" class="text-sage-400 hover:text-sage-300 text-sm font-medium transition-colors">
-        Acceder a la app →
-      </a>
+
+      <nav class="mt-8 pt-6 border-t border-gray-800 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm" aria-label="Legal">
+        <a href="#funcionalidades" class="hover:text-gray-200 transition-colors">Funcionalidades</a>
+        <a href="#preguntas" class="hover:text-gray-200 transition-colors">Preguntas frecuentes</a>
+        <a href="/privacidad.html" class="hover:text-gray-200 transition-colors">Política de privacidad</a>
+        <a href="/aviso-legal.html" class="hover:text-gray-200 transition-colors">Aviso legal</a>
+      </nav>
+      <p class="mt-6 text-xs text-gray-600 text-center max-w-2xl mx-auto leading-relaxed">
+        Lacty es una herramienta de registro familiar. La información mostrada es orientativa y no
+        sustituye el criterio de un profesional sanitario.
+      </p>
     </div>
   </footer>
 

@@ -1,0 +1,109 @@
+/* Fuente de estilos de la landing.
+   Se compila a styles.css (minificado y ya versionado) con:
+     npm run build:landing
+   Así la landing no depende del CDN de Tailwind, que bloquea el render
+   y penaliza las Core Web Vitals (y por tanto el posicionamiento). */
+@import "tailwindcss";
+@source "./*.html";
+
+@theme {
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-sage-50:  #EEF4EF;
+  --color-sage-100: #D0E4D3;
+  --color-sage-200: #A8C9AC;
+  --color-sage-300: #8FB894;
+  --color-sage-400: #B7D2BA;
+  --color-sage-500: #94B398;
+  --color-sage-600: #7D9E82;
+  --color-sage-700: #5A7F5F;
+  --color-sage-800: #3B5C40;
+
+  --color-lagoon-100: #D4EEF0;
+  --color-lagoon-200: #A8DDE2;
+  --color-lagoon-300: #5BBCC6;
+  --color-lagoon-600: #1A8A96;
+  --color-lagoon-700: #14707A;
+  --color-lagoon-800: #0E535B;
+
+  --color-mustard-100: #F5E6C4;
+  --color-mustard-300: #D4AD4A;
+  --color-mustard-600: #B08C1E;
+
+  --color-coral-100: #FDE0D8;
+  --color-coral-300: #F0907A;
+  --color-coral-600: #E05A3E;
+
+  --color-cream-50:  #F5F4F2;
+  --color-cream-100: #EDE5D8;
+  --color-cream-200: #DDD2C0;
+
+  --color-taupe-100: #E1D8D4;
+  --color-taupe-200: #C4B5AF;
+  --color-taupe-600: #8B7D75;
+  --color-taupe-700: #6B5E57;
+}
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body { overflow-x: hidden; }
+}
+
+@layer components {
+  .hero-bg {
+    background: linear-gradient(145deg, #EEF4EF 0%, #D4EEF0 55%, #EDE5D8 100%);
+  }
+
+  .feature-card { transition: transform 0.22s ease, box-shadow 0.22s ease; }
+  .feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px -12px rgb(0 0 0 / 0.12);
+  }
+
+  .btn-primary {
+    background: #7D9E82;
+    color: #fff;
+    transition: background 0.18s, transform 0.12s;
+  }
+  .btn-primary:hover { background: #5A7F5F; transform: translateY(-1px); }
+
+  .btn-secondary {
+    background: #fff;
+    color: #5A7F5F;
+    border: 2px solid #A8C9AC;
+    transition: background 0.18s, border-color 0.18s, transform 0.12s;
+  }
+  .btn-secondary:hover { background: #EEF4EF; border-color: #7D9E82; transform: translateY(-1px); }
+
+  .phone-screen { background: #F5F4F2; border-radius: 28px; overflow: hidden; }
+
+  .float { animation: float 4s ease-in-out infinite; }
+
+  @media (min-width: 768px) {
+    .step-line::after {
+      content: '';
+      position: absolute;
+      top: 28px;
+      left: calc(50% + 28px);
+      width: calc(100% - 56px);
+      height: 2px;
+      background: #D0E4D3;
+    }
+  }
+
+  /* Acordeón de preguntas frecuentes */
+  .faq-item summary { cursor: pointer; list-style: none; }
+  .faq-item summary::-webkit-details-marker { display: none; }
+  .faq-item summary .faq-chevron { transition: transform 0.2s ease; }
+  .faq-item[open] summary .faq-chevron { transform: rotate(180deg); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .float { animation: none; }
+  html { scroll-behavior: auto; }
+}

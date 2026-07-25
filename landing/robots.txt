@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+# La app en sí es privada y requiere login: no aporta nada al índice.
+Disallow: /*?registro
+
+Sitemap: https://lacty.es/sitemap.xml

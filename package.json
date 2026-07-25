@@ -9,6 +9,7 @@
     "start": "concurrently \"node server.js\" \"npm run dev -- --host\"",
     "serve": "npm run build && node server.js",
     "build": "tsc -b && vite build",
+    "build:landing": "tailwindcss -i landing/tailwind.css -o landing/styles.css --minify",
     "lint": "eslint .",
     "preview": "vite preview",
     "create-user": "node scripts/create-user.mjs"
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@tailwindcss/cli": "^4.3.3",
     "@tailwindcss/vite": "^4.3.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.13",

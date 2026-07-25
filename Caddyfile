@@ -1,3 +1,36 @@
+# Configuración de referencia de Caddy para Lacty.
+# Si el Caddy de producción usa /etc/caddy/Caddyfile, aplica allí estos cambios
+# y recarga con:  sudo systemctl reload caddy
+
+# ── Landing (lacty.es) ────────────────────────────────────────────────────────
+lacty.es {
+    root * /opt/lacty/landing
+    encode zstd gzip
+    file_server
+
+    # Cachea los estáticos: mejora el LCP en visitas recurrentes.
+    @estaticos path *.css *.js *.png *.jpg *.svg *.woff2
+    header @estaticos Cache-Control "public, max-age=31536000, immutable"
+
+    # El HTML se revalida siempre, para que los cambios se vean al desplegar.
+    @html path *.html /
+    header @html Cache-Control "public, max-age=0, must-revalidate"
+
+    header {
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+}
+
+# SEO: www.lacty.es sirve hoy el mismo contenido que lacty.es (contenido
+# duplicado). Con esta redirección 301 toda la autoridad se concentra en un
+# único dominio canónico, el mismo que declara la etiqueta <link rel=canonical>.
+www.lacty.es {
+    redir https://lacty.es{uri} permanent
+}
+
+# ── Aplicación (app.lacty.es) ─────────────────────────────────────────────────
 app.lacty.es {
     reverse_proxy localhost:3001
 }
