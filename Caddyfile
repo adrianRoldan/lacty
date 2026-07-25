@@ -1,6 +1,9 @@
 # Configuración de referencia de Caddy para Lacty.
-# Si el Caddy de producción usa /etc/caddy/Caddyfile, aplica allí estos cambios
-# y recarga con:  sudo systemctl reload caddy
+#
+# OJO: el Caddy de producción vive en /etc/caddy/Caddyfile y aloja también
+# otros sitios (p. ej. diety.lacty.es) que NO aparecen aquí. No sobrescribas
+# ese fichero con este: aplica los cambios que necesites y recarga con
+#   sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy
 
 # ── Landing (lacty.es) ────────────────────────────────────────────────────────
 lacty.es {
@@ -8,9 +11,15 @@ lacty.es {
     encode zstd gzip
     file_server
 
-    # Cachea los estáticos: mejora el LCP en visitas recurrentes.
-    @estaticos path *.css *.js *.png *.jpg *.svg *.woff2
-    header @estaticos Cache-Control "public, max-age=31536000, immutable"
+    # Iconos e imagen social: cambian muy de vez en cuando.
+    @imagenes path *.png *.jpg *.svg *.ico *.woff2
+    header @imagenes Cache-Control "public, max-age=604800"
+
+    # styles.css no lleva hash en el nombre, así que no puede cachearse como
+    # immutable: un cambio se quedaría congelado en los navegadores que ya
+    # hubieran visitado la web. Con una hora basta.
+    @css path *.css
+    header @css Cache-Control "public, max-age=3600"
 
     # El HTML se revalida siempre, para que los cambios se vean al desplegar.
     @html path *.html /
@@ -23,9 +32,9 @@ lacty.es {
     }
 }
 
-# SEO: www.lacty.es sirve hoy el mismo contenido que lacty.es (contenido
-# duplicado). Con esta redirección 301 toda la autoridad se concentra en un
-# único dominio canónico, el mismo que declara la etiqueta <link rel=canonical>.
+# SEO: lacty.es y www.lacty.es compartían bloque y servían el mismo contenido
+# con un 200 (contenido duplicado). Separándolos, este 301 concentra toda la
+# autoridad en el dominio canónico, el mismo que declara <link rel=canonical>.
 www.lacty.es {
     redir https://lacty.es{uri} permanent
 }
