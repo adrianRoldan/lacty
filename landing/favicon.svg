@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <!-- Background -->
-  <rect width="100" height="100" rx="22" fill="#3B82F6"/>
+  <rect width="100" height="100" rx="22" fill="#7D9E82"/>
 
   <!-- Hair -->
   <ellipse cx="50" cy="22" rx="22" ry="16" fill="#C8956C"/>

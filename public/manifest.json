@@ -4,8 +4,8 @@
   "description": "Registro de tomas de bebé recién nacido",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f9fafb",
-  "theme_color": "#2563eb",
+  "background_color": "#F5F4F2",
+  "theme_color": "#7D9E82",
   "lang": "es",
   "icons": [
     {
