@@ -12,10 +12,13 @@
     "build:landing": "tailwindcss -i landing/tailwind.css -o landing/styles.css --minify",
     "lint": "eslint .",
     "preview": "vite preview",
-    "create-user": "node scripts/create-user.mjs",
-    "build:guias": "node scripts/build-guias.mjs"
+    "create-user": "node scripts/create-user.mjs"
   },
   "dependencies": {
+    "@tiptap/extension-link": "^3.29.0",
+    "@tiptap/extension-table": "^3.29.0",
+    "@tiptap/react": "^3.29.0",
+    "@tiptap/starter-kit": "^3.29.0",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.10.0",
     "connect-sqlite3": "^0.9.16",
@@ -27,6 +30,7 @@
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.16.0",
     "recharts": "^3.8.1",
+    "sanitize-html": "^2.17.6",
     "web-push": "^3.6.7"
   },
   "devDependencies": {
@@ -48,7 +52,6 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
     "json-server": "^1.0.0-beta.15",
-    "marked": "^18.0.7",
     "playwright": "^1.60.0",
     "tailwindcss": "^4.3.0",
     "typescript": "~6.0.2",

@@ -509,6 +509,59 @@ export async function deleteCalendarEvent(id: string): Promise<void> {
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
 
+// ── Guías (contenido de lacty.es/guias/) ─────────────────────────────────────
+
+export interface Articulo {
+  id: string;
+  slug: string;
+  titulo: string;
+  descripcion: string;
+  resumen: string;
+  emoji: string | null;
+  contenido: string;
+  publicado: number;
+  fecha_publicacion: string | null;
+  creado_at: string;
+  actualizado_at: string;
+}
+
+export interface ArticuloForm {
+  titulo: string; slug: string; descripcion: string; resumen: string;
+  emoji: string; contenido: string; publicado: boolean;
+}
+
+export async function getArticulos(): Promise<Articulo[]> {
+  return json(await fetch(`${BASE}/admin/articulos`, { credentials: 'include' }));
+}
+
+async function guardarArticulo(url: string, metodo: 'POST' | 'PUT', datos: ArticuloForm): Promise<Articulo> {
+  const res = await fetch(url, {
+    method: metodo,
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(datos),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Error al guardar la guía');
+  }
+  return res.json();
+}
+
+export const crearArticulo = (datos: ArticuloForm) =>
+  guardarArticulo(`${BASE}/admin/articulos`, 'POST', datos);
+
+export const actualizarArticulo = (id: string, datos: ArticuloForm) =>
+  guardarArticulo(`${BASE}/admin/articulos/${id}`, 'PUT', datos);
+
+export async function borrarArticulo(id: string): Promise<void> {
+  const res = await fetch(`${BASE}/admin/articulos/${id}`, { method: 'DELETE', credentials: 'include' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Error al eliminar');
+  }
+}
+
 export async function getAdminUsers(): Promise<AdminUserInfo[]> {
   return json(await fetch(`${BASE}/admin/users`, { credentials: 'include' }));
 }

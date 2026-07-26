@@ -5,7 +5,10 @@
    y penaliza las Core Web Vitals (y por tanto el posicionamiento). */
 @import "tailwindcss";
 @source "./*.html";
-@source "./guias/*.html";
+/* Las páginas de /guias/ las genera el servidor desde la base de datos, así que
+   las clases que usan viven en esa plantilla. Sin escanearla, Tailwind las
+   purgaría y las guías saldrían sin estilos. */
+@source "../lib/guias-render.mjs";
 
 @theme {
   --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;

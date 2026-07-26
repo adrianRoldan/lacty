@@ -25,11 +25,12 @@ import MilestonesView from './components/MilestonesView';
 import VaccinesView from './components/VaccinesView';
 import PediatraSummary from './components/PediatraSummary';
 import AdminView, { ActivityDashboard, PushBroadcastView, BabiesAdminView } from './components/AdminView';
+import GuiasAdminView from './components/GuiasAdminView';
 import ThemeSelector from './components/ThemeSelector';
 import { Toaster, toast } from './toast';
 const ChartsView = lazy(() => import('./components/ChartsView'));
 
-type Tab = 'hoy' | 'graficas' | 'historial' | 'hitos' | 'vacunas' | 'referencia' | 'visitas' | 'consultas' | 'config' | 'familia' | 'admin-users' | 'admin-babies' | 'admin-activity' | 'admin-push' | 'admin-settings';
+type Tab = 'hoy' | 'graficas' | 'historial' | 'hitos' | 'vacunas' | 'referencia' | 'visitas' | 'consultas' | 'config' | 'familia' | 'admin-users' | 'admin-babies' | 'admin-activity' | 'admin-push' | 'admin-guias' | 'admin-settings';
 type Screen =
   | Tab
   | 'nueva-toma'
@@ -729,6 +730,7 @@ export default function App() {
               <SidebarButton label="Bebés" icon={BabyIcon} active={activeTab === 'admin-babies'} onClick={() => navigate('admin-babies')} />
               <SidebarButton label="Actividad" icon={ChartIcon} active={activeTab === 'admin-activity'} onClick={() => navigate('admin-activity')} />
               <SidebarButton label="Notificaciones" icon={BellIcon} active={activeTab === 'admin-push'} onClick={() => navigate('admin-push')} />
+              <SidebarButton label="Guías" icon={NotesIcon} active={activeTab === 'admin-guias'} onClick={() => navigate('admin-guias')} />
               <SidebarButton label="Ajustes" icon={SettingsIcon} active={activeTab === 'admin-settings'} onClick={() => navigate('admin-settings')} />
             </>) : (<>
               <SidebarButton label="Hoy" icon={HomeIcon} active={activeTab === 'hoy'} onClick={() => navigate('hoy')} />
@@ -1069,6 +1071,13 @@ export default function App() {
           </div>
         )}
 
+        {screen === 'admin-guias' && (
+          <div className="p-4 pb-24">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Guías</h1>
+            <GuiasAdminView />
+          </div>
+        )}
+
         {screen === 'admin-settings' && (
           <div className="p-4 pb-24">
             <div className="flex items-center gap-3 mb-6 lg:hidden">
@@ -1149,6 +1158,7 @@ export default function App() {
             <NavButton label="Bebés" icon={BabyIcon} active={activeTab === 'admin-babies'} onClick={() => navigate('admin-babies')} />
             <NavButton label="Actividad" icon={ChartIcon} active={activeTab === 'admin-activity'} onClick={() => navigate('admin-activity')} />
             <NavButton label="Push" icon={BellIcon} active={activeTab === 'admin-push'} onClick={() => navigate('admin-push')} />
+            <NavButton label="Guías" icon={NotesIcon} active={activeTab === 'admin-guias'} onClick={() => navigate('admin-guias')} />
             <NavButton label="Ajustes" icon={SettingsIcon} active={activeTab === 'admin-settings'} onClick={() => navigate('admin-settings')} />
           </>) : (<>
             <NavButton label="Hoy" icon={HomeIcon} active={activeTab === 'hoy'} onClick={() => navigate('hoy')} />

@@ -10,6 +10,9 @@ import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import webpush from 'web-push';
+import sanitizeHtml from 'sanitize-html';
+import { renderArticulo, renderIndice, renderSitemap, render404 } from './lib/guias-render.mjs';
+import { ARTICULOS_INICIALES } from './lib/guias-seed.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3001;
@@ -118,8 +121,6 @@ ensureColumn('users', 'email');
 db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL`);
 ensureColumn('accounts', 'invite_code');
 ensureColumn('accounts', 'name');
-ensureColumn('push_subscriptions', 'user_id');
-ensureColumn('push_subscriptions', 'user_agent');
 for (const t of DATA_TABLES) {
   ensureColumn(t, 'baby_id');
   db.exec(`CREATE INDEX IF NOT EXISTS idx_${t}_baby ON ${t}(baby_id)`);
@@ -144,8 +145,51 @@ db.exec(`
   );
 `);
 
+// Deben ir después de crear push_subscriptions: si se llaman antes, una base de
+// datos nueva revienta al arrancar porque la tabla todavía no existe.
+ensureColumn('push_subscriptions', 'user_id');
+ensureColumn('push_subscriptions', 'user_agent');
+
 ensureColumn('notification_prefs', 'massage_threshold_mins', 'INTEGER NOT NULL DEFAULT 15');
 ensureColumn('notification_prefs', 'last_massage_notif_at', 'TEXT');
+
+// ── Guías (contenido público de lacty.es/guias/) ──────────────────────────────
+// Los artículos se escriben desde el panel de administración y se guardan aquí;
+// el HTML público se genera al vuelo en lib/guias-render.mjs.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS articulos (
+    id                TEXT PRIMARY KEY,
+    slug              TEXT NOT NULL UNIQUE,
+    titulo            TEXT NOT NULL,
+    descripcion       TEXT NOT NULL,
+    resumen           TEXT NOT NULL,
+    emoji             TEXT,
+    contenido         TEXT NOT NULL,
+    publicado         INTEGER NOT NULL DEFAULT 0,
+    fecha_publicacion TEXT,
+    creado_at         TEXT NOT NULL DEFAULT (datetime('now')),
+    actualizado_at    TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_articulos_publicado ON articulos(publicado, fecha_publicacion);
+`);
+
+// Siembra única de los artículos que ya estaban publicados como ficheros
+// estáticos, para no perder las URLs que Google ya conoce.
+(function sembrarArticulos() {
+  const hay = db.prepare(`SELECT COUNT(*) AS n FROM articulos`).get().n;
+  if (hay > 0) return;
+  const insertar = db.prepare(`
+    INSERT INTO articulos (id, slug, titulo, descripcion, resumen, emoji, contenido, publicado, fecha_publicacion)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
+  `);
+  const tx = db.transaction(() => {
+    for (const a of ARTICULOS_INICIALES) {
+      insertar.run(newId(), a.slug, a.titulo, a.descripcion, a.resumen, a.emoji ?? null, a.contenido, a.fecha);
+    }
+  });
+  tx();
+  console.log(`✓ Sembrados ${ARTICULOS_INICIALES.length} artículos iniciales en /guias/`);
+})();
 
 // Backfill de códigos de invitación para cuentas que no lo tengan
 for (const a of db.prepare(`SELECT id FROM accounts WHERE invite_code IS NULL`).all()) {
@@ -237,6 +281,54 @@ function makeRouter(table) {
 
   return r;
 }
+
+// ── Guías: páginas públicas ───────────────────────────────────────────────────
+// Se sirven antes que cualquier middleware de sesión: son contenido abierto
+// que también tiene que ver Googlebot.
+
+const SELECT_PUBLICADOS = `
+  SELECT * FROM articulos WHERE publicado = 1
+  ORDER BY COALESCE(fecha_publicacion, creado_at) DESC
+`;
+
+// Express no distingue /guias de /guias/ (strict routing está desactivado),
+// así que una sola ruta cubre ambas.
+app.get('/guias/', (_req, res) => {
+  const articulos = db.prepare(SELECT_PUBLICADOS).all();
+  res.type('html').send(renderIndice(articulos));
+});
+
+app.get('/guias/:slug.html', (req, res, next) => {
+  const art = db.prepare(`SELECT * FROM articulos WHERE slug = ? AND publicado = 1`).get(req.params.slug);
+  if (!art) return next();
+  const relacionados = db.prepare(`
+    SELECT slug, titulo, resumen, emoji FROM articulos
+    WHERE publicado = 1 AND slug != ?
+    ORDER BY COALESCE(fecha_publicacion, creado_at) DESC LIMIT 2
+  `).all(req.params.slug);
+  res.type('html').send(renderArticulo(art, relacionados));
+});
+
+// Sin extensión: se redirige a la URL canónica con .html, que es la que Google
+// ya tiene indexada, para no partir el posicionamiento en dos direcciones.
+app.get('/guias/:slug', (req, res, next) => {
+  if (req.params.slug.includes('.')) return next();
+  const existe = db.prepare(`SELECT 1 FROM articulos WHERE slug = ? AND publicado = 1`).get(req.params.slug);
+  if (!existe) return next();
+  res.redirect(301, `/guias/${req.params.slug}.html`);
+});
+
+// Cualquier otra ruta bajo /guias/ es un 404 de verdad. Sin esto caería en el
+// catch-all de la SPA y devolvería un 200 con la app: un "soft 404" que Google
+// penaliza porque indexa páginas que en realidad no existen.
+app.use('/guias', (_req, res) => {
+  res.status(404).type('html').send(render404());
+});
+
+app.get('/sitemap.xml', (_req, res) => {
+  const articulos = db.prepare(SELECT_PUBLICADOS).all();
+  res.type('application/xml').send(renderSitemap(articulos));
+});
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -409,6 +501,111 @@ app.get('/api/admin/users', requireAdmin, (_req, res) => {
   }));
 
   res.json(result);
+});
+
+// ── Guías: gestión desde el panel ─────────────────────────────────────────────
+
+// El editor produce HTML que se guarda y se sirve a todos los visitantes.
+// Aunque solo escriban administradores, se filtra a una lista blanca para que
+// una cuenta comprometida no pueda inyectar scripts en una página pública.
+const OPCIONES_SANEADO = {
+  allowedTags: [
+    'h2', 'h3', 'p', 'br', 'hr', 'strong', 'em', 'u', 's', 'code',
+    'ul', 'ol', 'li', 'blockquote', 'a',
+    'table', 'thead', 'tbody', 'tr', 'th', 'td', 'div',
+  ],
+  allowedAttributes: {
+    a: ['href', 'title', 'target', 'rel'],
+    div: ['class'],
+    th: ['colspan', 'rowspan'],
+    td: ['colspan', 'rowspan'],
+  },
+  allowedSchemes: ['http', 'https', 'mailto'],
+  allowedClasses: { div: ['tabla-scroll'] },
+  transformTags: {
+    // Los enlaces externos se abren fuera y sin filtrar referencia.
+    a: (nombre, attribs) => {
+      const href = attribs.href ?? '';
+      const externo = /^https?:\/\//i.test(href) && !href.includes('lacty.es');
+      return {
+        tagName: 'a',
+        attribs: externo ? { ...attribs, target: '_blank', rel: 'noopener noreferrer' } : attribs,
+      };
+    },
+  },
+};
+
+const normalizarSlug = (s) =>
+  String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-').replace(/-+/g, '-').slice(0, 80);
+
+function validarArticulo(body) {
+  const titulo      = String(body?.titulo ?? '').trim();
+  const descripcion = String(body?.descripcion ?? '').trim();
+  const resumen     = String(body?.resumen ?? '').trim();
+  const contenido   = String(body?.contenido ?? '').trim();
+  if (!titulo)      return { error: 'El título es obligatorio' };
+  if (!descripcion) return { error: 'La descripción para Google es obligatoria' };
+  if (!resumen)     return { error: 'El resumen es obligatorio' };
+  if (!contenido)   return { error: 'El contenido no puede estar vacío' };
+  const slug = normalizarSlug(body?.slug || titulo);
+  if (!slug) return { error: 'No se ha podido generar la URL a partir del título' };
+  return {
+    datos: {
+      titulo, descripcion, resumen, slug,
+      emoji: String(body?.emoji ?? '').trim() || null,
+      contenido: sanitizeHtml(contenido, OPCIONES_SANEADO),
+      publicado: body?.publicado ? 1 : 0,
+    },
+  };
+}
+
+app.get('/api/admin/articulos', requireAdmin, (_req, res) => {
+  res.json(db.prepare(`SELECT * FROM articulos ORDER BY COALESCE(fecha_publicacion, creado_at) DESC`).all());
+});
+
+app.post('/api/admin/articulos', requireAdmin, (req, res) => {
+  const { error, datos } = validarArticulo(req.body);
+  if (error) return res.status(400).json({ error });
+  if (db.prepare(`SELECT 1 FROM articulos WHERE slug = ?`).get(datos.slug)) {
+    return res.status(409).json({ error: 'Ya existe una guía con esa URL' });
+  }
+  const id = newId();
+  db.prepare(`
+    INSERT INTO articulos (id, slug, titulo, descripcion, resumen, emoji, contenido, publicado, fecha_publicacion)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, datos.slug, datos.titulo, datos.descripcion, datos.resumen, datos.emoji,
+         datos.contenido, datos.publicado, datos.publicado ? new Date().toISOString().slice(0, 10) : null);
+  res.status(201).json(db.prepare(`SELECT * FROM articulos WHERE id = ?`).get(id));
+});
+
+app.put('/api/admin/articulos/:id', requireAdmin, (req, res) => {
+  const actual = db.prepare(`SELECT * FROM articulos WHERE id = ?`).get(req.params.id);
+  if (!actual) return res.status(404).json({ error: 'Guía no encontrada' });
+  const { error, datos } = validarArticulo(req.body);
+  if (error) return res.status(400).json({ error });
+  const dup = db.prepare(`SELECT 1 FROM articulos WHERE slug = ? AND id != ?`).get(datos.slug, req.params.id);
+  if (dup) return res.status(409).json({ error: 'Ya existe otra guía con esa URL' });
+
+  // La fecha de publicación se fija la primera vez que se publica y ya no se
+  // mueve: es la que ve Google como datePublished.
+  const fechaPub = actual.fecha_publicacion
+    ?? (datos.publicado ? new Date().toISOString().slice(0, 10) : null);
+
+  db.prepare(`
+    UPDATE articulos
+       SET slug = ?, titulo = ?, descripcion = ?, resumen = ?, emoji = ?, contenido = ?,
+           publicado = ?, fecha_publicacion = ?, actualizado_at = datetime('now')
+     WHERE id = ?
+  `).run(datos.slug, datos.titulo, datos.descripcion, datos.resumen, datos.emoji,
+         datos.contenido, datos.publicado, fechaPub, req.params.id);
+  res.json(db.prepare(`SELECT * FROM articulos WHERE id = ?`).get(req.params.id));
+});
+
+app.delete('/api/admin/articulos/:id', requireAdmin, (req, res) => {
+  const r = db.prepare(`DELETE FROM articulos WHERE id = ?`).run(req.params.id);
+  if (r.changes === 0) return res.status(404).json({ error: 'Guía no encontrada' });
+  res.json({ ok: true });
 });
 
 app.put('/api/admin/users/:id/role', requireAdmin, (req, res) => {

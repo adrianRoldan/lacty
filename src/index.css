@@ -236,3 +236,50 @@ button, [role="button"] {
 .animate-slide-in {
   animation: slide-in 0.2s ease-out;
 }
+
+/* ── Editor de guías (panel de administración) ──────────────────────────────
+   Se imita el aspecto que tendrá el artículo publicado en lacty.es/guias/
+   para escribir viendo aproximadamente el resultado final. */
+.articulo-editor {
+  min-height: 24rem;
+  padding: 1.25rem;
+  color: #6B5E57;
+  line-height: 1.7;
+}
+.articulo-editor:focus { outline: none; }
+.articulo-editor h2 {
+  font-size: 1.4rem; font-weight: 800; color: #111827;
+  margin: 1.75rem 0 0.75rem;
+}
+.articulo-editor h3 {
+  font-size: 1.125rem; font-weight: 700; color: #111827;
+  margin: 1.25rem 0 0.5rem;
+}
+.articulo-editor p { margin-bottom: 0.9rem; }
+.articulo-editor ul,
+.articulo-editor ol { margin: 0 0 1rem 1.25rem; }
+.articulo-editor ul { list-style: disc; }
+.articulo-editor ol { list-style: decimal; }
+.articulo-editor li { margin-bottom: 0.35rem; }
+.articulo-editor strong { color: #111827; font-weight: 700; }
+.articulo-editor a { color: #5A7F5F; font-weight: 600; text-decoration: underline; }
+.articulo-editor blockquote {
+  border-left: 4px solid #A8C9AC; background: #EEF4EF;
+  border-radius: 0 0.5rem 0.5rem 0; padding: 0.75rem 1rem; margin-bottom: 1rem;
+}
+.articulo-editor > *:first-child { margin-top: 0; }
+/* Marca de agua cuando está vacío */
+.articulo-editor p.is-editor-empty:first-child::before {
+  content: 'Escribe aquí el contenido de la guía…';
+  color: #9ca3af; float: left; height: 0; pointer-events: none;
+}
+/* Tablas dentro del editor de guías */
+.articulo-editor table {
+  border-collapse: collapse; width: 100%; margin-bottom: 1rem; font-size: 0.9rem;
+}
+.articulo-editor th,
+.articulo-editor td {
+  border: 1px solid #e5e7eb; padding: 0.5rem 0.65rem; text-align: left; min-width: 4rem;
+}
+.articulo-editor th { background: #F5F4F2; font-weight: 700; color: #111827; }
+.articulo-editor .selectedCell { background: #EEF4EF; }
