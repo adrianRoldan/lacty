@@ -51,8 +51,37 @@ webpush.setVapidDetails('mailto:admin@lacty.app', vapidKeys.publicKey, vapidKeys
 const SQLiteStore = connectSqlite3(session);
 
 const app = express();
-app.set('trust proxy', 1); // detrás de cloudflared/proxy: usar la IP real para el rate limit
-app.use(cors({ origin: true, credentials: true }));
+app.set('trust proxy', 1); // detrás de un proxy: usar la IP real para el rate limit
+app.disable('x-powered-by'); // no anunciar la tecnología del servidor
+
+// CORS restringido a los dominios propios.
+//
+// Antes era `origin: true`, que refleja cualquier origen. Combinado con
+// `credentials: true`, eso permitía que una web de terceros hiciera peticiones
+// autenticadas con la sesión del usuario y leyera la respuesta. En producción
+// la app se sirve desde el mismo origen que la API, así que no hace falta CORS
+// abierto; solo se permiten los dominios propios y, en desarrollo, la red local
+// para poder trabajar con Vite desde el móvil.
+const ORIGENES_PERMITIDOS = [
+  'https://lacty.es',
+  'https://www.lacty.es',
+  'https://app.lacty.es',
+];
+const esOrigenLocal = (o) => /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?$/.test(o);
+
+app.use(cors({
+  origin(origin, cb) {
+    // Sin cabecera Origin: mismo origen, curl, apps nativas… no es CORS.
+    if (!origin) return cb(null, true);
+    if (ORIGENES_PERMITIDOS.includes(origin)) return cb(null, true);
+    if (process.env.NODE_ENV !== 'production' && esOrigenLocal(origin)) return cb(null, true);
+    // Se responde sin cabeceras CORS (no con un error) para que el navegador
+    // bloquee la lectura sin devolver un 500 al cliente.
+    return cb(null, false);
+  },
+  credentials: true,
+}));
+
 app.use(express.json());
 app.use(session({
   store: new SQLiteStore({ db: 'sessions.db', dir: DATA_DIR }),
@@ -62,6 +91,10 @@ app.use(session({
   cookie: {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
+    // Explícito en vez de depender del valor por defecto del navegador: impide
+    // que la cookie viaje en peticiones de otro sitio. Se usa "lax" y no
+    // "strict" para que al llegar desde un enlace externo la sesión siga viva.
+    sameSite: 'lax',
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 días
   },
 }));
