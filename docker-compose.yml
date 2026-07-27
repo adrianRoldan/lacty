@@ -4,6 +4,9 @@ services:
     restart: unless-stopped
     volumes:
       - ./data:/app/data
+      # La app escribe aquí el sitemap.xml para que lo sirva Caddy como
+      # fichero estático, disponible incluso mientras se despliega.
+      - ./landing:/app/landing
     environment:
       DATA_DIR: /app/data
       SESSION_SECRET: ${SESSION_SECRET}

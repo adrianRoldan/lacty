@@ -377,6 +377,24 @@ app.use('/guias', (_req, res) => {
   res.status(404).type('html').send(render404());
 });
 
+// El sitemap se vuelca a disco para que lo sirva el servidor web como fichero
+// estático. Si dependiera de la app, cada despliegue abriría una ventana de
+// segundos en la que Google podría leerlo y anotar un fallo que luego tarda
+// días en reintentar. Como fichero está disponible siempre.
+const RUTA_SITEMAP = join(__dirname, 'landing', 'sitemap.xml');
+
+function escribirSitemap() {
+  try {
+    const articulos = db.prepare(SELECT_PUBLICADOS).all();
+    writeFileSync(RUTA_SITEMAP, renderSitemap(articulos));
+  } catch (e) {
+    // No es crítico: la ruta dinámica de abajo sigue sirviéndolo.
+    console.warn(`No se pudo escribir ${RUTA_SITEMAP}: ${e.message}`);
+  }
+}
+
+// Se mantiene la ruta dinámica como red de seguridad, por si el fichero no se
+// pudiera escribir o el servidor web no estuviera sirviendo ese directorio.
 app.get('/sitemap.xml', (_req, res) => {
   const articulos = db.prepare(SELECT_PUBLICADOS).all();
   res.type('application/xml').send(renderSitemap(articulos));
@@ -628,6 +646,7 @@ app.post('/api/admin/articulos', requireAdmin, (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(id, datos.slug, datos.titulo, datos.descripcion, datos.resumen, datos.emoji,
          datos.contenido, datos.publicado, datos.publicado ? new Date().toISOString().slice(0, 10) : null);
+  escribirSitemap();
   res.status(201).json(db.prepare(`SELECT * FROM articulos WHERE id = ?`).get(id));
 });
 
@@ -651,12 +670,14 @@ app.put('/api/admin/articulos/:id', requireAdmin, (req, res) => {
      WHERE id = ?
   `).run(datos.slug, datos.titulo, datos.descripcion, datos.resumen, datos.emoji,
          datos.contenido, datos.publicado, fechaPub, req.params.id);
+  escribirSitemap();
   res.json(db.prepare(`SELECT * FROM articulos WHERE id = ?`).get(req.params.id));
 });
 
 app.delete('/api/admin/articulos/:id', requireAdmin, (req, res) => {
   const r = db.prepare(`DELETE FROM articulos WHERE id = ?`).run(req.params.id);
   if (r.changes === 0) return res.status(404).json({ error: 'Guía no encontrada' });
+  escribirSitemap();
   res.json({ ok: true });
 });
 
@@ -1373,6 +1394,8 @@ if (existsSync(DIST)) {
   app.use(express.static(DIST));
   app.get('/*path', (_, res) => res.sendFile(join(DIST, 'index.html')));
 }
+
+escribirSitemap(); // al arrancar, para reflejar lo publicado tras el despliegue
 
 app.listen(PORT, () =>
   console.log(`Lacty en http://localhost:${PORT}`)

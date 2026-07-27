@@ -10,10 +10,12 @@ lacty.es {
     root * /opt/lacty/landing
     encode zstd gzip
 
-    # Las guías y el sitemap son dinámicos: sus artículos viven en la base de
-    # datos y se editan desde el panel de administración, así que los genera la
-    # app en vez de servirse como ficheros.
-    @dinamico path /guias /guias/* /sitemap.xml
+    # Las guías las genera la app: sus artículos viven en la base de datos y se
+    # editan desde el panel de administración.
+    # El sitemap.xml NO se proxifica: la app lo vuelca a este mismo directorio
+    # cada vez que cambia una guía, y se sirve como fichero estático para que
+    # siga disponible mientras se despliega.
+    @dinamico path /guias /guias/*
     reverse_proxy @dinamico localhost:3001
 
     file_server

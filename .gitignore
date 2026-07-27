@@ -31,3 +31,6 @@ sessions.db
 *.njsproj
 *.sln
 *.sw?
+
+# Lo genera la app en cada arranque y al cambiar una guía
+landing/sitemap.xml
