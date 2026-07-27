@@ -173,22 +173,41 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_articulos_publicado ON articulos(publicado, fecha_publicacion);
 `);
 
-// Siembra única de los artículos que ya estaban publicados como ficheros
-// estáticos, para no perder las URLs que Google ya conoce.
+// Publicación de guías escritas fuera del panel (por ejemplo, redactadas junto
+// al código). Cada una se aplica una sola vez y queda registrada: si después
+// la editas o la borras desde el panel, no se sobrescribe ni reaparece.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS migraciones_contenido (
+    id          TEXT PRIMARY KEY,
+    aplicada_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
 (function sembrarArticulos() {
-  const hay = db.prepare(`SELECT COUNT(*) AS n FROM articulos`).get().n;
-  if (hay > 0) return;
-  const insertar = db.prepare(`
+  const yaAplicada = db.prepare(`SELECT 1 FROM migraciones_contenido WHERE id = ?`);
+  const marcar     = db.prepare(`INSERT OR IGNORE INTO migraciones_contenido (id) VALUES (?)`);
+  const existeSlug = db.prepare(`SELECT 1 FROM articulos WHERE slug = ?`);
+  const insertar   = db.prepare(`
     INSERT INTO articulos (id, slug, titulo, descripcion, resumen, emoji, contenido, publicado, fecha_publicacion)
     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
   `);
+
+  let nuevas = 0;
   const tx = db.transaction(() => {
     for (const a of ARTICULOS_INICIALES) {
-      insertar.run(newId(), a.slug, a.titulo, a.descripcion, a.resumen, a.emoji ?? null, a.contenido, a.fecha);
+      const clave = `articulo:${a.slug}`;
+      if (yaAplicada.get(clave)) continue;
+      // Si el artículo ya existe (venía de la siembra antigua), solo se anota
+      // la migración para no volver a intentarlo.
+      if (!existeSlug.get(a.slug)) {
+        insertar.run(newId(), a.slug, a.titulo, a.descripcion, a.resumen, a.emoji ?? null, a.contenido, a.fecha);
+        nuevas++;
+      }
+      marcar.run(clave);
     }
   });
   tx();
-  console.log(`✓ Sembrados ${ARTICULOS_INICIALES.length} artículos iniciales en /guias/`);
+  if (nuevas > 0) console.log(`✓ Publicadas ${nuevas} guía(s) nueva(s) en /guias/`);
 })();
 
 // Backfill de códigos de invitación para cuentas que no lo tengan
