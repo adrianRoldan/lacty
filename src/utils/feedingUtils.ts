@@ -1,4 +1,4 @@
-import type { Feeding, Rest, TimelineItem, DiaperChange, VitaminDLog, ProbioticLog, MassageLog } from '../types';
+import type { Feeding, Rest, TimelineItem, DiaperChange, VitaminDLog, ProbioticLog, MassageLog, MedicationLog, Walk } from '../types';
 import { isSameDay, todayIso, localDateOf } from './dateUtils';
 import { getReferenceForDay } from '../data/referenceTable';
 
@@ -118,6 +118,14 @@ export function getAvgAwakeWindowMinutes(rests: Rest[]): number | null {
   return count > 0 ? Math.round(total / count) : null;
 }
 
+/** Duración de un paseo terminado, en minutos. Null si sigue en curso. */
+export function getWalkDurationMinutes(walk: Walk): number | null {
+  if (!walk.endTime) return null;
+  return Math.round(
+    (new Date(walk.endTime).getTime() - new Date(walk.startTime).getTime()) / 60000
+  );
+}
+
 export function getRestDurationMinutes(rest: Rest): number | null {
   if (!rest.endTime) return null;
   return Math.round(
@@ -190,6 +198,7 @@ export interface CareLogInputs {
   probioticLogs?: ProbioticLog[];
   probioticLabel?: string;
   massageLogs?: MassageLog[];
+  medications?: MedicationLog[];
 }
 
 function buildCareItems(careLogs: CareLogInputs): TimelineItem[] {
@@ -197,14 +206,14 @@ function buildCareItems(careLogs: CareLogInputs): TimelineItem[] {
   for (const l of careLogs.vitaminDLogs ?? []) {
     items.push({
       type: 'care',
-      data: { id: `vitd-${l.id}`, icon: '💊', label: `Administrado ${careLogs.vitaminDLabel || 'Vitamina D3'}`, timestamp: l.givenAt },
+      data: { id: `vitd-${l.id}`, kind: 'vitaminD', icon: '💊', label: `Administrado ${careLogs.vitaminDLabel || 'Vitamina D3'}`, timestamp: l.givenAt },
       sortKey: l.givenAt,
     });
   }
   for (const l of careLogs.probioticLogs ?? []) {
     items.push({
       type: 'care',
-      data: { id: `prob-${l.id}`, icon: '🦠', label: `Administrado ${careLogs.probioticLabel || 'Probiótico'}`, timestamp: l.givenAt },
+      data: { id: `prob-${l.id}`, kind: 'probiotic', icon: '🦠', label: `Administrado ${careLogs.probioticLabel || 'Probiótico'}`, timestamp: l.givenAt },
       sortKey: l.givenAt,
     });
   }
@@ -220,13 +229,36 @@ function buildCareItems(careLogs: CareLogInputs): TimelineItem[] {
     sorted.forEach((m, idx) => {
       items.push({
         type: 'care',
-        data: { id: `mas-${m.id}`, icon: '👅', label: `Masaje #${idx + 1} realizado`, timestamp: m.performedAt },
+        data: { id: `mas-${m.id}`, kind: 'massage', icon: '👅', label: `Masaje #${idx + 1} realizado`, timestamp: m.performedAt },
         sortKey: m.performedAt,
       });
     });
   }
 
+  // Medicamentos: se muestran como los demás cuidados, pero llevan el registro
+  // completo para poder abrirlos en el formulario de edición.
+  for (const m of careLogs.medications ?? []) {
+    const dosis = m.doseMl != null ? ` · ${formatDose(m.doseMl)} ml` : '';
+    items.push({
+      type: 'care',
+      data: {
+        id: `med-${m.id}`,
+        kind: 'medication',
+        icon: '💊',
+        label: `${m.name}${dosis}`,
+        timestamp: m.timestamp,
+        medication: m,
+      },
+      sortKey: m.timestamp,
+    });
+  }
+
   return items;
+}
+
+/** 2.5 → "2,5" y 3 → "3": sin decimales innecesarios y con coma decimal. */
+export function formatDose(ml: number): string {
+  return String(Math.round(ml * 100) / 100).replace('.', ',');
 }
 
 export function buildTimeline(
@@ -234,6 +266,7 @@ export function buildTimeline(
   rests: Rest[],
   diapers: DiaperChange[],
   careLogs?: CareLogInputs,
+  walks: Walk[] = [],
   dayFilter?: string
 ): TimelineItem[] {
   const day = dayFilter ?? todayIso();
@@ -247,6 +280,9 @@ export function buildTimeline(
     ...diapers
       .filter((d) => isSameDay(d.timestamp, day))
       .map((d) => ({ type: 'diaper' as const, data: d, sortKey: d.timestamp })),
+    ...walks
+      .filter((w) => isSameDay(w.startTime, day) || (!dayFilter && w.endTime == null))
+      .map((w) => ({ type: 'walk' as const, data: w, sortKey: w.startTime })),
     ...buildCareItems(careLogs ?? {}).filter((c) => isSameDay(c.sortKey, day)),
   ];
   return items.sort((a, b) => b.sortKey.localeCompare(a.sortKey));
@@ -408,7 +444,8 @@ export function groupTimelineByDay(
   feedings: Feeding[],
   rests: Rest[],
   diapers: DiaperChange[],
-  careLogs?: CareLogInputs
+  careLogs?: CareLogInputs,
+  walks: Walk[] = []
 ): Record<string, TimelineItem[]> {
   const groups: Record<string, TimelineItem[]> = {};
 
@@ -426,6 +463,11 @@ export function groupTimelineByDay(
     const day = localDateOf(d.timestamp);
     if (!groups[day]) groups[day] = [];
     groups[day].push({ type: 'diaper', data: d, sortKey: d.timestamp });
+  }
+  for (const w of walks) {
+    const day = localDateOf(w.startTime);
+    if (!groups[day]) groups[day] = [];
+    groups[day].push({ type: 'walk', data: w, sortKey: w.startTime });
   }
   for (const c of buildCareItems(careLogs ?? {})) {
     const day = localDateOf(c.sortKey);

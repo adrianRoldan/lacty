@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Feeding, Rest, TimelineItem, VitaminDLog, ProbioticLog, MassageLog, DiaperChange } from '../types';
+import type { Feeding, Rest, TimelineItem, VitaminDLog, ProbioticLog, MassageLog, DiaperChange, MedicationLog, Walk, CareKind } from '../types';
 import { BreastIcon } from './FeedingItem';
 import { DiaperIcon } from './DiaperItem';
 import { formatDate, formatDateShort, formatMinutes, formatTime, gapMinutes, localDateOf } from '../utils/dateUtils';
@@ -15,6 +15,8 @@ import {
 import FeedingItem from './FeedingItem';
 import RestItem from './RestItem';
 import DiaperItem from './DiaperItem';
+import WalkItem from './WalkItem';
+import { MedicineIcon, StrollerIcon } from './CareIcons';
 
 interface Props {
   feedings: Feeding[];
@@ -34,9 +36,14 @@ interface Props {
   diapers: DiaperChange[];
   onEditDiaper: (d: DiaperChange) => void;
   onDeleteDiaper: (id: string) => void;
+  medications: MedicationLog[];
+  onEditMedication: (m: MedicationLog) => void;
+  walks: Walk[];
+  onEditWalk: (w: Walk) => void;
+  onDeleteWalk: (id: string) => void;
 }
 
-type FilterType   = 'all' | 'feedings' | 'rests' | 'diapers';
+type FilterType   = 'all' | 'feedings' | 'rests' | 'diapers' | 'walks';
 type FilterPeriod = 'all' | '7d' | '14d' | '30d';
 
 function morerecentFeedingTimestamp(items: TimelineItem[], index: number): string | null {
@@ -72,6 +79,8 @@ export default function FeedingList({
   onEditFeeding, onEditRest,
   onDeleteFeeding, onDeleteRest,
   diapers, onEditDiaper, onDeleteDiaper,
+  medications, onEditMedication,
+  walks, onEditWalk, onDeleteWalk,
 }: Props) {
   const vitaminDDates  = new Set(vitaminDLogs.map((l) => l.date));
   const probioticDates = new Set(probioticLogs.map((l) => l.date));
@@ -105,21 +114,28 @@ export default function FeedingList({
   const summary = getHistorySummary(periodFeedings, periodRests);
 
   const periodDiapers = diapers.filter(d => !cutoff || localDateOf(d.timestamp) >= cutoff);
-  const filteredFeedings = (filterType === 'rests' || filterType === 'diapers')    ? [] : periodFeedings;
-  const filteredRests    = (filterType === 'feedings' || filterType === 'diapers') ? [] : periodRests;
-  const filteredDiapers  = (filterType === 'feedings' || filterType === 'rests')   ? [] : periodDiapers;
+  const periodWalks   = walks.filter(w => !cutoff || localDateOf(w.startTime) >= cutoff);
 
-  // Los cuidados (vitamina D, probiótico, masaje) solo se muestran sin filtro de tipo activo
+  // Cada tipo se muestra si no hay filtro o si el filtro es justo el suyo.
+  const muestra = (tipo: FilterType) => filterType === 'all' || filterType === tipo;
+  const filteredFeedings = muestra('feedings') ? periodFeedings : [];
+  const filteredRests    = muestra('rests')    ? periodRests    : [];
+  const filteredDiapers  = muestra('diapers')  ? periodDiapers  : [];
+  const filteredWalks    = muestra('walks')    ? periodWalks    : [];
+
+  // Los cuidados (vitamina D, probiótico, masaje y medicamentos) solo sin filtro activo
   const showCare = filterType === 'all';
   const periodVitaminDLogs  = vitaminDLogs.filter(l => !cutoff || l.date >= cutoff);
   const periodProbioticLogs = probioticLogs.filter(l => !cutoff || l.date >= cutoff);
   const periodMassageLogs   = massageLogs.filter(l => !cutoff || l.date >= cutoff);
+  const periodMedications   = medications.filter(m => !cutoff || localDateOf(m.timestamp) >= cutoff);
 
   const groups = groupTimelineByDay(filteredFeedings, filteredRests, filteredDiapers, {
     vitaminDLogs:  showCare ? periodVitaminDLogs  : [],
     probioticLogs: showCare ? periodProbioticLogs : [],
     massageLogs:   showCare ? periodMassageLogs   : [],
-  });
+    medications:   showCare ? periodMedications   : [],
+  }, filteredWalks);
   const days   = Object.keys(groups).sort((a, b) => b.localeCompare(a));
 
   // Group days by month
@@ -131,7 +147,7 @@ export default function FeedingList({
   }
   const months = Object.keys(monthsMap).sort((a, b) => b.localeCompare(a));
 
-  if (feedings.length === 0 && rests.length === 0 && diapers.length === 0) {
+  if (feedings.length === 0 && rests.length === 0 && diapers.length === 0 && walks.length === 0 && medications.length === 0) {
     return (
       <div className="p-4 pb-24">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Historial</h1>
@@ -195,18 +211,21 @@ export default function FeedingList({
 
         {/* Filtros */}
         <div className="space-y-2 mb-5">
-          <div className="flex gap-2">
-            {(['all', 'feedings', 'rests', 'diapers'] as FilterType[]).map((v) => (
+          <div className="flex flex-wrap gap-2">
+            {(['all', 'feedings', 'rests', 'diapers', 'walks'] as FilterType[]).map((v) => (
               <button
                 key={v}
                 onClick={() => setFilterType(v)}
-                className={`flex-1 py-2 rounded-xl text-xs font-semibold touch-manipulation transition-colors ${
+                className={`flex-1 min-w-[5.25rem] px-2 py-2 rounded-xl text-xs font-semibold touch-manipulation transition-colors ${
                   filterType === v ? 'bg-sage-600 text-white' : 'bg-white text-gray-500 shadow-sm'
                 }`}
               >
-                {v === 'all' ? 'Todo' : v === 'feedings' ? '🍼 Tomas' : v === 'rests' ? '🌙 Sueños' : (
-                  <span className="inline-flex items-center gap-1"><DiaperIcon size={14} /> Pañales</span>
-                )}
+                {v === 'all' ? 'Todo' : v === 'feedings' ? '🍼 Tomas' : v === 'rests' ? '🌙 Sueños'
+                  : v === 'diapers' ? (
+                    <span className="inline-flex items-center gap-1"><DiaperIcon size={14} /> Pañales</span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1"><StrollerIcon size={14} /> Paseos</span>
+                  )}
               </button>
             ))}
           </div>
@@ -355,8 +374,18 @@ export default function FeedingList({
                                       <RestItem rest={item.data} onEdit={onEditRest} onDelete={onDeleteRest} readOnly={readOnly} />
                                     ) : item.type === 'diaper' ? (
                                       <DiaperItem diaper={item.data} onEdit={onEditDiaper} onDelete={onDeleteDiaper} readOnly={readOnly} />
+                                    ) : item.type === 'walk' ? (
+                                      <WalkItem walk={item.data} onEdit={onEditWalk} onDelete={onDeleteWalk} listDay={day} readOnly={readOnly} />
                                     ) : (
-                                      <CareLine icon={item.data.icon} label={item.data.label} time={formatTime(item.data.timestamp)} />
+                                      <CareLine
+                                        kind={item.data.kind}
+                                        icon={item.data.icon}
+                                        label={item.data.label}
+                                        time={formatTime(item.data.timestamp)}
+                                        onEdit={!readOnly && item.data.medication
+                                          ? () => onEditMedication(item.data.medication!)
+                                          : undefined}
+                                      />
                                     )}
                                   </div>
                                 );
@@ -399,14 +428,32 @@ function GapLine({ minutes }: { minutes: number }) {
   );
 }
 
-function CareLine({ icon, label, time }: { icon: string; label: string; time: string }) {
+function CareLine({ kind, icon, label, time, onEdit }: {
+  kind: CareKind; icon: string; label: string; time: string; onEdit?: () => void;
+}) {
   return (
     <div className="flex items-center gap-2 pl-4 pr-3 py-1 my-0.5">
       <span className="text-xs text-gray-400 shrink-0 inline-flex items-center gap-1.5">
-        <span>{icon}</span>
+        {/* Los medicamentos usan icono propio: el emoji 💊 ya lo ocupa la vitamina D */}
+        {kind === 'medication'
+          ? <span className="text-violet-500"><MedicineIcon size={14} /></span>
+          : <span>{icon}</span>}
         <span className="font-medium text-gray-500">{time}</span>
         <span>{label}</span>
       </span>
+      {onEdit && (
+        <button
+          onClick={onEdit}
+          className="text-gray-300 hover:text-sage-600 active:text-sage-700 p-1 shrink-0 touch-manipulation"
+          aria-label="Editar medicamento"
+          title="Editar"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
+        </button>
+      )}
       <div className="flex-1 border-t border-dashed border-gray-200" />
     </div>
   );

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { BabyConfig, Feeding, Rest, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent, DiaperChange } from '../types';
+import type { BabyConfig, Feeding, Rest, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent, DiaperChange, MedicationLog, Walk, CareKind } from '../types';
 import { getCurrentDaysOfLife, formatBabyAge, formatMinutes, formatTime, gapMinutes, isSameDay, todayIso } from '../utils/dateUtils';
 import {
   getTodayFeedings,
@@ -16,6 +16,8 @@ import { getEffectiveReference, getSleepReference } from '../data/referenceTable
 import FeedingItem from './FeedingItem';
 import RestItem from './RestItem';
 import DiaperItem from './DiaperItem';
+import WalkItem from './WalkItem';
+import { MedicineIcon } from './CareIcons';
 import DayInsights from './DayInsights';
 import WeekComparison from './WeekComparison';
 
@@ -49,6 +51,12 @@ interface Props {
   onNewDiaper: () => void;
   onEditDiaper: (d: DiaperChange) => void;
   onDeleteDiaper: (id: string) => void;
+  medications: MedicationLog[];
+  onEditMedication: (m: MedicationLog) => void;
+  walks: Walk[];
+  onEditWalk: (w: Walk) => void;
+  onDeleteWalk: (id: string) => void;
+  onStopWalk: (w: Walk) => void;
 }
 
 function prevFeedingTimestamp(timeline: ReturnType<typeof buildTimeline>, index: number): string | null {
@@ -91,6 +99,8 @@ export default function DailySummary({
   onRecalculateTodayBreast,
   massageLogs, onAddMassage, onRemoveMassage,
   diapers, onEditDiaper, onDeleteDiaper,
+  medications, onEditMedication,
+  walks, onEditWalk, onDeleteWalk, onStopWalk,
 }: Props) {
   const daysOfLife = getCurrentDaysOfLife(config);
   const todayFeedings = getTodayFeedings(feedings);
@@ -113,7 +123,8 @@ export default function DailySummary({
     probioticLogs: probioticLogs,
     probioticLabel: config.probioticMedName,
     massageLogs: massageLogs,
-  });
+    medications: medications,
+  }, walks);
   const reference = getEffectiveReference(daysOfLife, currentWeightKg);
   const sleepRef = getSleepReference(daysOfLife);
 
@@ -391,8 +402,18 @@ export default function DailySummary({
                   <RestItem rest={item.data} onEdit={onEditRest} onDelete={onDeleteRest} onStop={onStopRest} listDay={today} readOnly={readOnly} />
                 ) : item.type === 'diaper' ? (
                   <DiaperItem diaper={item.data} onEdit={onEditDiaper} onDelete={onDeleteDiaper} readOnly={readOnly} />
+                ) : item.type === 'walk' ? (
+                  <WalkItem walk={item.data} onEdit={onEditWalk} onDelete={onDeleteWalk} onStop={onStopWalk} listDay={today} readOnly={readOnly} />
                 ) : (
-                  <CareLine icon={item.data.icon} label={item.data.label} time={formatTime(item.data.timestamp)} />
+                  <CareLine
+                    kind={item.data.kind}
+                    icon={item.data.icon}
+                    label={item.data.label}
+                    time={formatTime(item.data.timestamp)}
+                    onEdit={!readOnly && item.data.medication
+                      ? () => onEditMedication(item.data.medication!)
+                      : undefined}
+                  />
                 )}
               </div>
             );
@@ -551,14 +572,32 @@ function GapLine({ minutes }: { minutes: number }) {
   );
 }
 
-function CareLine({ icon, label, time }: { icon: string; label: string; time: string }) {
+function CareLine({ kind, icon, label, time, onEdit }: {
+  kind: CareKind; icon: string; label: string; time: string; onEdit?: () => void;
+}) {
   return (
     <div className="flex items-center gap-2 pl-4 pr-3 py-1 my-0.5">
       <span className="text-xs text-gray-400 shrink-0 inline-flex items-center gap-1.5">
-        <span>{icon}</span>
+        {/* Los medicamentos usan icono propio: el emoji 💊 ya lo ocupa la vitamina D */}
+        {kind === 'medication'
+          ? <span className="text-violet-500"><MedicineIcon size={14} /></span>
+          : <span>{icon}</span>}
         <span className="font-medium text-gray-500">{time}</span>
         <span>{label}</span>
       </span>
+      {onEdit && (
+        <button
+          onClick={onEdit}
+          className="text-gray-300 hover:text-sage-600 active:text-sage-700 p-1 shrink-0 touch-manipulation"
+          aria-label="Editar medicamento"
+          title="Editar"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
+        </button>
+      )}
       <div className="flex-1 border-t border-dashed border-gray-200" />
     </div>
   );

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange } from './types';
+import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, Walk } from './types';
 import { getCurrentDaysOfLife, getBirthDate } from './utils/dateUtils';
 import { calcBreastEstimatedMl, generateId } from './utils/feedingUtils';
 import * as api from './api';
@@ -20,6 +20,9 @@ import VisitasView from './components/VisitasView';
 import ConsultationsView from './components/ConsultationsView';
 import FamilyView from './components/FamilyView';
 import MyDataView from './components/MyDataView';
+import MedicationForm from './components/MedicationForm';
+import WalkForm from './components/WalkForm';
+import { MedicineIcon, StrollerIcon } from './components/CareIcons';
 import AppSettings from './components/AppSettings';
 import MilestonesView from './components/MilestonesView';
 import VaccinesView from './components/VaccinesView';
@@ -48,7 +51,11 @@ type Screen =
   | 'mis-datos'
   | 'resumen-pediatra'
   | 'nuevo-pañal'
-  | 'editar-pañal';
+  | 'editar-pañal'
+  | 'nuevo-medicamento'
+  | 'editar-medicamento'
+  | 'nuevo-paseo'
+  | 'editar-paseo';
 
 export default function App() {
   const [config, setConfig] = useState<BabyConfig | null>(null);
@@ -67,6 +74,10 @@ export default function App() {
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [diapers, setDiapers] = useState<DiaperChange[]>([]);
   const [editingDiaper, setEditingDiaper] = useState<DiaperChange | null>(null);
+  const [medications, setMedications] = useState<MedicationLog[]>([]);
+  const [editingMedication, setEditingMedication] = useState<MedicationLog | null>(null);
+  const [walks, setWalks] = useState<Walk[]>([]);
+  const [editingWalk, setEditingWalk] = useState<Walk | null>(null);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<'admin' | 'user'>('user');
   const [familyRole, setFamilyRole] = useState<'owner' | 'editor' | 'viewer'>('editor');
@@ -98,15 +109,15 @@ export default function App() {
 
   // Trae todos los datos del bebé activo (asume que api.setActiveBaby ya está fijado).
   async function loadBabyData() {
-    const [fds, rsts, wts, hts, hcs, vdLogs, prLogs, mLogs, msLogs, vacLogs, cons, cal, dps] = await Promise.all([
+    const [fds, rsts, wts, hts, hcs, vdLogs, prLogs, mLogs, msLogs, vacLogs, cons, cal, dps, meds, wks] = await Promise.all([
       api.getFeedings(), api.getRests(), api.getWeights(), api.getHeights(), api.getHeadCircs(), api.getVitaminDLogs(),
       api.getProbioticLogs(), api.getMassageLogs(), api.getMilestones(), api.getVaccines(), api.getConsultations(), api.getCalendarEvents(),
-      api.getDiapers(),
+      api.getDiapers(), api.getMedications(), api.getWalks(),
     ]);
     setFeedings(fds); setRests(rsts); setWeights(wts); setHeights(hts); setHeadCircs(hcs);
     setVitaminDLogs(vdLogs); setProbioticLogs(prLogs); setMassageLogs(mLogs);
     setMilestoneLogs(msLogs); setVaccineLogs(vacLogs); setConsultations(cons); setCalendarEvents(cal);
-    setDiapers(dps);
+    setDiapers(dps); setMedications(meds); setWalks(wks);
   }
 
   // Carga los bebés de la cuenta, fija el activo (el último usado si existe) y sus datos.
@@ -205,6 +216,8 @@ export default function App() {
         case 'consultations': api.getConsultations().then(setConsultations); break;
         case 'calendar':   api.getCalendarEvents().then(setCalendarEvents); break;
         case 'diapers':    api.getDiapers().then(setDiapers); break;
+        case 'medications': api.getMedications().then(setMedications); break;
+        case 'walks':      api.getWalks().then(setWalks); break;
       }
     };
 
@@ -239,6 +252,7 @@ export default function App() {
     (f) => f.hasBreast && f.breastMinLeft == null && f.breastMinRight == null
   );
   const restInProgress = rests.some((r) => r.endTime == null);
+  const walkInProgress = walks.find((w) => w.endTime == null) ?? null;
 
   // ── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -678,6 +692,66 @@ export default function App() {
     toast('Pañal eliminado');
   }
 
+  // ── Medicamentos ───────────────────────────────────────────────────────────
+
+  async function handleSaveMedication(entry: MedicationLog) {
+    if (editingMedication) {
+      const updated = await api.updateMedication(entry);
+      setMedications((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+    } else {
+      const created = await api.createMedication(entry);
+      setMedications((prev) => [...prev, created]);
+    }
+    toast(editingMedication ? 'Medicamento actualizado' : 'Medicamento registrado');
+    setEditingMedication(null);
+    navigate(activeTab);
+  }
+
+  async function handleDeleteMedication(id: string) {
+    await api.deleteMedication(id);
+    setMedications((prev) => prev.filter((m) => m.id !== id));
+    toast('Medicamento eliminado');
+    setEditingMedication(null);
+    navigate(activeTab);
+  }
+
+  // ── Paseos ─────────────────────────────────────────────────────────────────
+
+  async function handleSaveWalk(entry: Walk) {
+    if (editingWalk) {
+      const updated = await api.updateWalk(entry);
+      setWalks((prev) => prev.map((w) => (w.id === updated.id ? updated : w)));
+    } else {
+      const created = await api.createWalk(entry);
+      setWalks((prev) => [...prev, created]);
+    }
+    toast(editingWalk ? 'Paseo actualizado' : 'Paseo registrado');
+    setEditingWalk(null);
+    navigate(activeTab);
+  }
+
+  async function handleDeleteWalk(id: string) {
+    await api.deleteWalk(id);
+    setWalks((prev) => prev.filter((w) => w.id !== id));
+    toast('Paseo eliminado');
+  }
+
+  // Inicia un paseo al instante. A diferencia de las tomas y los sueños, no
+  // cierra lo que haya en curso: el bebé puede dormir o mamar durante el paseo.
+  async function handleQuickWalk() {
+    const walk: Walk = { id: generateId(), startTime: new Date().toISOString() };
+    const created = await api.createWalk(walk);
+    setWalks((prev) => [...prev, created]);
+    toast('Paseo iniciado');
+  }
+
+  async function handleStopWalk(walk: Walk) {
+    if (walk.endTime != null) return;
+    const updated = await api.updateWalk({ ...walk, endTime: new Date().toISOString() });
+    setWalks((prev) => prev.map((w) => (w.id === updated.id ? updated : w)));
+    toast('Paseo finalizado');
+  }
+
   function navigate(tab: Tab) {
     setActiveTab(tab);
     setScreen(tab);
@@ -692,6 +766,8 @@ export default function App() {
     'nuevo-altura', 'editar-altura',
     'nuevo-pc', 'editar-pc',
     'nuevo-pañal', 'editar-pañal',
+    'nuevo-medicamento', 'editar-medicamento',
+    'nuevo-paseo', 'editar-paseo',
     'resumen-pediatra',
     'admin',
   ].includes(screen);
@@ -859,6 +935,26 @@ export default function App() {
           />
         )}
 
+        {/* Medication forms */}
+        {(screen === 'nuevo-medicamento' || screen === 'editar-medicamento') && (
+          <MedicationForm
+            existing={editingMedication}
+            onSave={handleSaveMedication}
+            onDelete={handleDeleteMedication}
+            onCancel={() => { setEditingMedication(null); navigate(activeTab); }}
+          />
+        )}
+
+        {/* Walk forms */}
+        {(screen === 'nuevo-paseo' || screen === 'editar-paseo') && (
+          <WalkForm
+            existing={editingWalk}
+            onSave={handleSaveWalk}
+            onDelete={async (id) => { await handleDeleteWalk(id); setEditingWalk(null); navigate(activeTab); }}
+            onCancel={() => { setEditingWalk(null); navigate(activeTab); }}
+          />
+        )}
+
         {/* Main tabs */}
         {screen === 'hoy' && config && (
           <DailySummary
@@ -891,6 +987,12 @@ export default function App() {
             onNewDiaper={() => { setEditingDiaper(null); setScreen('nuevo-pañal'); }}
             onEditDiaper={(d) => { setEditingDiaper(d); setScreen('editar-pañal'); }}
             onDeleteDiaper={handleDeleteDiaper}
+            medications={medications}
+            onEditMedication={(m) => { setEditingMedication(m); setScreen('editar-medicamento'); }}
+            walks={walks}
+            onEditWalk={(w) => { setEditingWalk(w); setScreen('editar-paseo'); }}
+            onDeleteWalk={handleDeleteWalk}
+            onStopWalk={handleStopWalk}
           />
         )}
 
@@ -923,6 +1025,11 @@ export default function App() {
             diapers={diapers}
             onEditDiaper={(d) => { setEditingDiaper(d); setScreen('editar-pañal'); }}
             onDeleteDiaper={handleDeleteDiaper}
+            medications={medications}
+            onEditMedication={(m) => { setEditingMedication(m); setScreen('editar-medicamento'); }}
+            walks={walks}
+            onEditWalk={(w) => { setEditingWalk(w); setScreen('editar-paseo'); }}
+            onDeleteWalk={handleDeleteWalk}
           />
         )}
 
@@ -1042,6 +1149,7 @@ export default function App() {
             weights={weights}
             heights={heights}
             milestoneLogs={milestoneLogs}
+            medications={medications}
             onBack={() => setScreen(activeTab)}
           />
         )}
@@ -1094,31 +1202,48 @@ export default function App() {
 
       {/* FABs — inicio rápido (solo en Hoy, no admin, no viewer) */}
       {screen === 'hoy' && !isAdmin && !isViewer && (
-        <div className="fixed right-5 bottom-20 lg:bottom-6 z-20 flex flex-col items-center gap-3">
-          {/* FABs extra — visibles solo al expandir */}
+        <div className="fixed right-5 bottom-20 lg:bottom-6 z-20 flex flex-col items-end gap-3">
+          {/* FABs extra — visibles solo al expandir. Van más pequeños y con
+              etiqueta: con cinco secundarios, a tamaño completo la columna se
+              salía de pantalla en móviles pequeños. */}
           {showExtraFabs && (
             <>
-              <button
+              <ExtraFab
+                label="Peso" color="bg-yellow-600 active:bg-yellow-700 shadow-yellow-600/30"
                 onClick={() => { setShowExtraFabs(false); setEditingWeight(null); setScreen('nuevo-peso'); }}
-                aria-label="Añadir peso"
-                className="w-14 h-14 rounded-full bg-yellow-600 text-white shadow-lg shadow-yellow-600/30 flex items-center justify-center text-2xl active:scale-95 active:bg-yellow-700 transition-transform touch-manipulation"
               >
-                ⚖️
-              </button>
-              <button
+                <span className="text-xl">⚖️</span>
+              </ExtraFab>
+              <ExtraFab
+                label="Pañal" color="bg-rose-400 active:bg-rose-500 shadow-rose-400/30"
                 onClick={() => { setShowExtraFabs(false); setEditingDiaper(null); setScreen('nuevo-pañal'); }}
-                aria-label="Añadir cambio de pañal"
-                className="w-14 h-14 rounded-full bg-rose-400 text-white shadow-lg shadow-rose-400/30 flex items-center justify-center text-2xl active:scale-95 active:bg-rose-500 transition-transform touch-manipulation"
               >
-                <DiaperIcon size={26} />
-              </button>
-              <button
+                <DiaperIcon size={23} />
+              </ExtraFab>
+              <ExtraFab
+                label="Biberón" color="bg-sky-500 active:bg-sky-600 shadow-sky-500/30"
                 onClick={() => { setShowExtraFabs(false); setFeedingPreset('bottle'); setEditingFeeding(null); setScreen('nueva-toma'); }}
-                aria-label="Añadir toma biberón"
-                className="w-14 h-14 rounded-full bg-sky-500 text-white shadow-lg shadow-sky-500/30 flex items-center justify-center text-2xl active:scale-95 active:bg-sky-600 transition-transform touch-manipulation"
               >
-                🍼
-              </button>
+                <span className="text-xl">🍼</span>
+              </ExtraFab>
+              <ExtraFab
+                label="Medicamento" color="bg-violet-500 active:bg-violet-600 shadow-violet-500/30"
+                onClick={() => { setShowExtraFabs(false); setEditingMedication(null); setScreen('nuevo-medicamento'); }}
+              >
+                <MedicineIcon size={22} />
+              </ExtraFab>
+              {/* Con un paseo en curso, el botón pasa a finalizarlo: así se
+                  empieza y se termina desde el mismo sitio. */}
+              <ExtraFab
+                label={walkInProgress ? 'Fin del paseo' : 'Paseo'}
+                color="bg-coral-600 active:bg-coral-700 shadow-coral-600/30"
+                onClick={() => {
+                  setShowExtraFabs(false);
+                  walkInProgress ? handleStopWalk(walkInProgress) : handleQuickWalk();
+                }}
+              >
+                <StrollerIcon size={23} />
+              </ExtraFab>
             </>
           )}
           {/* FABs principales */}
@@ -1302,6 +1427,33 @@ function AccountMenu({ variant, currentUser, onOpenProfile, onOpenSettings, onLo
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Botón flotante secundario: algo más pequeño que los principales y con la
+ * etiqueta al lado. Al haber cinco, a tamaño completo la columna no cabía en
+ * pantallas pequeñas; la etiqueta además evita depender solo del color.
+ */
+function ExtraFab({ label, color, onClick, children }: {
+  label: string;
+  color: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      className="flex items-center gap-2 active:scale-95 transition-transform touch-manipulation"
+    >
+      <span className="bg-white/95 text-gray-700 text-xs font-semibold px-2.5 py-1 rounded-lg shadow-md whitespace-nowrap">
+        {label}
+      </span>
+      <span className={`w-12 h-12 rounded-full text-white shadow-lg flex items-center justify-center shrink-0 ${color}`}>
+        {children}
+      </span>
+    </button>
   );
 }
 

@@ -1,4 +1,4 @@
-import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange } from '../types';
+import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, Walk } from '../types';
 
 const BASE = '/api';
 
@@ -817,6 +817,58 @@ export async function updateDiaper(d: DiaperChange): Promise<DiaperChange> {
 
 export async function deleteDiaper(id: string): Promise<void> {
   await fetch(`${BASE}/diapers/${id}`, { method: 'DELETE', headers: mutHeaders() });
+}
+
+// ── Medicamentos ──────────────────────────────────────────────────────────────
+
+export async function getMedications(): Promise<MedicationLog[]> {
+  return json(await fetch(`${BASE}/medications`, { headers: babyHeaders() }));
+}
+
+export async function createMedication(m: MedicationLog): Promise<MedicationLog> {
+  return json(await fetch(`${BASE}/medications`, {
+    method: 'POST',
+    headers: mutHeaders(),
+    body: JSON.stringify(m),
+  }));
+}
+
+export async function updateMedication(m: MedicationLog): Promise<MedicationLog> {
+  return json(await fetch(`${BASE}/medications/${m.id}`, {
+    method: 'PUT',
+    headers: mutHeaders(),
+    body: JSON.stringify(m),
+  }));
+}
+
+export async function deleteMedication(id: string): Promise<void> {
+  await fetch(`${BASE}/medications/${id}`, { method: 'DELETE', headers: mutHeaders() });
+}
+
+// ── Paseos ────────────────────────────────────────────────────────────────────
+
+export async function getWalks(): Promise<Walk[]> {
+  return json(await fetch(`${BASE}/walks`, { headers: babyHeaders() }));
+}
+
+export async function createWalk(w: Walk): Promise<Walk> {
+  return json(await fetch(`${BASE}/walks`, {
+    method: 'POST',
+    headers: mutHeaders(),
+    body: JSON.stringify(w),
+  }));
+}
+
+export async function updateWalk(w: Walk): Promise<Walk> {
+  return json(await fetch(`${BASE}/walks/${w.id}`, {
+    method: 'PUT',
+    headers: mutHeaders(),
+    body: JSON.stringify(w),
+  }));
+}
+
+export async function deleteWalk(id: string): Promise<void> {
+  await fetch(`${BASE}/walks/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 export interface NotificationPrefs {

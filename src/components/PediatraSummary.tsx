@@ -1,6 +1,6 @@
-import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, MilestoneLog } from '../types';
+import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, MilestoneLog, MedicationLog } from '../types';
 import { getCurrentDaysOfLife, getBirthDate, formatMinutes, localDateOf } from '../utils/dateUtils';
-import { getTotalSupplementMl, getTotalBottleMl, getTotalBreastMinutes, getTotalEstimatedBreastMl, restMinutesOnDay } from '../utils/feedingUtils';
+import { getTotalSupplementMl, getTotalBottleMl, getTotalBreastMinutes, getTotalEstimatedBreastMl, restMinutesOnDay, formatDose } from '../utils/feedingUtils';
 import { MILESTONES } from '../data/milestones';
 
 interface Props {
@@ -10,6 +10,7 @@ interface Props {
   weights: WeightEntry[];
   heights: HeightEntry[];
   milestoneLogs: MilestoneLog[];
+  medications: MedicationLog[];
   onBack: () => void;
 }
 
@@ -30,7 +31,7 @@ function getPastDays(n: number): string[] {
   });
 }
 
-export default function PediatraSummary({ config, feedings, rests, weights, heights, milestoneLogs, onBack }: Props) {
+export default function PediatraSummary({ config, feedings, rests, weights, heights, milestoneLogs, medications, onBack }: Props) {
   const daysOfLife = getCurrentDaysOfLife(config);
   const birthDate = getBirthDate(config);
   const days = getPastDays(14);
@@ -72,6 +73,11 @@ export default function PediatraSummary({ config, feedings, rests, weights, heig
   // Height
   const sortedHeights = [...heights].sort((a, b) => b.date.localeCompare(a.date));
   const latestHeight = sortedHeights[0];
+
+  // Medicación de los últimos 14 días, de la más reciente a la más antigua.
+  const recentMedications = medications
+    .filter(m => days.includes(localDateOf(m.timestamp)))
+    .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 
   // Recent milestones (last 30 days)
   const recentMilestones = milestoneLogs
@@ -166,6 +172,30 @@ export default function PediatraSummary({ config, feedings, rests, weights, heig
             <Row label="Siestas registradas" value={String(rests.filter(r => days.includes(localDateOf(r.startTime))).length)} />
           </div>
         </section>
+
+        {/* Medicación administrada — lo primero que suele preguntar la pediatra */}
+        {recentMedications.length > 0 && (
+          <section className="mb-5">
+            <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-2">Medicación (14 días)</h2>
+            <div className="bg-white rounded-xl p-4 shadow-sm print:shadow-none print:border print:border-gray-200">
+              <ul className="space-y-1.5">
+                {recentMedications.map((m) => (
+                  <li key={m.id} className="flex items-start gap-2 text-sm">
+                    <span className="text-violet-500 shrink-0">•</span>
+                    <span className="text-gray-700">
+                      {m.name}
+                      {m.doseMl != null && <span className="text-gray-500"> · {formatDose(m.doseMl)} ml</span>}
+                      {m.notes && <span className="text-gray-400 italic"> — {m.notes}</span>}
+                    </span>
+                    <span className="text-xs text-gray-400 ml-auto shrink-0 tabular-nums">
+                      {new Date(m.timestamp).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        )}
 
         {/* Hitos recientes */}
         {recentMilestones.length > 0 && (

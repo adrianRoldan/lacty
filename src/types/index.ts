@@ -106,17 +106,39 @@ export interface DiaperChange {
   notes?: string;
 }
 
+export interface MedicationLog {
+  id: string;
+  timestamp: string;
+  name: string;      // nombre del medicamento (de la lista rápida o escrito a mano)
+  doseMl?: number;   // dosis administrada en mililitros
+  notes?: string;
+}
+
+export interface Walk {
+  id: string;
+  startTime: string;
+  endTime?: string;  // sin hora de fin = paseo en curso
+  notes?: string;
+}
+
+// Cuidados puntuales que se muestran como una línea sutil en el timeline
+// (vitamina D, probiótico, masaje y medicamentos).
+export type CareKind = 'vitaminD' | 'probiotic' | 'massage' | 'medication';
+
 export interface CareEntry {
   id: string;
-  icon: string;
+  kind: CareKind;
+  icon: string;      // emoji; los medicamentos usan un icono propio (ver CareLine)
   label: string;
   timestamp: string;
+  medication?: MedicationLog; // presente solo si kind === 'medication', para poder editarlo
 }
 
 export type TimelineItem =
   | { type: 'feeding'; data: Feeding; sortKey: string }
   | { type: 'rest'; data: Rest; sortKey: string }
   | { type: 'diaper'; data: DiaperChange; sortKey: string }
+  | { type: 'walk'; data: Walk; sortKey: string }
   | { type: 'care'; data: CareEntry; sortKey: string };
 
 export type EventCategory = 'pediatra' | 'matrona' | 'fisio' | 'vacuna' | 'analisis' | 'revision' | 'otro';
