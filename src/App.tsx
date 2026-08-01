@@ -22,7 +22,7 @@ import FamilyView from './components/FamilyView';
 import MyDataView from './components/MyDataView';
 import MedicationForm from './components/MedicationForm';
 import WalkForm from './components/WalkForm';
-import { MedicineIcon, StrollerIcon } from './components/CareIcons';
+import { MedicineIcon, StrollerIcon, ScaleIcon } from './components/CareIcons';
 import AppSettings from './components/AppSettings';
 import MilestonesView from './components/MilestonesView';
 import VaccinesView from './components/VaccinesView';
@@ -1208,11 +1208,13 @@ export default function App() {
               salía de pantalla en móviles pequeños. */}
           {showExtraFabs && (
             <>
+              {/* Gris pizarra: el amarillo se confundía con el mostaza del pecho,
+                  y el emoji ⚖️ (marrón) quedaba embarrado sobre él. */}
               <ExtraFab
-                label="Peso" color="bg-yellow-600 active:bg-yellow-700 shadow-yellow-600/30"
+                label="Peso" color="bg-slate-600 active:bg-slate-700 shadow-slate-600/30"
                 onClick={() => { setShowExtraFabs(false); setEditingWeight(null); setScreen('nuevo-peso'); }}
               >
-                <span className="text-xl">⚖️</span>
+                <ScaleIcon size={23} />
               </ExtraFab>
               <ExtraFab
                 label="Pañal" color="bg-rose-400 active:bg-rose-500 shadow-rose-400/30"

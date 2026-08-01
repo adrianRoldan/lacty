@@ -20,6 +20,25 @@ export function MedicineIcon({ size = 20, className = '' }: { size?: number; cla
   );
 }
 
+/**
+ * Pesa: registro de peso. El emoji ⚖️ es marrón y multicolor, y sobre el
+ * fondo del botón flotante quedaba embarrado; en SVG hereda el blanco.
+ */
+export function ScaleIcon({ size = 20, className = '' }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"
+      className={className} aria-hidden="true"
+    >
+      {/* Asa */}
+      <path d="M9 8.6V7.2a3 3 0 0 1 6 0v1.4" />
+      {/* Cuerpo */}
+      <path d="M6.4 8.6h11.2l1.3 10.3a1.7 1.7 0 0 1-1.7 1.9H6.8a1.7 1.7 0 0 1-1.7-1.9z" />
+    </svg>
+  );
+}
+
 /** Carrito de bebé: paseos. */
 export function StrollerIcon({ size = 20, className = '' }: { size?: number; className?: string }) {
   return (
