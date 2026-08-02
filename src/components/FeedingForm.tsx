@@ -8,12 +8,11 @@ interface Props {
   onSave: (feeding: Feeding) => void;
   onCancel: () => void;
   existing?: Feeding | null;
-  preset?: 'bottle';
 }
 
 type NumField = number | '';
 
-export default function FeedingForm({ onSave, onCancel, existing, preset }: Props) {
+export default function FeedingForm({ onSave, onCancel, existing }: Props) {
   const [timestamp, setTimestamp] = useState(
     existing
       ? toLocalDatetimeInputValue(new Date(existing.timestamp))
@@ -22,7 +21,7 @@ export default function FeedingForm({ onSave, onCancel, existing, preset }: Prop
   const [hasBreast, setHasBreast] = useState(existing?.hasBreast ?? false);
   const [breastMinLeft, setBreastMinLeft] = useState<NumField>(existing?.breastMinLeft ?? '');
   const [breastMinRight, setBreastMinRight] = useState<NumField>(existing?.breastMinRight ?? '');
-  const [hasBottle, setHasBottle] = useState(existing?.hasBottle ?? (preset === 'bottle'));
+  const [hasBottle, setHasBottle] = useState(existing?.hasBottle ?? false);
   const [bottleMl, setBottleMl] = useState<NumField>(existing?.bottleMl ?? '');
   const [bottleType, setBottleType] = useState<'breast' | 'formula'>(existing?.bottleType ?? 'breast');
   const [hasSupplement, setHasSupplement] = useState(existing?.hasSupplement ?? false);

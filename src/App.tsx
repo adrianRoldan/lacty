@@ -23,6 +23,8 @@ import MyDataView from './components/MyDataView';
 import MedicationForm from './components/MedicationForm';
 import WalkForm from './components/WalkForm';
 import { MedicineIcon, StrollerIcon, ScaleIcon } from './components/CareIcons';
+import { useAmount } from './components/AmountDialog';
+import { getEffectiveReference } from './data/referenceTable';
 import AppSettings from './components/AppSettings';
 import MilestonesView from './components/MilestonesView';
 import VaccinesView from './components/VaccinesView';
@@ -99,7 +101,7 @@ export default function App() {
   const [editingHeadCirc, setEditingHeadCirc] = useState<HeadCircEntry | null>(null);
   const [chartTarget, setChartTarget] = useState<string | null>(null);
   const [showExtraFabs, setShowExtraFabs] = useState(false);
-  const [feedingPreset, setFeedingPreset] = useState<'bottle' | undefined>(undefined);
+  const askAmount = useAmount();
 
   // Abre la pestaña Gráficas y desplaza a la gráfica indicada (peso/talla).
   function openChart(anchor: string) {
@@ -423,6 +425,36 @@ export default function App() {
     toast('Toma de pecho iniciada');
   }
 
+  // Inicia un biberón al instante: sin mililitros y con leche materna, que es
+  // lo habitual. Los ml se piden al finalizarlo, cuando ya se saben.
+  async function handleQuickBottle() {
+    await finalizeInProgress();
+    const feeding: Feeding = {
+      id: generateId(),
+      timestamp: new Date().toISOString(),
+      hasBreast: false,
+      hasBottle: true,
+      bottleType: 'breast',
+      hasSupplement: false,
+    };
+    const created = await api.createFeeding(feeding);
+    setFeedings((prev) => [...prev, created]);
+    toast('Biberón iniciado');
+  }
+
+  // Cantidades sugeridas en el diálogo de fin de biberón, tomadas de la
+  // referencia por edad y peso del propio bebé.
+  function suggestedBottleMl(): number[] {
+    const ref = config ? getEffectiveReference(getCurrentDaysOfLife(config), currentWeightKg) : null;
+    if (!ref) return [30, 60, 90, 120];
+    const r5 = (n: number) => Math.max(5, Math.round(n / 5) * 5);
+    return [...new Set([
+      r5(ref.mlPerFeedMin),
+      r5((ref.mlPerFeedMin + ref.mlPerFeedMax) / 2),
+      r5(ref.mlPerFeedMax),
+    ])];
+  }
+
   // Finaliza una toma de pecho en curso. Asigna los minutos al pecho contrario
   // al de la última toma completada (alternancia automática).
   async function handleStopFeeding(feeding: Feeding) {
@@ -449,10 +481,22 @@ export default function App() {
       });
       setFeedings((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
       toast(`Pecho ${lastWasLeft ? 'derecho' : 'izquierdo'} · ${elapsed} min`);
+    } else if (bottleIP) {
+      const ml = await askAmount({
+        title: '¿Cuántos ml ha tomado?',
+        hint: 'Después puedes ajustarlo editando la toma',
+        unit: 'ml',
+        quick: suggestedBottleMl(),
+        confirmLabel: 'Finalizar',
+      });
+      if (ml == null) return; // cancelado: el biberón sigue en curso
+      const updated = await api.updateFeeding({ ...feeding, endTime, bottleMl: ml });
+      setFeedings((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
+      toast(`Biberón · ${ml} ml`);
     } else {
       const updated = await api.updateFeeding({ ...feeding, endTime });
       setFeedings((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
-      toast(bottleIP ? 'Biberón finalizado' : 'Jeringa-dedo finalizada');
+      toast('Jeringa-dedo finalizada');
     }
   }
 
@@ -872,9 +916,8 @@ export default function App() {
         {(screen === 'nueva-toma' || screen === 'editar-toma') && (
           <FeedingForm
             existing={editingFeeding}
-            preset={feedingPreset}
-            onSave={(f) => { setFeedingPreset(undefined); handleSaveFeeding(f); }}
-            onCancel={() => { setFeedingPreset(undefined); setEditingFeeding(null); setScreen(activeTab); }}
+            onSave={handleSaveFeeding}
+            onCancel={() => { setEditingFeeding(null); setScreen(activeTab); }}
           />
         )}
 
@@ -1224,7 +1267,7 @@ export default function App() {
               </ExtraFab>
               <ExtraFab
                 label="Biberón" color="bg-sky-500 active:bg-sky-600 shadow-sky-500/30"
-                onClick={() => { setShowExtraFabs(false); setFeedingPreset('bottle'); setEditingFeeding(null); setScreen('nueva-toma'); }}
+                onClick={() => { setShowExtraFabs(false); handleQuickBottle(); }}
               >
                 <span className="text-xl">🍼</span>
               </ExtraFab>

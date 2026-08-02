@@ -133,7 +133,7 @@ export default function FeedingItem({ feeding, onEdit, onDelete, onStop, listDay
           {/* In-progress hint */}
           {isInProgress && (
             <p className="text-xs text-gray-400 mt-0.5">
-              Toca para finalizar y añadir los minutos
+              Toca para finalizar y añadir {breastInProgress ? 'los minutos' : 'los ml'}
             </p>
           )}
 
