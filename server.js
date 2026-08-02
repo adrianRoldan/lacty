@@ -12,6 +12,7 @@ import { dirname, join } from 'path';
 import webpush from 'web-push';
 import sanitizeHtml from 'sanitize-html';
 import { renderArticulo, renderIndice, renderSitemap, render404 } from './lib/guias-render.mjs';
+import { renderReferencias } from './lib/referencias-render.mjs';
 import { ARTICULOS_INICIALES } from './lib/guias-seed.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -345,6 +346,13 @@ const SELECT_PUBLICADOS = `
 
 // Express no distingue /guias de /guias/ (strict routing está desactivado),
 // así que una sola ruta cubre ambas.
+// Los rangos orientativos que usa la app, servidos desde los mismos datos
+// (lib/reference-data.mjs) para que no haya dos versiones de la tabla.
+app.get('/referencias', (_req, res) => {
+  res.type('html').send(renderReferencias());
+});
+app.get('/referencias.html', (_req, res) => res.redirect(301, '/referencias'));
+
 app.get('/guias/', (_req, res) => {
   const articulos = db.prepare(SELECT_PUBLICADOS).all();
   res.type('html').send(renderIndice(articulos));

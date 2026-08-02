@@ -1,8 +1,16 @@
-// Tabla de referencia orientativa de alimentación por días de vida.
-// Valores basados en guías pediátricas habituales (OMS/UNICEF y protocolos de suplementación).
-// IMPORTANTE: Son valores orientativos. No constituyen diagnóstico médico.
-// Edita este archivo para ajustar los rangos si tu pediatra, matrona o asesora de lactancia
-// te indica valores distintos.
+// Referencia orientativa de alimentación y sueño.
+//
+// Los DATOS viven en lib/reference-data.mjs, que comparten la app y la página
+// pública lacty.es/referencias. Aquí solo se añaden los tipos y los cálculos,
+// para que un cambio de rangos no haya que hacerlo en dos sitios.
+//
+// IMPORTANTE: son valores orientativos. No constituyen diagnóstico médico.
+
+import {
+  FEEDING_REFERENCE as DATOS_ALIMENTACION,
+  SLEEP_REFERENCE_FALLBACK as DATOS_SUENO_FUERA_DE_TABLA,
+  WEIGHT_FORMULA,
+} from '../../lib/reference-data.mjs';
 
 export interface FeedingReference {
   dayFrom: number;
@@ -29,23 +37,10 @@ export interface FeedingReference {
   awakeWindowMaxMin?: number;
 }
 
-export const FEEDING_REFERENCE: FeedingReference[] = [
-  { dayFrom: 1,  dayTo: 1,  mlPerFeedMin: 5,   mlPerFeedMax: 10,  feedsPerDayMin: 8, feedsPerDayMax: 12, sleepHoursMin: 14, sleepHoursMax: 18, awakeWindowMaxMin: 60 },
-  { dayFrom: 2,  dayTo: 2,  mlPerFeedMin: 10,  mlPerFeedMax: 20,  feedsPerDayMin: 8, feedsPerDayMax: 12, sleepHoursMin: 14, sleepHoursMax: 18, awakeWindowMaxMin: 60 },
-  { dayFrom: 3,  dayTo: 3,  mlPerFeedMin: 20,  mlPerFeedMax: 30,  feedsPerDayMin: 8, feedsPerDayMax: 12, sleepHoursMin: 14, sleepHoursMax: 18, awakeWindowMaxMin: 60 },
-  { dayFrom: 4,  dayTo: 7,  mlPerFeedMin: 30,  mlPerFeedMax: 60,  feedsPerDayMin: 8, feedsPerDayMax: 12, sleepHoursMin: 14, sleepHoursMax: 18, awakeWindowMaxMin: 60 },
-  { dayFrom: 8,  dayTo: 14, mlPerFeedMin: 60,  mlPerFeedMax: 90,  feedsPerDayMin: 8, feedsPerDayMax: 12, breastDailyMlMin: 502, breastDailyMlMax: 725, sleepHoursMin: 14, sleepHoursMax: 18, awakeWindowMaxMin: 60 },
-  { dayFrom: 15, dayTo: 28, mlPerFeedMin: 80,  mlPerFeedMax: 120, feedsPerDayMin: 8, feedsPerDayMax: 10, breastDailyMlMin: 502, breastDailyMlMax: 725, sleepHoursMin: 14, sleepHoursMax: 18, awakeWindowMaxMin: 60 },
-  { dayFrom: 29, dayTo: 60, mlPerFeedMin: 100, mlPerFeedMax: 150, feedsPerDayMin: 7, feedsPerDayMax: 9,  breastDailyMlMin: 600, breastDailyMlMax: 900, sleepHoursMin: 14, sleepHoursMax: 17, awakeWindowMaxMin: 90 },
-  { dayFrom: 61, dayTo: 90, mlPerFeedMin: 120, mlPerFeedMax: 180, feedsPerDayMin: 6, feedsPerDayMax: 8,  breastDailyMlMin: 600, breastDailyMlMax: 900, sleepHoursMin: 13, sleepHoursMax: 16, awakeWindowMaxMin: 120 },
-];
+export const FEEDING_REFERENCE: FeedingReference[] = DATOS_ALIMENTACION;
 
 // Referencia de sueño para edades fuera de la tabla (>3 meses): orientativa.
-export const SLEEP_REFERENCE_FALLBACK = {
-  sleepHoursMin: 12,
-  sleepHoursMax: 15,
-  awakeWindowMaxMin: 180,
-};
+export const SLEEP_REFERENCE_FALLBACK = DATOS_SUENO_FUERA_DE_TABLA;
 
 export interface SleepReference {
   sleepHoursMin: number;
@@ -110,9 +105,9 @@ export function getEffectiveReference(
   const feedsMin = dayRef?.feedsPerDayMin ?? 6;
   const feedsMax = dayRef?.feedsPerDayMax ?? 9;
 
-  // Standard formula: 150–180 ml/kg/day for term infants
-  const dailyMlMin = Math.round(weightKg * 150);
-  const dailyMlMax = Math.round(weightKg * 180);
+  // Fórmula estándar para lactantes a término (ver lib/reference-data.mjs)
+  const dailyMlMin = Math.round(weightKg * WEIGHT_FORMULA.mlPerKgMin);
+  const dailyMlMax = Math.round(weightKg * WEIGHT_FORMULA.mlPerKgMax);
 
   // Per-feed range: min ml = daily_min / most_feeds; max ml = daily_max / fewest_feeds
   const mlPerFeedMin = Math.round(dailyMlMin / feedsMax);
