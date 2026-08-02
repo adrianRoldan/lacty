@@ -5,7 +5,6 @@ import {
   getTodayFeedings,
   getTotalSupplementMl,
   getTotalBottleMl,
-  getTotalBreastMinutes,
   getTotalEstimatedBreastMl,
   getTodayRestMinutes,
   getAwakeMinutes,
@@ -108,7 +107,6 @@ export default function DailySummary({
   const todayRests = rests.filter((r) => isSameDay(r.startTime, today) || r.endTime == null);
   const totalMl = getTotalSupplementMl(todayFeedings);
   const totalBottleMl = getTotalBottleMl(todayFeedings);
-  const totalBreastMin = getTotalBreastMinutes(todayFeedings);
   const totalEstimatedBreastMl = getTotalEstimatedBreastMl(todayFeedings);
   const totalRestMin = getTodayRestMinutes(rests);
   const hasBreastWithMinutes = todayFeedings.some(
@@ -230,8 +228,6 @@ export default function DailySummary({
   const isAwakeAlert = awakeMin !== null && awakeMin >= sleepRef.awakeWindowMaxMin;
   const isAwakeSevere = awakeMin !== null && awakeMin >= sleepRef.awakeWindowMaxMin * 2;
 
-  const grandTotalMl = totalMl + totalBottleMl + totalEstimatedBreastMl;
-
   return (
     <div className="p-4 pb-24">
       {/* ── 1. Header ──────────────────────────────────────────────────── */}
@@ -265,10 +261,8 @@ export default function DailySummary({
 
       {/* ── 2. Barra de estado compacta ────────────────────────────────── */}
       <div className="bg-white rounded-2xl shadow-sm mb-3 overflow-hidden">
-        <div className={`grid divide-x divide-gray-100 ${todayDiapers.length > 0 ? 'grid-cols-5' : 'grid-cols-4'}`}>
+        <div className={`grid divide-x divide-gray-100 ${todayDiapers.length > 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
           <MiniStat value={String(todayFeedings.length)} label="tomas" />
-          <MiniStat value={totalEstimatedBreastMl > 0 ? `~${grandTotalMl}` : `${totalMl + totalBottleMl}`} label="ml" />
-          <MiniStat value={formatMinutes(totalBreastMin)} label="pecho" color="text-pink-600" />
           <MiniStat value={formatMinutes(totalRestMin)} label="sueño" color="text-taupe-600" />
           {todayDiapers.length > 0 && (
             <MiniStat value={`${wetCount}·${dirtyCount}`} label="💧·💩" color="text-sky-600" />
