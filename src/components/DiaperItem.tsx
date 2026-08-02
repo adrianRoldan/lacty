@@ -19,11 +19,18 @@ interface Props {
   readOnly?: boolean;
 }
 
+const CONTENT_ICON: Record<string, string> = {
+  wet:   '💧',
+  dirty: '💩',
+  both:  '💧💩',
+  dry:   '✅',
+};
+
 const CONTENT_LABEL: Record<string, string> = {
-  wet:   '💧 Pipí',
-  dirty: '💩 Caca',
-  both:  '💧💩 Pipí + caca',
-  dry:   '✅ Limpio',
+  wet:   'Pipí',
+  dirty: 'Caca',
+  both:  'Pipí + caca',
+  dry:   'Limpio',
 };
 
 const COLOR_LABEL: Record<string, string> = {
@@ -71,7 +78,8 @@ export default function DiaperItem({ diaper, onEdit, onDelete, readOnly }: Props
         <div className="flex-1 min-w-0">
           <div className="flex items-center flex-wrap gap-1.5">
             <span className="text-sm font-bold text-gray-900">
-              {CONTENT_LABEL[diaper.content]} · {formatTime(diaper.timestamp)}
+              {CONTENT_ICON[diaper.content]} {formatTime(diaper.timestamp)}
+              <span className="text-gray-500"> · {CONTENT_LABEL[diaper.content]}</span>
             </span>
             {isAlarm && (
               <span className="bg-red-100 text-red-600 text-xs font-bold px-1.5 py-0.5 rounded-full">⚠</span>
