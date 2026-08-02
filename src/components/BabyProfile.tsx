@@ -29,6 +29,7 @@ interface Props {
   onOpenMilestones: () => void;
   onOpenVaccines: () => void;
   onOpenPediatraSummary: () => void;
+  onOpenExport: () => void;
   readOnly?: boolean;
   onUpdateConfig: (partial: Partial<Omit<BabyConfig, 'id'>>) => Promise<void>;
 }
@@ -37,7 +38,7 @@ export default function BabyProfile({
   config, weights, heights, headCircs, vitaminDLogs, probioticLogs, massageLogs,
   onOpenFamily, onOpenReference, onNewWeight, onEditWeight, onDeleteWeight,
   onNewHeight, onEditHeight, onDeleteHeight, onNewHeadCirc, onEditHeadCirc, onDeleteHeadCirc,
-  onOpenWeightChart, onOpenHeightChart, onOpenHeadCircChart, onOpenMilestones, onOpenVaccines, onOpenPediatraSummary, onUpdateConfig, readOnly,
+  onOpenWeightChart, onOpenHeightChart, onOpenHeadCircChart, onOpenMilestones, onOpenVaccines, onOpenPediatraSummary, onOpenExport, onUpdateConfig, readOnly,
 }: Props) {
   const confirm = useConfirm();
   const daysOfLife = getCurrentDaysOfLife(config);
@@ -229,6 +230,21 @@ export default function BabyProfile({
             <span className="block text-sm font-medium text-gray-900">Resumen para el pediatra</span>
             <span className="block text-xs text-gray-500 mt-0.5">
               Últimos 14 días: tomas, peso, sueño y hitos. Listo para imprimir.
+            </span>
+          </span>
+        </span>
+        <span className="text-gray-300 shrink-0 self-center">›</span>
+      </button>
+      <button
+        onClick={onOpenExport}
+        className="w-full flex items-center justify-between bg-white rounded-2xl shadow-sm px-4 py-3 mb-6 active:bg-gray-50 touch-manipulation text-left"
+      >
+        <span className="flex items-start gap-3 min-w-0">
+          <span className="text-xl shrink-0">📤</span>
+          <span className="min-w-0">
+            <span className="block text-sm font-medium text-gray-900">Exportar registros</span>
+            <span className="block text-xs text-gray-500 mt-0.5">
+              El día a día entre dos fechas, para compartir con un profesional o analizarlo con una IA.
             </span>
           </span>
         </span>

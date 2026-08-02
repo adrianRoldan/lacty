@@ -21,6 +21,7 @@ import ConsultationsView from './components/ConsultationsView';
 import FamilyView from './components/FamilyView';
 import MyDataView from './components/MyDataView';
 import WelcomeScreen from './components/WelcomeScreen';
+import ExportView from './components/ExportView';
 import MedicationForm from './components/MedicationForm';
 import WalkForm from './components/WalkForm';
 import { MedicineIcon, StrollerIcon, ScaleIcon } from './components/CareIcons';
@@ -54,6 +55,7 @@ type Screen =
   | 'ajustes'
   | 'mis-datos'
   | 'resumen-pediatra'
+  | 'exportar'
   | 'nuevo-pañal'
   | 'editar-pañal'
   | 'nuevo-medicamento'
@@ -825,6 +827,7 @@ export default function App() {
     'nuevo-medicamento', 'editar-medicamento',
     'nuevo-paseo', 'editar-paseo',
     'resumen-pediatra',
+    'exportar',
     'admin',
   ].includes(screen);
 
@@ -1172,6 +1175,7 @@ export default function App() {
             onOpenMilestones={() => navigate('hitos')}
             onOpenVaccines={() => navigate('vacunas')}
             onOpenPediatraSummary={() => setScreen('resumen-pediatra')}
+            onOpenExport={() => setScreen('exportar')}
             onUpdateConfig={handleUpdateConfig}
             readOnly={isViewer}
           />
@@ -1196,6 +1200,16 @@ export default function App() {
 
         {screen === 'mis-datos' && (
           <MyDataView onBack={() => setScreen(activeTab)} onUpdateUsername={setCurrentUser} />
+        )}
+
+        {screen === 'exportar' && config && (
+          <ExportView
+            datos={{
+              config, feedings, rests, diapers, walks, medications,
+              vitaminDLogs, probioticLogs, massageLogs, weights,
+            }}
+            onBack={() => setScreen(activeTab)}
+          />
         )}
 
         {screen === 'resumen-pediatra' && config && (
