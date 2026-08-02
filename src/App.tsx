@@ -25,6 +25,7 @@ import WalkForm from './components/WalkForm';
 import { MedicineIcon, StrollerIcon, ScaleIcon } from './components/CareIcons';
 import { useAmount } from './components/AmountDialog';
 import { getEffectiveReference } from './data/referenceTable';
+import { massagesPerDay, frenectomyEndDate } from './utils/careUtils';
 import AppSettings from './components/AppSettings';
 import MilestonesView from './components/MilestonesView';
 import VaccinesView from './components/VaccinesView';
@@ -309,12 +310,15 @@ export default function App() {
 
   // ── First setup / onboarding incompleto ──────────────────────────────────────
 
-  const needsOnboarding = !isAdmin && (!config || !config.birthDate || !config.sex);
+  // Sin peso la referencia de ml/día no se ajusta al bebé, así que también
+  // cuenta como alta incompleta (p. ej. bebés creados desde el panel de admin).
+  const needsOnboarding = !isAdmin && (!config || !config.birthDate || !config.sex || weights.length === 0);
 
   if (needsOnboarding) {
     return (
       <BabyConfigScreen
         existing={config}
+        initialWeight={currentWeightKg}
         username={currentUser}
         onLogout={() => { api.logout(); setCurrentUser(null); }}
         onSave={async (c) => {
@@ -1059,6 +1063,8 @@ export default function App() {
             massageLogs={massageLogs}
             frenectomyEnabled={config.frenectomyEnabled ?? false}
             frenectomyDate={config.frenectomyDate}
+            frenectomyEnd={frenectomyEndDate(config) ?? undefined}
+            massagesTarget={massagesPerDay(config)}
             readOnly={isViewer}
 
             onEditFeeding={(f) => { setEditingFeeding(f); setScreen('editar-toma'); }}

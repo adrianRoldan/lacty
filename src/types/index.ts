@@ -8,6 +8,7 @@ export interface BabyConfig {
   vitaminDEnabled?: boolean;
   vitaminDReminderHour?: number;
   vitaminDMedName?: string;     // nombre del medicamento (ej. Deltius)
+  vitaminDEndDate?: string;     // YYYY-MM-DD — hasta cuándo se administra (por defecto, el primer año)
   probioticEnabled?: boolean;
   probioticReminderHour?: number;
   probioticMedName?: string;    // nombre del medicamento (ej. Reuteri)
@@ -15,6 +16,8 @@ export interface BabyConfig {
   frenectomyDate?: string;      // YYYY-MM-DD — fecha de la intervención
   frenectomyStartTime?: string; // "HH:MM" — primera toma del día
   frenectomyEndTime?: string;   // "HH:MM" — última toma del día
+  frenectomyMassagesPerDay?: number; // por defecto 5
+  frenectomyEndDate?: string;   // YYYY-MM-DD — último día de masajes (por defecto, 21 días)
 }
 
 export interface ProbioticLog {

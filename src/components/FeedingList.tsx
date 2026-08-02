@@ -28,6 +28,8 @@ interface Props {
   massageLogs: MassageLog[];
   frenectomyEnabled: boolean;
   frenectomyDate?: string;
+  frenectomyEnd?: string;   // último día de masajes, ya resuelto
+  massagesTarget: number;   // masajes al día configurados
   readOnly?: boolean;
   onEditFeeding: (f: Feeding) => void;
   onEditRest:    (r: Rest) => void;
@@ -74,7 +76,7 @@ function monthLabel(key: string): string {
 export default function FeedingList({
   feedings, rests, vitaminDLogs, vitaminDEnabled,
   probioticLogs, probioticEnabled,
-  massageLogs, frenectomyEnabled, frenectomyDate,
+  massageLogs, frenectomyEnabled, frenectomyDate, frenectomyEnd, massagesTarget,
   readOnly,
   onEditFeeding, onEditRest,
   onDeleteFeeding, onDeleteRest,
@@ -86,12 +88,9 @@ export default function FeedingList({
   const probioticDates = new Set(probioticLogs.map((l) => l.date));
 
   // Rango de días de frenectomía para mostrar masajes en historial
-  const frenectomyStart = frenectomyDate ? new Date(frenectomyDate + 'T12:00:00') : null;
-  const frenectomyEnd   = frenectomyStart ? new Date(frenectomyStart.getTime() + 21 * 86400000) : null;
   function isInFrenectomyPeriod(day: string): boolean {
-    if (!frenectomyEnabled || !frenectomyStart || !frenectomyEnd) return false;
-    const d = new Date(day + 'T12:00:00');
-    return d >= frenectomyStart && d <= frenectomyEnd;
+    if (!frenectomyEnabled || !frenectomyDate || !frenectomyEnd) return false;
+    return day >= frenectomyDate && day <= frenectomyEnd;
   }
   const [filterType, setFilterType]   = useState<FilterType>('all');
   const [filterPeriod, setFilterPeriod] = useState<FilterPeriod>('all');
@@ -355,8 +354,8 @@ export default function FeedingList({
                               {isInFrenectomyPeriod(day) && (() => {
                                 const count = massageLogs.filter((m) => m.date === day).length;
                                 return count > 0
-                                  ? <span className="text-blue-500 font-medium">· 👅 {count}/5</span>
-                                  : <span className="text-red-400 font-medium">· 👅 0/5</span>;
+                                  ? <span className="text-blue-500 font-medium">· 👅 {count}/{massagesTarget}</span>
+                                  : <span className="text-red-400 font-medium">· 👅 0/{massagesTarget}</span>;
                               })()}
                             </div>
                             <div>

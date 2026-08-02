@@ -1253,11 +1253,24 @@ function getDaysOfLife(baby) {
 }
 
 // Espeja getRecommendedTimes de DailySummary.tsx — devuelve minutos desde medianoche.
-function getRecommendedMassageTimes(startTime, endTime) {
+const MASAJES_POR_DIA_POR_DEFECTO = 5;
+const DIAS_DE_MASAJES_POR_DEFECTO = 21;
+
+function getRecommendedMassageTimes(startTime, endTime, count) {
   const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
   const start = toMin(startTime);
-  const interval = (toMin(endTime) - start) / 4;
-  return Array.from({ length: 5 }, (_, i) => Math.round(start + interval * i));
+  if (count <= 1) return [start];
+  const interval = (toMin(endTime) - start) / (count - 1);
+  return Array.from({ length: count }, (_, i) => Math.round(start + interval * i));
+}
+
+// Último día de masajes: el configurado o, si no, 21 días tras la intervención.
+function frenectomyEndDate(baby) {
+  if (baby.frenectomyEndDate) return baby.frenectomyEndDate;
+  if (!baby.frenectomyDate) return null;
+  const d = new Date(baby.frenectomyDate + 'T12:00:00');
+  d.setDate(d.getDate() + DIAS_DE_MASAJES_POR_DEFECTO);
+  return d.toISOString().slice(0, 10);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1342,25 +1355,29 @@ function checkNotifications() {
 
       // Masajes frenectomía
       if (baby.frenectomyEnabled && baby.frenectomyDate) {
-        const frenEnd = new Date(baby.frenectomyDate + 'T12:00:00');
-        frenEnd.setDate(frenEnd.getDate() + 21);
-        if (now < frenEnd.getTime()) {
-          const today    = new Date().toISOString().slice(0, 10);
-          const slots    = getRecommendedMassageTimes(baby.frenectomyStartTime ?? '08:30', baby.frenectomyEndTime ?? '22:30');
+        const today   = new Date().toISOString().slice(0, 10);
+        const frenEnd = frenectomyEndDate(baby);
+        if (frenEnd && today <= frenEnd) {
+          const objetivo = baby.frenectomyMassagesPerDay > 0
+            ? baby.frenectomyMassagesPerDay
+            : MASAJES_POR_DIA_POR_DEFECTO;
+          const slots    = getRecommendedMassageTimes(baby.frenectomyStartTime ?? '08:30', baby.frenectomyEndTime ?? '22:30', objetivo);
           const nowMin   = new Date().getHours() * 60 + new Date().getMinutes();
           const thresholdMins = prefs?.massage_threshold_mins ?? 15;
           const doneCount = db.prepare(
             `SELECT COUNT(*) AS n FROM massages WHERE baby_id = ? AND json_extract(data, '$.date') = ?`
           ).get(babyId, today).n;
 
-          if (doneCount < 5) {
+          if (doneCount < objetivo) {
             let overdueSlot = -1;
-            for (let i = doneCount; i < 5; i++) {
+            for (let i = doneCount; i < objetivo; i++) {
               if (nowMin >= slots[i] + thresholdMins) overdueSlot = i;
               else break;
             }
             if (overdueSlot >= 0) {
-              const slotIntervalMins = (slots[4] - slots[0]) / 4;
+              const slotIntervalMins = objetivo > 1
+                ? (slots[objetivo - 1] - slots[0]) / (objetivo - 1)
+                : 240;
               const lastNotif      = prefs?.last_massage_notif_at;
               const lastNotifDate  = lastNotif ? new Date(lastNotif).toISOString().slice(0, 10) : '';
               const lastNotifMin   = lastNotif ? new Date(lastNotif).getHours() * 60 + new Date(lastNotif).getMinutes() : -9999;
@@ -1371,7 +1388,7 @@ function checkNotifications() {
                 const slotStr = `${String(Math.floor(slotMin / 60)).padStart(2, '0')}:${String(slotMin % 60).padStart(2, '0')}`;
                 sendPushToAccount(account_id, {
                   title: `${name} necesita el masaje`,
-                  body: `Masaje ${overdueSlot + 1} de 5 — previsto a las ${slotStr}`,
+                  body: `Masaje ${overdueSlot + 1} de ${objetivo} — previsto a las ${slotStr}`,
                   tag: `massage-${babyId}`,
                 });
                 db.prepare(`UPDATE notification_prefs SET last_massage_notif_at = ? WHERE account_id = ? AND baby_id = ?`)

@@ -23,9 +23,11 @@ export function getCurrentDaysOfLife(config: BabyConfig): number {
 // o calculándola desde el método legacy (setupDate - díasAlConfigurar).
 export function getBirthDate(config: BabyConfig): string {
   if (config.birthDate) return config.birthDate;
-  const setup = new Date(config.setupDate + 'T00:00:00');
+  // Mediodía y fecha local: con medianoche, toISOString devolvía el día
+  // anterior en cualquier zona al este de UTC (en España, siempre).
+  const setup = new Date(config.setupDate + 'T12:00:00');
   setup.setDate(setup.getDate() - (config.daysOfLifeAtSetup - 1));
-  return setup.toISOString().slice(0, 10);
+  return localDateString(setup.toISOString());
 }
 
 export function toLocalDatetimeInputValue(date: Date): string {

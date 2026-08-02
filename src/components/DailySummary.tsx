@@ -12,6 +12,7 @@ import {
   buildTimeline,
 } from '../utils/feedingUtils';
 import { getEffectiveReference, getSleepReference } from '../data/referenceTable';
+import { massagesPerDay, frenectomyEndDate, getRecommendedMassageTimes } from '../utils/careUtils';
 import FeedingItem from './FeedingItem';
 import RestItem from './RestItem';
 import DiaperItem from './DiaperItem';
@@ -63,15 +64,6 @@ function prevFeedingTimestamp(timeline: ReturnType<typeof buildTimeline>, index:
     if (timeline[i].type === 'feeding') return (timeline[i].data as import('../types').Feeding).timestamp;
   }
   return null;
-}
-
-function getRecommendedTimes(startTime: string, endTime: string): string[] {
-  const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
-  const toStr = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
-  const start = toMin(startTime);
-  const end = toMin(endTime);
-  const interval = (end - start) / 4;
-  return Array.from({ length: 5 }, (_, i) => toStr(Math.round(start + interval * i)));
 }
 
 interface CareChip {
@@ -162,18 +154,18 @@ export default function DailySummary({
     }
 
     if (config.frenectomyEnabled && config.frenectomyDate) {
-      const end = new Date(config.frenectomyDate + 'T12:00:00');
-      end.setDate(end.getDate() + 21);
-      if (end.getTime() > Date.now()) {
+      const fin = frenectomyEndDate(config);
+      if (fin != null && today <= fin) {
+        const objetivo = massagesPerDay(config);
         const todayMassages = massageLogs
           .filter((m) => m.date === today)
           .sort((a, b) => a.performedAt.localeCompare(b.performedAt));
         const count = todayMassages.length;
-        const done = count >= 5;
+        const done = count >= objetivo;
         const startT = config.frenectomyStartTime ?? '08:30';
         const endT = config.frenectomyEndTime ?? '22:30';
-        const recommended = getRecommendedTimes(startT, endT);
-        const nextPending = count < 5 ? count : 4;
+        const recommended = getRecommendedMassageTimes(startT, endT, objetivo);
+        const nextPending = Math.min(count, objetivo - 1);
         const urgent = !done && nowMin >= toMin(recommended[nextPending]);
         const lastMassage = todayMassages[todayMassages.length - 1];
         chips.push({
@@ -182,7 +174,7 @@ export default function DailySummary({
           label: 'Masajes',
           done,
           urgent,
-          count: { current: count, total: 5 },
+          count: { current: count, total: objetivo },
           onAdd: () => onAddMassage(today),
           onUndo: count > 0 ? () => onRemoveMassage(lastMassage.id) : undefined,
         });

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { BabyConfig, WeightEntry, HeightEntry, VitaminDLog, ProbioticLog, MassageLog } from '../types';
 import { getCurrentDaysOfLife, getBirthDate, todayIso } from '../utils/dateUtils';
+import { massagesPerDay, frenectomyEndDate, vitaminDEndDate, getRecommendedMassageTimes, DIAS_DE_MASAJES_POR_DEFECTO } from '../utils/careUtils';
 import { useConfirm } from './ConfirmDialog';
 
 interface Props {
@@ -529,6 +530,18 @@ export default function BabyProfile({
                 ))}
               </select>
             </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-700">Hasta</p>
+                <p className="text-xs text-gray-400">Por defecto, hasta el año de vida</p>
+              </div>
+              <input
+                type="date"
+                value={vitaminDEndDate(config) ?? ''}
+                onChange={(e) => onUpdateConfig({ vitaminDEndDate: e.target.value || undefined })}
+                className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-sage-400"
+              />
+            </div>
           </div>
         )}
       </div>
@@ -599,7 +612,13 @@ export default function BabyProfile({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-gray-900">Masajes post-frenectomía</p>
-            <p className="text-xs text-gray-500 mt-0.5">5 masajes/día durante 21 días</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {massagesPerDay(config)} masajes/día
+              {config.frenectomyDate && (() => {
+                const fin = frenectomyEndDate(config);
+                return fin ? ` hasta el ${new Date(fin + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}` : '';
+              })()}
+            </p>
           </div>
           <Toggle
             enabled={config.frenectomyEnabled ?? false}
@@ -636,11 +655,41 @@ export default function BabyProfile({
                 className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-sage-400"
               />
             </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-700">Masajes al día</p>
+                <p className="text-xs text-gray-400">El protocolo habitual son 5</p>
+              </div>
+              <input
+                type="number"
+                min={1}
+                max={12}
+                value={massagesPerDay(config)}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (n >= 1 && n <= 12) onUpdateConfig({ frenectomyMassagesPerDay: n });
+                }}
+                className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 text-gray-800 text-center w-20 focus:outline-none focus:ring-2 focus:ring-sage-400"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-700">Fin de los masajes</p>
+                <p className="text-xs text-gray-400">Por defecto, 21 días tras la intervención</p>
+              </div>
+              <input
+                type="date"
+                value={frenectomyEndDate(config) ?? ''}
+                min={config.frenectomyDate}
+                onChange={(e) => onUpdateConfig({ frenectomyEndDate: e.target.value || undefined })}
+                className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-sage-400"
+              />
+            </div>
             {/* Horas recomendadas */}
             <div className="bg-blue-50 rounded-xl p-3">
               <p className="text-xs text-blue-700 font-medium mb-2">Horas recomendadas (calculadas)</p>
               <div className="flex justify-between">
-                {getRecommendedTimes(config.frenectomyStartTime ?? '08:30', config.frenectomyEndTime ?? '22:30').map((t, i) => (
+                {getRecommendedMassageTimes(config.frenectomyStartTime ?? '08:30', config.frenectomyEndTime ?? '22:30', massagesPerDay(config)).map((t, i) => (
                   <div key={i} className="text-center">
                     <p className="text-xs font-bold text-blue-800">{t}</p>
                     <p className="text-xs text-blue-500">#{i + 1}</p>
@@ -649,7 +698,7 @@ export default function BabyProfile({
               </div>
             </div>
             {config.frenectomyDate && (
-              <FrenectomyCountdown date={config.frenectomyDate} massageLogs={massageLogs} />
+              <FrenectomyCountdown config={config} massageLogs={massageLogs} />
             )}
           </div>
         )}
@@ -768,22 +817,18 @@ function ProbioticHistory({ logs }: { logs: ProbioticLog[] }) {
   );
 }
 
-function getRecommendedTimes(startTime: string, endTime: string): string[] {
-  const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
-  const toStr = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
-  const start = toMin(startTime);
-  const end = toMin(endTime);
-  const interval = (end - start) / 4;
-  return Array.from({ length: 5 }, (_, i) => toStr(Math.round(start + interval * i)));
-}
-
-function FrenectomyCountdown({ date, massageLogs }: { date: string; massageLogs: MassageLog[] }) {
-  const intervention = new Date(date + 'T12:00:00');
-  const end = new Date(intervention);
-  end.setDate(end.getDate() + 21);
-  const today = new Date();
-  const daysLeft = Math.ceil((end.getTime() - today.getTime()) / 86400000);
-  const completed = daysLeft <= 0;
+function FrenectomyCountdown({ config, massageLogs }: { config: BabyConfig; massageLogs: MassageLog[] }) {
+  const objetivo = massagesPerDay(config);
+  const fin = frenectomyEndDate(config);
+  const totalDias = fin && config.frenectomyDate
+    ? Math.round((new Date(fin + 'T12:00:00').getTime() - new Date(config.frenectomyDate + 'T12:00:00').getTime()) / 86400000)
+    : DIAS_DE_MASAJES_POR_DEFECTO;
+  // Se comparan fechas, no marcas de tiempo: con Date.now() el redondeo daba
+  // un día de más ("22 / 21" el primer día).
+  const daysLeft = fin
+    ? Math.round((new Date(fin + 'T12:00:00').getTime() - new Date(todayIso() + 'T12:00:00').getTime()) / 86400000)
+    : 0;
+  const completed = daysLeft < 0;
 
   // Last 7 days of the treatment for progress display
   const days = Array.from({ length: 7 }, (_, i) => {
@@ -806,7 +851,7 @@ function FrenectomyCountdown({ date, massageLogs }: { date: string; massageLogs:
     <div className="space-y-3">
       <div className="flex items-center justify-between bg-blue-50 rounded-xl px-3 py-2">
         <span className="text-xs text-blue-700">Días restantes de masajes</span>
-        <span className="text-sm font-bold text-blue-800">{daysLeft} / 21</span>
+        <span className="text-sm font-bold text-blue-800">{daysLeft} / {totalDias}</span>
       </div>
       <div>
         <p className="text-xs text-gray-400 mb-2">Últimos 7 días</p>
@@ -816,10 +861,10 @@ function FrenectomyCountdown({ date, massageLogs }: { date: string; massageLogs:
               key={iso}
               className={`aspect-square rounded-lg flex flex-col items-center justify-center gap-0.5
                 ${isToday ? 'ring-2 ring-blue-400' : ''}
-                ${count >= 5 ? 'bg-blue-100' : count > 0 ? 'bg-blue-50' : 'bg-gray-100'}`}
+                ${count >= objetivo ? 'bg-blue-100' : count > 0 ? 'bg-blue-50' : 'bg-gray-100'}`}
             >
               <span className={`text-xs font-semibold leading-none ${count > 0 ? 'text-blue-700' : 'text-gray-400'}`}>{day}</span>
-              <span className="text-xs leading-none">{count > 0 ? `${count}/5` : '·'}</span>
+              <span className="text-xs leading-none">{count > 0 ? `${count}/${objetivo}` : '·'}</span>
             </div>
           ))}
         </div>
