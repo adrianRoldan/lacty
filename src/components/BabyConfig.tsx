@@ -220,8 +220,9 @@ export default function BabyConfigScreen({ onSave, onLogout, username, existing,
         {/* ── Paso 2: cuidados diarios ──────────────────────────────────── */}
         {paso === 'cuidados' && (
           <div className="space-y-4">
-            <p className="text-xs text-gray-400 text-center -mt-2">
-              Puedes activarlos ahora o más adelante desde «Mi bebé».
+            <p className="text-xs text-gray-400 text-center -mt-2 leading-relaxed">
+              Puedes activarlos ahora o más adelante desde la página «{name.trim() || 'Mi bebé'}»,
+              si tu pediatra te ha pautado alguno de estos suplementos.
             </p>
 
             <Cuidado
