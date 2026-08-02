@@ -1414,10 +1414,23 @@ setInterval(checkNotifications, 60 * 1000);
 
 // ── Static frontend (production build) ────────────────────────────────────────
 
+// Dominios del sitio público. Todo lo demás (app.lacty.es, localhost, la IP
+// del contenedor…) se considera la aplicación.
+const DOMINIOS_PUBLICOS = new Set(['lacty.es', 'www.lacty.es']);
+const esSitioPublico = (req) => DOMINIOS_PUBLICOS.has(req.hostname);
+
 const DIST = join(__dirname, 'dist');
 if (existsSync(DIST)) {
   app.use(express.static(DIST));
-  app.get('/*path', (_, res) => res.sendFile(join(DIST, 'index.html')));
+  // El servidor web manda aquí todo lo que no sea un fichero de la landing,
+  // para no tener que enumerar cada página nueva en su configuración. Por eso
+  // hay que distinguir: en el sitio público una ruta desconocida es un 404 de
+  // verdad, mientras que en la app cualquier ruta la resuelve el enrutador
+  // del navegador y debe devolver el HTML de la aplicación.
+  app.get('/*path', (req, res) => {
+    if (esSitioPublico(req)) return res.status(404).type('html').send(render404());
+    res.sendFile(join(DIST, 'index.html'));
+  });
 }
 
 escribirSitemap(); // al arrancar, para reflejar lo publicado tras el despliegue

@@ -10,16 +10,6 @@ lacty.es {
     root * /opt/lacty/landing
     encode zstd gzip
 
-    # Las guías y la página de referencias las genera la app: los artículos
-    # viven en la base de datos y los rangos, en lib/reference-data.mjs.
-    # El sitemap.xml NO se proxifica: la app lo vuelca a este mismo directorio
-    # cada vez que cambia una guía, y se sirve como fichero estático para que
-    # siga disponible mientras se despliega.
-    @dinamico path /guias /guias/* /referencias
-    reverse_proxy @dinamico localhost:3001
-
-    file_server
-
     # Iconos e imagen social: cambian muy de vez en cuando.
     @imagenes path *.png *.jpg *.svg *.ico *.woff2
     header @imagenes Cache-Control "public, max-age=604800"
@@ -38,6 +28,24 @@ lacty.es {
         X-Content-Type-Options "nosniff"
         Referrer-Policy "strict-origin-when-cross-origin"
         -Server
+    }
+
+    # Si la ruta corresponde a un fichero real de la landing, se sirve tal cual
+    # (index.html, privacidad.html, styles.css, sitemap.xml…). Cualquier otra
+    # la resuelve la aplicación, que es quien genera las guías y la página de
+    # referencias. Así no hay que tocar esta configuración cada vez que se
+    # añade una página nueva: basta con crear la ruta en server.js.
+    #
+    # Las rutas desconocidas devuelven un 404 real, porque el servidor
+    # distingue el sitio público de la aplicación por el dominio.
+    @ficheroDeLaLanding file {
+        try_files {path} {path}/index.html
+    }
+    handle @ficheroDeLaLanding {
+        file_server
+    }
+    handle {
+        reverse_proxy localhost:3001
     }
 }
 
