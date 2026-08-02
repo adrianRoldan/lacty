@@ -2,7 +2,8 @@ import { useState } from 'react';
 import * as api from '../api';
 
 interface Props {
-  onLogin: (username: string, role: 'admin' | 'user', familyRole: 'owner' | 'editor' | 'viewer') => void;
+  /** `joined` indica que se ha entrado con un código de invitación. */
+  onLogin: (username: string, role: 'admin' | 'user', familyRole: 'owner' | 'editor' | 'viewer', joined?: boolean) => void;
 }
 
 type Mode = 'login' | 'signup';
@@ -36,7 +37,7 @@ export default function LoginScreen({ onLogin }: Props) {
           babyName: joinExisting ? undefined : babyName.trim() || undefined,
           inviteCode: joinExisting ? inviteCode.trim() : undefined,
         });
-        onLogin(user.username, user.role ?? 'user', user.familyRole ?? 'editor');
+        onLogin(user.username, user.role ?? 'user', user.familyRole ?? 'editor', joinExisting);
       }
     } catch (err: any) {
       setError(err.message ?? 'Error');

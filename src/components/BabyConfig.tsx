@@ -2,8 +2,8 @@ import { useState } from 'react';
 import type { BabyConfig } from '../types';
 import { getBirthDate } from '../utils/dateUtils';
 import { suggestedFrenectomyEnd, suggestedVitaminDEnd, MASAJES_POR_DIA_POR_DEFECTO } from '../utils/careUtils';
-import { isPushSupported, subscribe } from '../utils/pushNotifications';
-import * as api from '../api';
+import { isPushSupported } from '../utils/pushNotifications';
+import { enablePush } from '../utils/enablePush';
 
 interface Props {
   onSave: (config: Omit<BabyConfig, 'id'>) => void | Promise<void>;
@@ -116,19 +116,10 @@ export default function BabyConfigScreen({ onSave, onLogout, username, existing,
 
   async function activarAvisos() {
     setError('');
-    try {
-      const permiso = await Notification.requestPermission();
-      if (permiso !== 'granted') {
-        setError('Los avisos están bloqueados en el navegador. Puedes activarlos luego en Ajustes.');
-        return;
-      }
-      const vapidKey = await api.getPushVapidKey();
-      const sub = await subscribe(vapidKey);
-      if (sub) await api.savePushSubscription(sub);
-      setAvisosActivados(true);
-    } catch {
-      setError('No se han podido activar los avisos. Puedes hacerlo luego en Ajustes.');
-    }
+    const r = await enablePush();
+    if (r === 'ok') setAvisosActivados(true);
+    else if (r === 'denegado') setError('Los avisos están bloqueados en el navegador. Puedes activarlos luego en Ajustes.');
+    else setError('No se han podido activar los avisos. Puedes hacerlo luego en Ajustes.');
   }
 
   const pasos: Paso[] = ['bebe', 'cuidados', 'frenectomia', 'avisos'];
@@ -270,10 +261,15 @@ export default function BabyConfigScreen({ onSave, onLogout, username, existing,
         {/* ── Paso 3: frenectomía ───────────────────────────────────────── */}
         {paso === 'frenectomia' && (
           <div className="space-y-4">
+            <p className="text-xs text-gray-400 text-center -mt-2">
+              Responde <strong className="text-gray-500">sí</strong> solo si le han cortado el frenillo
+              de la lengua. Si no sabes de qué va, responde <strong className="text-gray-500">no</strong>.
+            </p>
+
             <Cuidado
               icono="👅" titulo="¿Le han hecho una frenectomía?"
               descripcion="Si es así, Lacty lleva el control de los masajes"
-              activo={frenectomy} onToggle={setFrenectomy}
+              activo={frenectomy} onToggle={setFrenectomy} siNo
             >
               <CampoFecha etiqueta="Fecha de la intervención" valor={frenDate} onChange={setFrenDate} />
               <Campo etiqueta="Masajes al día" ayuda="El protocolo habitual son 5">
@@ -362,9 +358,12 @@ export default function BabyConfigScreen({ onSave, onLogout, username, existing,
 
 // ── Piezas del formulario ────────────────────────────────────────────────────
 
-function Cuidado({ icono, titulo, descripcion, activo, onToggle, children }: {
+function Cuidado({ icono, titulo, descripcion, activo, onToggle, siNo, children }: {
   icono: string; titulo: string; descripcion: string;
-  activo: boolean; onToggle: (v: boolean) => void; children: React.ReactNode;
+  activo: boolean; onToggle: (v: boolean) => void;
+  /** Muestra «Sí»/«No» junto al interruptor, para las preguntas cerradas. */
+  siNo?: boolean;
+  children: React.ReactNode;
 }) {
   return (
     <div className={`rounded-2xl border p-4 transition-colors ${activo ? 'border-sage-200 bg-sage-50/50' : 'border-gray-200'}`}>
@@ -376,8 +375,15 @@ function Cuidado({ icono, titulo, descripcion, activo, onToggle, children }: {
             <p className="text-xs text-gray-400 leading-snug">{descripcion}</p>
           </div>
         </div>
-        <div className={`w-12 h-7 rounded-full transition-colors shrink-0 relative ${activo ? 'bg-sage-600' : 'bg-gray-200'}`}>
-          <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${activo ? 'translate-x-5' : 'translate-x-0.5'}`} />
+        <div className="flex items-center gap-2 shrink-0">
+          {siNo && (
+            <span className={`text-sm font-bold ${activo ? 'text-sage-700' : 'text-gray-400'}`}>
+              {activo ? 'Sí' : 'No'}
+            </span>
+          )}
+          <div className={`w-12 h-7 rounded-full transition-colors relative ${activo ? 'bg-sage-600' : 'bg-gray-200'}`}>
+            <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${activo ? 'translate-x-5' : 'translate-x-0.5'}`} />
+          </div>
         </div>
       </button>
       {activo && <div className="mt-4 pt-4 border-t border-sage-200/60 space-y-3">{children}</div>}

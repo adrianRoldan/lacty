@@ -20,6 +20,7 @@ import VisitasView from './components/VisitasView';
 import ConsultationsView from './components/ConsultationsView';
 import FamilyView from './components/FamilyView';
 import MyDataView from './components/MyDataView';
+import WelcomeScreen from './components/WelcomeScreen';
 import MedicationForm from './components/MedicationForm';
 import WalkForm from './components/WalkForm';
 import { MedicineIcon, StrollerIcon, ScaleIcon } from './components/CareIcons';
@@ -87,6 +88,8 @@ export default function App() {
   const [impersonating, setImpersonating] = useState(false);
   const [originalUsername, setOriginalUsername] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+  // Se acaba de entrar con un código de invitación: se saluda antes de empezar.
+  const [justJoined, setJustJoined] = useState(false);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(false);
 
@@ -262,10 +265,11 @@ export default function App() {
   if (!authChecked) return null; // espera silenciosa mientras verifica sesión
 
   if (!currentUser) {
-    return <LoginScreen onLogin={(username, role, fRole) => {
+    return <LoginScreen onLogin={(username, role, fRole, joined) => {
       setCurrentUser(username);
       setUserRole(role);
       setFamilyRole(fRole);
+      if (joined) setJustJoined(true);
       if (role === 'admin') { setActiveTab('admin-users'); setScreen('admin-users'); }
       else { setActiveTab('hoy'); setScreen('hoy'); }
       setLoading(true);
@@ -341,6 +345,10 @@ export default function App() {
         }}
       />
     );
+  }
+
+  if (justJoined) {
+    return <WelcomeScreen baby={config} onStart={() => setJustJoined(false)} />;
   }
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
