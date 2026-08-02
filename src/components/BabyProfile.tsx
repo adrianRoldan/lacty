@@ -242,7 +242,9 @@ export default function BabyProfile({
         <span className="flex items-start gap-3 min-w-0">
           <span className="text-xl shrink-0">📤</span>
           <span className="min-w-0">
-            <span className="block text-sm font-medium text-gray-900">Exportar registros</span>
+            <span className="block text-sm font-medium text-gray-900">
+              Exportar registros para analizar patrones de alimentación y sueño
+            </span>
             <span className="block text-xs text-gray-500 mt-0.5">
               El día a día entre dos fechas, para compartir con un profesional o analizarlo con una IA.
             </span>
