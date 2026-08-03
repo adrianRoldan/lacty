@@ -48,6 +48,9 @@ export default function RestItem({ rest, onEdit, onDelete, onStop, etiqueta, lis
                 <span className="font-normal text-gray-500"> → {formatTime(rest.endTime)}</span>
               )}
             </span>
+            {etiqueta && (
+              <span className="text-xs font-medium text-taupe-600 whitespace-nowrap">{etiqueta}</span>
+            )}
             {duration != null ? (
               <span className="bg-taupe-200 text-taupe-800 text-xs font-semibold px-2 py-0.5 rounded-full">
                 {formatMinutes(duration)}
@@ -56,9 +59,6 @@ export default function RestItem({ rest, onEdit, onDelete, onStop, etiqueta, lis
               <span className="bg-taupe-100 text-taupe-600 text-xs font-medium px-2 py-0.5 rounded-full animate-pulse">
                 En curso…
               </span>
-            )}
-            {etiqueta && (
-              <span className="text-xs font-medium text-taupe-600 whitespace-nowrap">{etiqueta}</span>
             )}
           </div>
           {rest.notes && (

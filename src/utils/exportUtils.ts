@@ -203,7 +203,7 @@ function describirRegistro(item: TimelineItem, vigiliaPrevia: number | null, eti
       const duracion = dur != null ? formatMinutes(dur) : '(en curso)';
       // Con etiqueta se omite el «Sueño» inicial: «Sueño 5h 30m · Sueño
       // nocturno #1» se repetía. La etiqueta ya dice de qué se trata.
-      const cuerpo = etiquetaSueno ? `${duracion} · ${etiquetaSueno}` : `Sueño ${duracion}`;
+      const cuerpo = etiquetaSueno ? `${etiquetaSueno} · ${duracion}` : `Sueño ${duracion}`;
       return `${formatTime(item.data.startTime)}${fin}  ${cuerpo}${vig}`;
     }
     case 'diaper':
@@ -327,8 +327,8 @@ export function construirTexto(datos: DatosExportacion, op: OpcionesExportacion)
     for (const s of siestasCerradas) {
       const vig = s.vigiliaPreviaMin != null ? `despierto ${formatMinutes(s.vigiliaPreviaMin)} antes` : 'sin dato de vigilia previa';
       const et = s.restId ? etiquetas.get(s.restId)?.texto : undefined;
-      l.push(`${fechaCorta(s.dia)}  ${formatTime(s.inicio)} → ${formatTime(s.fin!)}  ${formatMinutes(s.duracionMin!)}` +
-        `${et ? `  ·  ${et}` : ''}  ·  ${vig}`);
+      l.push(`${fechaCorta(s.dia)}  ${formatTime(s.inicio)} → ${formatTime(s.fin!)}` +
+        `${et ? `  ${et}` : ''}  ${formatMinutes(s.duracionMin!)}  ·  ${vig}`);
     }
     const dur = siestasCerradas.map((s) => s.duracionMin!);
     const vigs = siestasCerradas.map((s) => s.vigiliaPreviaMin).filter((v): v is number => v != null);
