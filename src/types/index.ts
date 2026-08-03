@@ -124,9 +124,19 @@ export interface Walk {
   notes?: string;
 }
 
+/** Observación de la piel durante el baño: lo que más se consulta al pediatra. */
+export type BathSkin = 'normal' | 'dry' | 'irritated' | 'cradleCap' | 'redness';
+
+export interface Bath {
+  id: string;
+  timestamp: string;   // el baño es puntual: no tiene duración
+  skin?: BathSkin;
+  notes?: string;
+}
+
 // Cuidados puntuales que se muestran como una línea sutil en el timeline
-// (vitamina D, probiótico, masaje y medicamentos).
-export type CareKind = 'vitaminD' | 'probiotic' | 'massage' | 'medication';
+// (vitamina D, probiótico, masaje, medicamentos y baño).
+export type CareKind = 'vitaminD' | 'probiotic' | 'massage' | 'medication' | 'bath';
 
 export interface CareEntry {
   id: string;
@@ -134,7 +144,9 @@ export interface CareEntry {
   icon: string;      // emoji; los medicamentos usan un icono propio (ver CareLine)
   label: string;
   timestamp: string;
-  medication?: MedicationLog; // presente solo si kind === 'medication', para poder editarlo
+  // Presentes solo en su tipo, para poder abrirlos en su formulario
+  medication?: MedicationLog;
+  bath?: Bath;
 }
 
 export type TimelineItem =

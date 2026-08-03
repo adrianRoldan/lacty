@@ -1,6 +1,6 @@
 import type {
   BabyConfig, Feeding, Rest, DiaperChange, Walk, MedicationLog,
-  VitaminDLog, ProbioticLog, MassageLog, WeightEntry, TimelineItem,
+  VitaminDLog, ProbioticLog, MassageLog, WeightEntry, TimelineItem, Bath,
 } from '../types';
 import { buildTimeline, getRestDurationMinutes, getWalkDurationMinutes, restMinutesOnDay, formatDose } from './feedingUtils';
 import { formatTime, formatMinutes, localDateOf, getCurrentDaysOfLife, getBirthDate, formatBabyAge } from './dateUtils';
@@ -22,6 +22,7 @@ export interface DatosExportacion {
   probioticLogs: ProbioticLog[];
   massageLogs: MassageLog[];
   weights: WeightEntry[];
+  baths: Bath[];
 }
 
 export interface OpcionesExportacion {
@@ -266,6 +267,7 @@ export function construirTexto(datos: DatosExportacion, op: OpcionesExportacion)
         probioticLabel: config.probioticMedName,
         massageLogs: datos.massageLogs,
         medications: datos.medications,
+        baths: datos.baths,
       },
       datos.walks,
       dia,
@@ -363,6 +365,7 @@ export function construirCsv(datos: DatosExportacion, op: OpcionesExportacion): 
         probioticLabel: datos.config.probioticMedName,
         massageLogs: datos.massageLogs,
         medications: datos.medications,
+        baths: datos.baths,
       },
       datos.walks,
       dia,
@@ -414,11 +417,12 @@ export function construirCsv(datos: DatosExportacion, op: OpcionesExportacion): 
           break;
         case 'care': {
           const c = ev.data;
-          tipo = c.kind === 'medication' ? 'medicamento' : c.kind === 'massage' ? 'masaje' : 'suplemento';
+          tipo = c.kind === 'medication' ? 'medicamento' : c.kind === 'massage' ? 'masaje'
+            : c.kind === 'bath' ? 'bano' : 'suplemento';
           detalle = c.label;
           inicio = formatTime(c.timestamp);
           if (c.medication?.doseMl != null) ml = c.medication.doseMl;
-          notas = c.medication?.notes ?? '';
+          notas = c.medication?.notes ?? c.bath?.notes ?? '';
           break;
         }
       }

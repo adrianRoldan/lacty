@@ -1,4 +1,4 @@
-import type { Feeding, Rest, TimelineItem, DiaperChange, VitaminDLog, ProbioticLog, MassageLog, MedicationLog, Walk } from '../types';
+import type { Feeding, Rest, TimelineItem, DiaperChange, VitaminDLog, ProbioticLog, MassageLog, MedicationLog, Walk, Bath, BathSkin } from '../types';
 import { isSameDay, todayIso, localDateOf } from './dateUtils';
 import { getReferenceForDay } from '../data/referenceTable';
 
@@ -199,7 +199,17 @@ export interface CareLogInputs {
   probioticLabel?: string;
   massageLogs?: MassageLog[];
   medications?: MedicationLog[];
+  baths?: Bath[];
 }
+
+/** Cómo se lee cada observación de piel en el timeline y en la exportación. */
+export const PIEL_ETIQUETA: Record<BathSkin, string> = {
+  normal:    'piel normal',
+  dry:       'piel seca',
+  irritated: 'piel irritada',
+  cradleCap: 'costra láctea',
+  redness:   'rojeces',
+};
 
 function buildCareItems(careLogs: CareLogInputs): TimelineItem[] {
   const items: TimelineItem[] = [];
@@ -250,6 +260,21 @@ function buildCareItems(careLogs: CareLogInputs): TimelineItem[] {
         medication: m,
       },
       sortKey: m.timestamp,
+    });
+  }
+
+  for (const b of careLogs.baths ?? []) {
+    items.push({
+      type: 'care',
+      data: {
+        id: `bath-${b.id}`,
+        kind: 'bath',
+        icon: '🛁',
+        label: b.skin ? `Baño · ${PIEL_ETIQUETA[b.skin]}` : 'Baño',
+        timestamp: b.timestamp,
+        bath: b,
+      },
+      sortKey: b.timestamp,
     });
   }
 

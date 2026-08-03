@@ -113,7 +113,7 @@ const authLimiter = rateLimit({
 
 const db = new Database(DB_PATH);
 
-const DATA_TABLES = ['feedings', 'rests', 'weights', 'heights', 'headcircs', 'vitamind', 'probiotics', 'massages', 'consultations', 'calendar', 'milestones', 'vaccines', 'diapers', 'medications', 'walks'];
+const DATA_TABLES = ['feedings', 'rests', 'weights', 'heights', 'headcircs', 'vitamind', 'probiotics', 'massages', 'consultations', 'calendar', 'milestones', 'vaccines', 'diapers', 'medications', 'walks', 'baths'];
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS accounts (

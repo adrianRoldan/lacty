@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Feeding, Rest, TimelineItem, VitaminDLog, ProbioticLog, MassageLog, DiaperChange, MedicationLog, Walk, CareKind } from '../types';
+import type { Feeding, Rest, TimelineItem, VitaminDLog, ProbioticLog, MassageLog, DiaperChange, MedicationLog, Walk, Bath, CareKind } from '../types';
 import { BreastIcon } from './FeedingItem';
 import { DiaperIcon } from './DiaperItem';
 import { formatDate, formatDateShort, formatMinutes, formatTime, gapMinutes, localDateOf } from '../utils/dateUtils';
@@ -40,6 +40,8 @@ interface Props {
   onDeleteDiaper: (id: string) => void;
   medications: MedicationLog[];
   onEditMedication: (m: MedicationLog) => void;
+  baths: Bath[];
+  onEditBath: (b: Bath) => void;
   walks: Walk[];
   onEditWalk: (w: Walk) => void;
   onDeleteWalk: (id: string) => void;
@@ -82,6 +84,7 @@ export default function FeedingList({
   onDeleteFeeding, onDeleteRest,
   diapers, onEditDiaper, onDeleteDiaper,
   medications, onEditMedication,
+  baths, onEditBath,
   walks, onEditWalk, onDeleteWalk,
 }: Props) {
   const vitaminDDates  = new Set(vitaminDLogs.map((l) => l.date));
@@ -128,12 +131,14 @@ export default function FeedingList({
   const periodProbioticLogs = probioticLogs.filter(l => !cutoff || l.date >= cutoff);
   const periodMassageLogs   = massageLogs.filter(l => !cutoff || l.date >= cutoff);
   const periodMedications   = medications.filter(m => !cutoff || localDateOf(m.timestamp) >= cutoff);
+  const periodBaths         = baths.filter(b => !cutoff || localDateOf(b.timestamp) >= cutoff);
 
   const groups = groupTimelineByDay(filteredFeedings, filteredRests, filteredDiapers, {
     vitaminDLogs:  showCare ? periodVitaminDLogs  : [],
     probioticLogs: showCare ? periodProbioticLogs : [],
     massageLogs:   showCare ? periodMassageLogs   : [],
     medications:   showCare ? periodMedications   : [],
+    baths:         showCare ? periodBaths         : [],
   }, filteredWalks);
   const days   = Object.keys(groups).sort((a, b) => b.localeCompare(a));
 
@@ -146,7 +151,7 @@ export default function FeedingList({
   }
   const months = Object.keys(monthsMap).sort((a, b) => b.localeCompare(a));
 
-  if (feedings.length === 0 && rests.length === 0 && diapers.length === 0 && walks.length === 0 && medications.length === 0) {
+  if (feedings.length === 0 && rests.length === 0 && diapers.length === 0 && walks.length === 0 && medications.length === 0 && baths.length === 0) {
     return (
       <div className="p-4 pb-24">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Historial</h1>
@@ -381,8 +386,9 @@ export default function FeedingList({
                                         icon={item.data.icon}
                                         label={item.data.label}
                                         time={formatTime(item.data.timestamp)}
-                                        onEdit={!readOnly && item.data.medication
-                                          ? () => onEditMedication(item.data.medication!)
+                                        onEdit={readOnly ? undefined
+                                          : item.data.medication ? () => onEditMedication(item.data.medication!)
+                                          : item.data.bath ? () => onEditBath(item.data.bath!)
                                           : undefined}
                                       />
                                     )}
@@ -444,7 +450,7 @@ function CareLine({ kind, icon, label, time, onEdit }: {
         <button
           onClick={onEdit}
           className="text-gray-300 hover:text-sage-600 active:text-sage-700 p-1 shrink-0 touch-manipulation"
-          aria-label="Editar medicamento"
+          aria-label={kind === 'bath' ? 'Editar baño' : 'Editar medicamento'}
           title="Editar"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">

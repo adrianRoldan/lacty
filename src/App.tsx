@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, Walk } from './types';
+import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, Walk, Bath } from './types';
 import { getCurrentDaysOfLife, getBirthDate } from './utils/dateUtils';
 import { calcBreastEstimatedMl, generateId } from './utils/feedingUtils';
 import * as api from './api';
@@ -24,6 +24,7 @@ import WelcomeScreen from './components/WelcomeScreen';
 import ExportView from './components/ExportView';
 import MedicationForm from './components/MedicationForm';
 import WalkForm from './components/WalkForm';
+import BathForm from './components/BathForm';
 import { MedicineIcon, StrollerIcon, ScaleIcon } from './components/CareIcons';
 import { useAmount } from './components/AmountDialog';
 import { getEffectiveReference } from './data/referenceTable';
@@ -61,7 +62,8 @@ type Screen =
   | 'nuevo-medicamento'
   | 'editar-medicamento'
   | 'nuevo-paseo'
-  | 'editar-paseo';
+  | 'editar-paseo'
+  | 'editar-bano';
 
 export default function App() {
   const [config, setConfig] = useState<BabyConfig | null>(null);
@@ -84,6 +86,8 @@ export default function App() {
   const [editingMedication, setEditingMedication] = useState<MedicationLog | null>(null);
   const [walks, setWalks] = useState<Walk[]>([]);
   const [editingWalk, setEditingWalk] = useState<Walk | null>(null);
+  const [baths, setBaths] = useState<Bath[]>([]);
+  const [editingBath, setEditingBath] = useState<Bath | null>(null);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<'admin' | 'user'>('user');
   const [familyRole, setFamilyRole] = useState<'owner' | 'editor' | 'viewer'>('editor');
@@ -117,15 +121,15 @@ export default function App() {
 
   // Trae todos los datos del bebé activo (asume que api.setActiveBaby ya está fijado).
   async function loadBabyData() {
-    const [fds, rsts, wts, hts, hcs, vdLogs, prLogs, mLogs, msLogs, vacLogs, cons, cal, dps, meds, wks] = await Promise.all([
+    const [fds, rsts, wts, hts, hcs, vdLogs, prLogs, mLogs, msLogs, vacLogs, cons, cal, dps, meds, wks, bths] = await Promise.all([
       api.getFeedings(), api.getRests(), api.getWeights(), api.getHeights(), api.getHeadCircs(), api.getVitaminDLogs(),
       api.getProbioticLogs(), api.getMassageLogs(), api.getMilestones(), api.getVaccines(), api.getConsultations(), api.getCalendarEvents(),
-      api.getDiapers(), api.getMedications(), api.getWalks(),
+      api.getDiapers(), api.getMedications(), api.getWalks(), api.getBaths(),
     ]);
     setFeedings(fds); setRests(rsts); setWeights(wts); setHeights(hts); setHeadCircs(hcs);
     setVitaminDLogs(vdLogs); setProbioticLogs(prLogs); setMassageLogs(mLogs);
     setMilestoneLogs(msLogs); setVaccineLogs(vacLogs); setConsultations(cons); setCalendarEvents(cal);
-    setDiapers(dps); setMedications(meds); setWalks(wks);
+    setDiapers(dps); setMedications(meds); setWalks(wks); setBaths(bths);
   }
 
   // Carga los bebés de la cuenta, fija el activo (el último usado si existe) y sus datos.
@@ -226,6 +230,7 @@ export default function App() {
         case 'diapers':    api.getDiapers().then(setDiapers); break;
         case 'medications': api.getMedications().then(setMedications); break;
         case 'walks':      api.getWalks().then(setWalks); break;
+        case 'baths':      api.getBaths().then(setBaths); break;
       }
     };
 
@@ -773,6 +778,33 @@ export default function App() {
     navigate(activeTab);
   }
 
+  // ── Baños ──────────────────────────────────────────────────────────────────
+
+  // El baño es puntual: el botón flotante lo registra con la hora actual y los
+  // detalles (piel, notas) se añaden luego editándolo desde el timeline.
+  async function handleQuickBath() {
+    const bath: Bath = { id: generateId(), timestamp: new Date().toISOString() };
+    const created = await api.createBath(bath);
+    setBaths((prev) => [...prev, created]);
+    toast('Baño registrado');
+  }
+
+  async function handleSaveBath(entry: Bath) {
+    const updated = await api.updateBath(entry);
+    setBaths((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+    toast('Baño actualizado');
+    setEditingBath(null);
+    navigate(activeTab);
+  }
+
+  async function handleDeleteBath(id: string) {
+    await api.deleteBath(id);
+    setBaths((prev) => prev.filter((b) => b.id !== id));
+    toast('Baño eliminado');
+    setEditingBath(null);
+    navigate(activeTab);
+  }
+
   // ── Paseos ─────────────────────────────────────────────────────────────────
 
   async function handleSaveWalk(entry: Walk) {
@@ -826,6 +858,7 @@ export default function App() {
     'nuevo-pañal', 'editar-pañal',
     'nuevo-medicamento', 'editar-medicamento',
     'nuevo-paseo', 'editar-paseo',
+    'editar-bano',
     'resumen-pediatra',
     'exportar',
     'admin',
@@ -1013,6 +1046,15 @@ export default function App() {
           />
         )}
 
+        {screen === 'editar-bano' && (
+          <BathForm
+            existing={editingBath}
+            onSave={handleSaveBath}
+            onDelete={handleDeleteBath}
+            onCancel={() => { setEditingBath(null); navigate(activeTab); }}
+          />
+        )}
+
         {/* Main tabs */}
         {screen === 'hoy' && config && (
           <DailySummary
@@ -1051,6 +1093,8 @@ export default function App() {
             onEditWalk={(w) => { setEditingWalk(w); setScreen('editar-paseo'); }}
             onDeleteWalk={handleDeleteWalk}
             onStopWalk={handleStopWalk}
+            baths={baths}
+            onEditBath={(b) => { setEditingBath(b); setScreen('editar-bano'); }}
           />
         )}
 
@@ -1090,6 +1134,8 @@ export default function App() {
             walks={walks}
             onEditWalk={(w) => { setEditingWalk(w); setScreen('editar-paseo'); }}
             onDeleteWalk={handleDeleteWalk}
+            baths={baths}
+            onEditBath={(b) => { setEditingBath(b); setScreen('editar-bano'); }}
           />
         )}
 
@@ -1206,7 +1252,7 @@ export default function App() {
           <ExportView
             datos={{
               config, feedings, rests, diapers, walks, medications,
-              vitaminDLogs, probioticLogs, massageLogs, weights,
+              vitaminDLogs, probioticLogs, massageLogs, weights, baths,
             }}
             onBack={() => setScreen(activeTab)}
           />
@@ -1274,11 +1320,11 @@ export default function App() {
       {/* FABs — inicio rápido (solo en Hoy, no admin, no viewer) */}
       {screen === 'hoy' && !isAdmin && !isViewer && (
         <div className="fixed right-5 bottom-20 lg:bottom-6 z-20 flex flex-col items-end gap-3">
-          {/* FABs extra — visibles solo al expandir. Van más pequeños y con
-              etiqueta: con cinco secundarios, a tamaño completo la columna se
-              salía de pantalla en móviles pequeños. */}
+          {/* FABs extra — visibles solo al expandir. Van en dos columnas y algo
+              más pequeños que los principales: en una sola columna, seis
+              secundarios se salían de pantalla en móviles pequeños. */}
           {showExtraFabs && (
-            <>
+            <div className="grid grid-cols-2 gap-x-2 gap-y-3 justify-items-end">
               {/* Gris pizarra: el amarillo se confundía con el mostaza del pecho,
                   y el emoji ⚖️ (marrón) quedaba embarrado sobre él. */}
               <ExtraFab
@@ -1317,7 +1363,13 @@ export default function App() {
               >
                 <StrollerIcon size={23} />
               </ExtraFab>
-            </>
+              <ExtraFab
+                label="Baño" color="bg-teal-500 active:bg-teal-600 shadow-teal-500/30"
+                onClick={() => { setShowExtraFabs(false); handleQuickBath(); }}
+              >
+                <span className="text-xl">🛁</span>
+              </ExtraFab>
+            </div>
           )}
           {/* FABs principales */}
           {!restInProgress && (

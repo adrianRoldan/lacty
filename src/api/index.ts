@@ -1,4 +1,4 @@
-import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, Walk } from '../types';
+import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, Walk, Bath } from '../types';
 
 const BASE = '/api';
 
@@ -869,6 +869,32 @@ export async function updateWalk(w: Walk): Promise<Walk> {
 
 export async function deleteWalk(id: string): Promise<void> {
   await fetch(`${BASE}/walks/${id}`, { method: 'DELETE', headers: mutHeaders() });
+}
+
+// ── Baños ─────────────────────────────────────────────────────────────────────
+
+export async function getBaths(): Promise<Bath[]> {
+  return json(await fetch(`${BASE}/baths`, { headers: babyHeaders() }));
+}
+
+export async function createBath(b: Bath): Promise<Bath> {
+  return json(await fetch(`${BASE}/baths`, {
+    method: 'POST',
+    headers: mutHeaders(),
+    body: JSON.stringify(b),
+  }));
+}
+
+export async function updateBath(b: Bath): Promise<Bath> {
+  return json(await fetch(`${BASE}/baths/${b.id}`, {
+    method: 'PUT',
+    headers: mutHeaders(),
+    body: JSON.stringify(b),
+  }));
+}
+
+export async function deleteBath(id: string): Promise<void> {
+  await fetch(`${BASE}/baths/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 export interface NotificationPrefs {

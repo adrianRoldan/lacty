@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { BabyConfig, Feeding, Rest, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent, DiaperChange, MedicationLog, Walk, CareKind } from '../types';
+import type { BabyConfig, Feeding, Rest, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent, DiaperChange, MedicationLog, Walk, Bath, CareKind } from '../types';
 import { getCurrentDaysOfLife, formatBabyAge, formatMinutes, formatTime, gapMinutes, isSameDay, todayIso } from '../utils/dateUtils';
 import {
   getTodayFeedings,
@@ -53,6 +53,8 @@ interface Props {
   onDeleteDiaper: (id: string) => void;
   medications: MedicationLog[];
   onEditMedication: (m: MedicationLog) => void;
+  baths: Bath[];
+  onEditBath: (b: Bath) => void;
   walks: Walk[];
   onEditWalk: (w: Walk) => void;
   onDeleteWalk: (id: string) => void;
@@ -91,6 +93,7 @@ export default function DailySummary({
   massageLogs, onAddMassage, onRemoveMassage,
   diapers, onEditDiaper, onDeleteDiaper,
   medications, onEditMedication,
+  baths, onEditBath,
   walks, onEditWalk, onDeleteWalk, onStopWalk,
 }: Props) {
   const daysOfLife = getCurrentDaysOfLife(config);
@@ -114,6 +117,7 @@ export default function DailySummary({
     probioticLabel: config.probioticMedName,
     massageLogs: massageLogs,
     medications: medications,
+    baths: baths,
   }, walks);
   const reference = getEffectiveReference(daysOfLife, currentWeightKg);
   const sleepRef = getSleepReference(daysOfLife);
@@ -396,8 +400,9 @@ export default function DailySummary({
                     icon={item.data.icon}
                     label={item.data.label}
                     time={formatTime(item.data.timestamp)}
-                    onEdit={!readOnly && item.data.medication
-                      ? () => onEditMedication(item.data.medication!)
+                    onEdit={readOnly ? undefined
+                      : item.data.medication ? () => onEditMedication(item.data.medication!)
+                      : item.data.bath ? () => onEditBath(item.data.bath!)
                       : undefined}
                   />
                 )}
@@ -575,7 +580,7 @@ function CareLine({ kind, icon, label, time, onEdit }: {
         <button
           onClick={onEdit}
           className="text-gray-300 hover:text-sage-600 active:text-sage-700 p-1 shrink-0 touch-manipulation"
-          aria-label="Editar medicamento"
+          aria-label={kind === 'bath' ? 'Editar baño' : 'Editar medicamento'}
           title="Editar"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
