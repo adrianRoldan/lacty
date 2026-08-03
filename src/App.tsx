@@ -63,6 +63,7 @@ type Screen =
   | 'editar-medicamento'
   | 'nuevo-paseo'
   | 'editar-paseo'
+  | 'nuevo-bano'
   | 'editar-bano';
 
 export default function App() {
@@ -790,9 +791,14 @@ export default function App() {
   }
 
   async function handleSaveBath(entry: Bath) {
-    const updated = await api.updateBath(entry);
-    setBaths((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
-    toast('Baño actualizado');
+    if (editingBath) {
+      const updated = await api.updateBath(entry);
+      setBaths((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+    } else {
+      const created = await api.createBath(entry);
+      setBaths((prev) => [...prev, created]);
+    }
+    toast(editingBath ? 'Baño actualizado' : 'Baño registrado');
     setEditingBath(null);
     navigate(activeTab);
   }
@@ -858,7 +864,7 @@ export default function App() {
     'nuevo-pañal', 'editar-pañal',
     'nuevo-medicamento', 'editar-medicamento',
     'nuevo-paseo', 'editar-paseo',
-    'editar-bano',
+    'nuevo-bano', 'editar-bano',
     'resumen-pediatra',
     'exportar',
     'admin',
@@ -1046,7 +1052,7 @@ export default function App() {
           />
         )}
 
-        {screen === 'editar-bano' && (
+        {(screen === 'nuevo-bano' || screen === 'editar-bano') && (
           <BathForm
             existing={editingBath}
             onSave={handleSaveBath}
@@ -1066,8 +1072,19 @@ export default function App() {
             calendarEvents={calendarEvents}
             readOnly={isViewer}
             onOpenAgenda={() => navigate('visitas')}
-            onNewFeeding={() => { setEditingFeeding(null); setScreen('nueva-toma'); }}
-            onNewRest={() => { setEditingRest(null); setScreen('nuevo-sueño'); }}
+            onAdd={(tipo) => {
+              switch (tipo) {
+                case 'toma':        setEditingFeeding(null);  setScreen('nueva-toma'); break;
+                case 'sueno':       setEditingRest(null);     setScreen('nuevo-sueño'); break;
+                case 'panal':       setEditingDiaper(null);   setScreen('nuevo-pañal'); break;
+                case 'bano':        setEditingBath(null);     setScreen('nuevo-bano'); break;
+                case 'paseo':       setEditingWalk(null);     setScreen('nuevo-paseo'); break;
+                case 'medicamento': setEditingMedication(null); setScreen('nuevo-medicamento'); break;
+                case 'peso':        setEditingWeight(null);   setScreen('nuevo-peso'); break;
+                case 'altura':      setEditingHeight(null);   setScreen('nuevo-altura'); break;
+                case 'perimetro':   setEditingHeadCirc(null); setScreen('nuevo-pc'); break;
+              }
+            }}
             onEditFeeding={(f) => { setEditingFeeding(f); setScreen('editar-toma'); }}
             onEditRest={(r) => { setEditingRest(r); setScreen('editar-sueño'); }}
             onDeleteFeeding={handleDeleteFeeding}
@@ -1084,7 +1101,6 @@ export default function App() {
             onAddMassage={handleAddMassage}
             onRemoveMassage={handleRemoveMassage}
             diapers={diapers}
-            onNewDiaper={() => { setEditingDiaper(null); setScreen('nuevo-pañal'); }}
             onEditDiaper={(d) => { setEditingDiaper(d); setScreen('editar-pañal'); }}
             onDeleteDiaper={handleDeleteDiaper}
             medications={medications}

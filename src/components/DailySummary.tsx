@@ -21,6 +21,8 @@ import WalkItem from './WalkItem';
 import { MedicineIcon } from './CareIcons';
 import DayInsights from './DayInsights';
 import WeekComparison from './WeekComparison';
+import AddRecordSheet from './AddRecordSheet';
+import type { TipoRegistro } from './AddRecordSheet';
 
 interface Props {
   config: BabyConfig;
@@ -31,8 +33,7 @@ interface Props {
   calendarEvents: CalendarEvent[];
   readOnly?: boolean;
   onOpenAgenda: () => void;
-  onNewFeeding: () => void;
-  onNewRest: () => void;
+  onAdd: (tipo: TipoRegistro) => void;
   onEditFeeding: (f: Feeding) => void;
   onEditRest: (r: Rest) => void;
   onDeleteFeeding: (id: string) => void;
@@ -49,7 +50,6 @@ interface Props {
   onAddMassage: (date: string) => void;
   onRemoveMassage: (id: string) => void;
   diapers: DiaperChange[];
-  onNewDiaper: () => void;
   onEditDiaper: (d: DiaperChange) => void;
   onDeleteDiaper: (id: string) => void;
   medications: MedicationLog[];
@@ -84,7 +84,7 @@ export default function DailySummary({
   config, feedings, rests, currentWeightKg, vitaminDLogs,
   calendarEvents, readOnly,
   onOpenAgenda,
-  onNewFeeding, onNewRest,
+  onAdd,
   onEditFeeding, onEditRest,
   onDeleteFeeding, onDeleteRest,
   onStopFeeding, onStopRest,
@@ -197,6 +197,7 @@ export default function DailySummary({
   const careChips = buildCareChips();
 
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [añadirAbierto, setAñadirAbierto] = useState(false);
 
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -243,20 +244,12 @@ export default function DailySummary({
         <div className="flex items-center justify-between mt-0.5">
           <p className="text-sm text-gray-500">{formatBabyAge(daysOfLife)}</p>
           {!readOnly && (
-            <div className="flex gap-2">
-              <button
-                onClick={onNewRest}
-                className="bg-lagoon-100 text-lagoon-700 font-semibold px-4 py-2 rounded-xl text-sm active:bg-lagoon-200 touch-manipulation"
-              >
-                + Sueño
-              </button>
-              <button
-                onClick={onNewFeeding}
-                className="bg-mustard-100 text-mustard-700 font-semibold px-4 py-2 rounded-xl text-sm active:bg-mustard-200 touch-manipulation"
-              >
-                + Toma
-              </button>
-            </div>
+            <button
+              onClick={() => setAñadirAbierto(true)}
+              className="bg-sage-600 text-white font-semibold px-4 py-2 rounded-xl text-sm active:bg-sage-700 touch-manipulation"
+            >
+              + Añadir
+            </button>
           )}
         </div>
       </div>
@@ -377,8 +370,8 @@ export default function DailySummary({
           <p className="text-4xl mb-3">🍼</p>
           <p className="text-base">Aún no hay registros hoy</p>
           <div className="flex justify-center gap-4 mt-4">
-            <button onClick={onNewFeeding} className="text-mustard-600 font-medium touch-manipulation">+ Toma</button>
-            <button onClick={onNewRest} className="text-lagoon-600 font-medium touch-manipulation">+ Sueño</button>
+            <button onClick={() => onAdd('toma')} className="text-mustard-600 font-medium touch-manipulation">+ Toma</button>
+            <button onClick={() => onAdd('sueno')} className="text-lagoon-600 font-medium touch-manipulation">+ Sueño</button>
           </div>
         </div>
       ) : (
@@ -416,6 +409,13 @@ export default function DailySummary({
             );
           })}
         </div>
+      )}
+
+      {añadirAbierto && (
+        <AddRecordSheet
+          onSelect={(tipo) => { setAñadirAbierto(false); onAdd(tipo); }}
+          onClose={() => setAñadirAbierto(false)}
+        />
       )}
     </div>
   );
