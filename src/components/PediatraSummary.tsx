@@ -2,6 +2,7 @@ import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, MilestoneLog,
 import { getCurrentDaysOfLife, getBirthDate, formatMinutes, localDateOf } from '../utils/dateUtils';
 import { getTotalSupplementMl, getTotalBottleMl, getTotalBreastMinutes, getTotalEstimatedBreastMl, restMinutesOnDay, formatDose } from '../utils/feedingUtils';
 import { MILESTONES } from '../data/milestones';
+import { contarPorTipo } from '../utils/sleepUtils';
 
 interface Props {
   config: BabyConfig;
@@ -73,6 +74,13 @@ export default function PediatraSummary({ config, feedings, rests, weights, heig
   // Height
   const sortedHeights = [...heights].sort((a, b) => b.date.localeCompare(a.date));
   const latestHeight = sortedHeights[0];
+
+  // Siestas y sueño nocturno se cuentan por separado: mezclarlos oculta si el
+  // problema está en las siestas o en las noches.
+  const conteoSueno = days.reduce((acc, d) => {
+    const c = contarPorTipo(rests, config, d);
+    return { siestas: acc.siestas + c.siestas, nocturnos: acc.nocturnos + c.nocturnos };
+  }, { siestas: 0, nocturnos: 0 });
 
   // Medicación de los últimos 14 días, de la más reciente a la más antigua.
   const recentMedications = medications
@@ -169,7 +177,8 @@ export default function PediatraSummary({ config, feedings, rests, weights, heig
           <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-2">Sueño (14 días)</h2>
           <div className="bg-white rounded-xl p-4 shadow-sm print:shadow-none print:border print:border-gray-200 space-y-2">
             <Row label="Sueño/día (media)" value={formatMinutes(avgSleepPerDay)} />
-            <Row label="Siestas registradas" value={String(rests.filter(r => days.includes(localDateOf(r.startTime))).length)} />
+            <Row label="Siestas registradas" value={String(conteoSueno.siestas)} />
+            <Row label="Sueños nocturnos" value={String(conteoSueno.nocturnos)} />
           </div>
         </section>
 

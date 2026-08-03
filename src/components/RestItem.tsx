@@ -9,11 +9,13 @@ interface Props {
   onEdit: (rest: Rest) => void;
   onDelete: (id: string) => void;
   onStop?: (rest: Rest) => void;
+  /** «Siesta #2» o «Sueño nocturno #1». */
+  etiqueta?: string;
   listDay?: string;
   readOnly?: boolean;
 }
 
-export default function RestItem({ rest, onEdit, onDelete, onStop, listDay, readOnly }: Props) {
+export default function RestItem({ rest, onEdit, onDelete, onStop, etiqueta, listDay, readOnly }: Props) {
   const confirm = useConfirm();
   const duration = getRestDurationMinutes(rest);
   const elapsed = useElapsedTime(rest.startTime);
@@ -33,8 +35,8 @@ export default function RestItem({ rest, onEdit, onDelete, onStop, listDay, read
     >
       <div className={`flex ${rest.notes ? 'items-start' : 'items-center'} justify-between gap-2`}>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-gray-900">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-bold text-gray-900 whitespace-nowrap">
               🌙{' '}
               {dayHint && (
                 <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-1.5 py-0.5 rounded-full mr-1 align-middle">
@@ -54,6 +56,9 @@ export default function RestItem({ rest, onEdit, onDelete, onStop, listDay, read
               <span className="bg-taupe-100 text-taupe-600 text-xs font-medium px-2 py-0.5 rounded-full animate-pulse">
                 En curso…
               </span>
+            )}
+            {etiqueta && (
+              <span className="text-xs font-medium text-taupe-600 whitespace-nowrap">{etiqueta}</span>
             )}
           </div>
           {rest.notes && (

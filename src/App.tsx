@@ -1120,6 +1120,8 @@ export default function App() {
             frenectomyDate={config.frenectomyDate}
             frenectomyEnd={frenectomyEndDate(config) ?? undefined}
             massagesTarget={massagesPerDay(config)}
+            nightSleepStart={config.nightSleepStart}
+            nightSleepEnd={config.nightSleepEnd}
             readOnly={isViewer}
 
             onEditFeeding={(f) => { setEditingFeeding(f); setScreen('editar-toma'); }}

@@ -18,6 +18,8 @@ export interface BabyConfig {
   frenectomyEndTime?: string;   // "HH:MM" — última toma del día
   frenectomyMassagesPerDay?: number; // por defecto 5
   frenectomyEndDate?: string;   // YYYY-MM-DD — último día de masajes (por defecto, 21 días)
+  nightSleepStart?: string;     // "HH:MM" — desde cuándo un sueño cuenta como nocturno (20:30)
+  nightSleepEnd?: string;       // "HH:MM" — hasta cuándo (07:00); la franja cruza la medianoche
 }
 
 export interface ProbioticLog {

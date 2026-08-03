@@ -20,6 +20,8 @@ interface Props {
   // (incluye el tramo de hoy de sueños que cruzan medianoche). Se reutiliza
   // aquí para que coincida con la tarjeta de estadísticas.
   todayRestMinutes: number;
+  siestasHoy: number;
+  nocturnosHoy: number;
 }
 
 // Semaphore levels for the progress bars
@@ -49,7 +51,7 @@ const LEVEL_LABELS: Record<Level, string> = {
   over:  'superado',
 };
 
-export default function DayInsights({ feedings, rests, reference, sleepRef, todayRestMinutes }: Props) {
+export default function DayInsights({ feedings, rests, reference, sleepRef, todayRestMinutes, siestasHoy, nocturnosHoy }: Props) {
   const totalMl = getTotalSupplementMl(feedings) + getTotalBottleMl(feedings) + getTotalEstimatedBreastMl(feedings);
   const totalFeedings = feedings.length;
   const avgGap = getAvgGapMinutes(feedings);
@@ -131,8 +133,11 @@ export default function DayInsights({ feedings, rests, reference, sleepRef, toda
             {totalRestToday > 0 && (
               <AverageRow icon="🌙" label="Sueño hoy" value={formatMinutes(totalRestToday)} />
             )}
-            {rests.length > 0 && (
-              <AverageRow icon="🛏" label="Nº de sueños hoy" value={String(rests.length)} />
+            {siestasHoy > 0 && (
+              <AverageRow icon="🛏" label="Siestas hoy" value={String(siestasHoy)} />
+            )}
+            {nocturnosHoy > 0 && (
+              <AverageRow icon="🌙" label="Sueños nocturnos hoy" value={String(nocturnosHoy)} />
             )}
           </div>
         </div>

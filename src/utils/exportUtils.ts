@@ -4,6 +4,7 @@ import type {
 } from '../types';
 import { buildTimeline, getRestDurationMinutes, getWalkDurationMinutes, restMinutesOnDay, formatDose } from './feedingUtils';
 import { formatTime, formatMinutes, localDateOf, getCurrentDaysOfLife, getBirthDate, formatBabyAge } from './dateUtils';
+import { etiquetarSuenos } from './sleepUtils';
 
 /**
  * Exportación del historial para compartirlo con un profesional o pegarlo en
@@ -69,6 +70,7 @@ function diaDeVida(config: BabyConfig, dia: string): number | null {
 // ── Siestas y ventanas de vigilia ────────────────────────────────────────────
 
 export interface SiestaExportada {
+  restId: string;
   dia: string;
   inicio: string;
   fin: string | null;
@@ -98,6 +100,7 @@ export function siestasDelRango(rests: Rest[], desde: string, hasta: string): Si
       : null;
 
     salida.push({
+      restId: r.id,
       dia,
       inicio: r.startTime,
       fin: r.endTime ?? null,
@@ -187,7 +190,7 @@ function describirPanal(d: DiaperChange): string {
 }
 
 /** Una línea de texto por registro, ya con su hora. */
-function describirRegistro(item: TimelineItem, vigiliaPrevia: number | null): string {
+function describirRegistro(item: TimelineItem, vigiliaPrevia: number | null, etiquetaSueno?: string): string {
   switch (item.type) {
     case 'feeding': {
       const fin = item.data.endTime ? ` → ${formatTime(item.data.endTime)}` : '';
@@ -197,7 +200,11 @@ function describirRegistro(item: TimelineItem, vigiliaPrevia: number | null): st
       const dur = getRestDurationMinutes(item.data);
       const fin = item.data.endTime ? ` → ${formatTime(item.data.endTime)}` : '';
       const vig = vigiliaPrevia != null ? `  [despierto ${formatMinutes(vigiliaPrevia)} antes]` : '';
-      return `${formatTime(item.data.startTime)}${fin}  Sueño ${dur != null ? formatMinutes(dur) : '(en curso)'}${vig}`;
+      const duracion = dur != null ? formatMinutes(dur) : '(en curso)';
+      // Con etiqueta se omite el «Sueño» inicial: «Sueño 5h 30m · Sueño
+      // nocturno #1» se repetía. La etiqueta ya dice de qué se trata.
+      const cuerpo = etiquetaSueno ? `${duracion} · ${etiquetaSueno}` : `Sueño ${duracion}`;
+      return `${formatTime(item.data.startTime)}${fin}  ${cuerpo}${vig}`;
     }
     case 'diaper':
       return `${formatTime(item.data.timestamp)}  ${describirPanal(item.data)}`;
@@ -218,6 +225,7 @@ export function construirTexto(datos: DatosExportacion, op: OpcionesExportacion)
   const nombre = op.ocultarNombre ? 'El bebé' : (config.name?.trim() || 'El bebé');
   const dias = diasDelRango(op.desde, op.hasta);
   const siestas = siestasDelRango(datos.rests, op.desde, op.hasta);
+  const etiquetas = etiquetarSuenos(datos.rests, config);
   const pesoReciente = [...datos.weights].sort((a, b) => b.date.localeCompare(a.date))[0];
 
   const l: string[] = [];
@@ -236,7 +244,8 @@ export function construirTexto(datos: DatosExportacion, op: OpcionesExportacion)
   l.push('CÓMO LEER ESTOS DATOS');
   l.push('- Los minutos al pecho están medidos; los mililitros del pecho son una');
   l.push('  estimación por duración, no una medición real.');
-  l.push('- "Sueño" incluye tanto siestas diurnas como sueño nocturno.');
+  l.push('- "Sueño" incluye siestas y sueño nocturno. Se numeran por separado:');
+  l.push('  las siestas se reinician cada día y los sueños nocturnos, cada noche.');
   l.push('- "Despierto X antes" es el rato que pasó despierto desde que terminó');
   l.push('  el sueño anterior (la ventana de vigilia).');
   l.push('- Solo aparece lo que se registró: un hueco puede significar que no se');
@@ -301,7 +310,7 @@ export function construirTexto(datos: DatosExportacion, op: OpcionesExportacion)
       const vigilia = ev.type === 'rest'
         ? siestas.find((s) => s.inicio === ev.data.startTime)?.vigiliaPreviaMin ?? null
         : null;
-      l.push(describirRegistro(ev, vigilia));
+      l.push(describirRegistro(ev, vigilia, ev.type === 'rest' ? etiquetas.get(ev.data.id)?.texto : undefined));
     }
     l.push('');
   }
@@ -317,7 +326,9 @@ export function construirTexto(datos: DatosExportacion, op: OpcionesExportacion)
     l.push('');
     for (const s of siestasCerradas) {
       const vig = s.vigiliaPreviaMin != null ? `despierto ${formatMinutes(s.vigiliaPreviaMin)} antes` : 'sin dato de vigilia previa';
-      l.push(`${fechaCorta(s.dia)}  ${formatTime(s.inicio)} → ${formatTime(s.fin!)}  ${formatMinutes(s.duracionMin!)}  ·  ${vig}`);
+      const et = s.restId ? etiquetas.get(s.restId)?.texto : undefined;
+      l.push(`${fechaCorta(s.dia)}  ${formatTime(s.inicio)} → ${formatTime(s.fin!)}  ${formatMinutes(s.duracionMin!)}` +
+        `${et ? `  ·  ${et}` : ''}  ·  ${vig}`);
     }
     const dur = siestasCerradas.map((s) => s.duracionMin!);
     const vigs = siestasCerradas.map((s) => s.vigiliaPreviaMin).filter((v): v is number => v != null);
@@ -349,6 +360,7 @@ const csvCampo = (v: string | number | null | undefined): string => {
 export function construirCsv(datos: DatosExportacion, op: OpcionesExportacion): string {
   const dias = diasDelRango(op.desde, op.hasta);
   const siestas = siestasDelRango(datos.rests, op.desde, op.hasta);
+  const etiquetas = etiquetarSuenos(datos.rests, datos.config);
   // Punto y coma: es lo que espera Excel en configuración regional española.
   const filas: string[] = [
     ['fecha', 'dia_de_vida', 'hora_inicio', 'hora_fin', 'tipo', 'detalle', 'duracion_min', 'ml', 'vigilia_previa_min', 'notas']
@@ -393,7 +405,7 @@ export function construirCsv(datos: DatosExportacion, op: OpcionesExportacion): 
         case 'rest': {
           const r = ev.data;
           tipo = 'sueno';
-          detalle = 'Sueño';
+          detalle = etiquetas.get(r.id)?.texto ?? 'Sueño';
           inicio = formatTime(r.startTime);
           fin = r.endTime ? formatTime(r.endTime) : '';
           duracion = getRestDurationMinutes(r);

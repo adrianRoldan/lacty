@@ -12,6 +12,7 @@ import {
   buildTimeline,
 } from '../utils/feedingUtils';
 import { getEffectiveReference, getSleepReference } from '../data/referenceTable';
+import { etiquetarSuenos, contarPorTipo } from '../utils/sleepUtils';
 import { massagesPerDay, frenectomyEndDate, getRecommendedMassageTimes } from '../utils/careUtils';
 import FeedingItem from './FeedingItem';
 import RestItem from './RestItem';
@@ -119,6 +120,11 @@ export default function DailySummary({
     medications: medications,
     baths: baths,
   }, walks);
+  // Se numeran sobre todos los sueños, no solo los de hoy: la numeración
+  // nocturna necesita ver la noche completa aunque cruce la medianoche.
+  const etiquetasSueno = etiquetarSuenos(rests, config);
+  const conteoHoy = contarPorTipo(rests, config, today);
+
   const reference = getEffectiveReference(daysOfLife, currentWeightKg);
   const sleepRef = getSleepReference(daysOfLife);
 
@@ -328,7 +334,7 @@ export default function DailySummary({
                 <p className="text-xs text-gray-400 mt-0.5">jeringa ml</p>
               </div>
             </div>
-            <DayInsights feedings={todayFeedings} rests={todayRests} reference={reference} sleepRef={sleepRef} todayRestMinutes={totalRestMin} />
+            <DayInsights feedings={todayFeedings} rests={todayRests} reference={reference} sleepRef={sleepRef} todayRestMinutes={totalRestMin} siestasHoy={conteoHoy.siestas} nocturnosHoy={conteoHoy.nocturnos} />
             <WeekComparison feedings={feedings} rests={rests} />
           </div>
         )}
@@ -389,7 +395,7 @@ export default function DailySummary({
                 {item.type === 'feeding' ? (
                   <FeedingItem feeding={item.data} onEdit={onEditFeeding} onDelete={onDeleteFeeding} onStop={onStopFeeding} listDay={today} readOnly={readOnly} />
                 ) : item.type === 'rest' ? (
-                  <RestItem rest={item.data} onEdit={onEditRest} onDelete={onDeleteRest} onStop={onStopRest} listDay={today} readOnly={readOnly} />
+                  <RestItem rest={item.data} onEdit={onEditRest} onDelete={onDeleteRest} onStop={onStopRest} etiqueta={etiquetasSueno.get(item.data.id)?.texto} listDay={today} readOnly={readOnly} />
                 ) : item.type === 'diaper' ? (
                   <DiaperItem diaper={item.data} onEdit={onEditDiaper} onDelete={onDeleteDiaper} readOnly={readOnly} />
                 ) : item.type === 'walk' ? (

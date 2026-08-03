@@ -12,6 +12,7 @@ import {
   getHistorySummary,
   restMinutesOnDay,
 } from '../utils/feedingUtils';
+import { etiquetarSuenos } from '../utils/sleepUtils';
 import FeedingItem from './FeedingItem';
 import RestItem from './RestItem';
 import DiaperItem from './DiaperItem';
@@ -29,6 +30,8 @@ interface Props {
   frenectomyEnabled: boolean;
   frenectomyDate?: string;
   frenectomyEnd?: string;   // último día de masajes, ya resuelto
+  nightSleepStart?: string;
+  nightSleepEnd?: string;
   massagesTarget: number;   // masajes al día configurados
   readOnly?: boolean;
   onEditFeeding: (f: Feeding) => void;
@@ -79,6 +82,7 @@ export default function FeedingList({
   feedings, rests, vitaminDLogs, vitaminDEnabled,
   probioticLogs, probioticEnabled,
   massageLogs, frenectomyEnabled, frenectomyDate, frenectomyEnd, massagesTarget,
+  nightSleepStart, nightSleepEnd,
   readOnly,
   onEditFeeding, onEditRest,
   onDeleteFeeding, onDeleteRest,
@@ -87,6 +91,9 @@ export default function FeedingList({
   baths, onEditBath,
   walks, onEditWalk, onDeleteWalk,
 }: Props) {
+  // Sobre todos los sueños: la numeración nocturna cruza la medianoche.
+  const etiquetasSueno = etiquetarSuenos(rests, { nightSleepStart, nightSleepEnd });
+
   const vitaminDDates  = new Set(vitaminDLogs.map((l) => l.date));
   const probioticDates = new Set(probioticLogs.map((l) => l.date));
 
@@ -375,7 +382,7 @@ export default function FeedingList({
                                     {item.type === 'feeding' ? (
                                       <FeedingItem feeding={item.data} onEdit={onEditFeeding} onDelete={onDeleteFeeding} readOnly={readOnly} />
                                     ) : item.type === 'rest' ? (
-                                      <RestItem rest={item.data} onEdit={onEditRest} onDelete={onDeleteRest} readOnly={readOnly} />
+                                      <RestItem rest={item.data} onEdit={onEditRest} onDelete={onDeleteRest} etiqueta={etiquetasSueno.get(item.data.id)?.texto} readOnly={readOnly} />
                                     ) : item.type === 'diaper' ? (
                                       <DiaperItem diaper={item.data} onEdit={onEditDiaper} onDelete={onDeleteDiaper} readOnly={readOnly} />
                                     ) : item.type === 'walk' ? (
