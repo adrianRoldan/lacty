@@ -1320,11 +1320,12 @@ export default function App() {
       {/* FABs — inicio rápido (solo en Hoy, no admin, no viewer) */}
       {screen === 'hoy' && !isAdmin && !isViewer && (
         <div className="fixed right-5 bottom-20 lg:bottom-6 z-20 flex flex-col items-end gap-3">
-          {/* FABs extra — visibles solo al expandir. Van en dos columnas y algo
-              más pequeños que los principales: en una sola columna, seis
-              secundarios se salían de pantalla en móviles pequeños. */}
+          {/* FABs extra — visibles solo al expandir, algo más pequeños que los
+              principales. En una columna la pila mide 552 px: con la cabecera
+              de 64 px hacen falta unos 700 px de alto, así que por debajo de
+              720 px (un iPhone SE, por ejemplo) se reparten en dos columnas. */}
           {showExtraFabs && (
-            <div className="grid grid-cols-2 gap-x-2 gap-y-3 justify-items-end">
+            <div className="grid grid-cols-2 [@media(min-height:720px)]:grid-cols-1 gap-x-2 gap-y-3 justify-items-end">
               {/* Gris pizarra: el amarillo se confundía con el mostaza del pecho,
                   y el emoji ⚖️ (marrón) quedaba embarrado sobre él. */}
               <ExtraFab
