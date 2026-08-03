@@ -2,7 +2,7 @@ import type { Rest, BabyConfig } from '../types';
 import { localDateOf } from './dateUtils';
 
 /**
- * Numeración de los sueños: «Siesta #2», «Sueño nocturno #1».
+ * Numeración de los sueños: «Siesta #2», «Sueño #1».
  *
  * Las siestas se cuentan por día natural. Los sueños nocturnos se cuentan por
  * NOCHE, no por día: si el bebé se duerme a las 22:00 y vuelve a dormirse a
@@ -50,7 +50,7 @@ export function esSuenoNocturno(
 export interface EtiquetaSueno {
   tipo: 'siesta' | 'nocturno';
   numero: number;
-  /** «Siesta #2» o «Sueño nocturno #1». */
+  /** «Siesta #2» o «Sueño #1». */
   texto: string;
 }
 
@@ -88,7 +88,7 @@ export function etiquetarSuenos(
     salida.set(r.id, {
       tipo: nocturno ? 'nocturno' : 'siesta',
       numero,
-      texto: `${nocturno ? 'Sueño nocturno' : 'Siesta'} #${numero}`,
+      texto: `${nocturno ? 'Sueño' : 'Siesta'} #${numero}`,
     });
   }
 

@@ -9,7 +9,7 @@ interface Props {
   onEdit: (rest: Rest) => void;
   onDelete: (id: string) => void;
   onStop?: (rest: Rest) => void;
-  /** «Siesta #2» o «Sueño nocturno #1». */
+  /** «Siesta #2» o «Sueño #1». */
   etiqueta?: string;
   listDay?: string;
   readOnly?: boolean;
