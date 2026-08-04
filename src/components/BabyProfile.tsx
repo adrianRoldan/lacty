@@ -1,32 +1,16 @@
 import { useState, useEffect } from 'react';
-import type { BabyConfig, WeightEntry, HeightEntry, VitaminDLog, ProbioticLog, MassageLog } from '../types';
+import type { BabyConfig, WeightEntry, HeightEntry, HeadCircEntry } from '../types';
 import { getCurrentDaysOfLife, getBirthDate, todayIso } from '../utils/dateUtils';
-import { massagesPerDay, frenectomyEndDate, vitaminDEndDate, getRecommendedMassageTimes, DIAS_DE_MASAJES_POR_DEFECTO } from '../utils/careUtils';
-import { ventanaNocturna } from '../utils/sleepUtils';
-import { useConfirm } from './ConfirmDialog';
 
 interface Props {
   config: BabyConfig;
   weights: WeightEntry[];
   heights: HeightEntry[];
-  headCircs: import('../types').HeadCircEntry[];
-  vitaminDLogs: VitaminDLog[];
-  probioticLogs: ProbioticLog[];
-  massageLogs: MassageLog[];
+  headCircs: HeadCircEntry[];
+  onOpenGrowth: () => void;
+  onOpenCare: () => void;
   onOpenFamily: () => void;
   onOpenReference: () => void;
-  onNewWeight: () => void;
-  onEditWeight: (w: WeightEntry) => void;
-  onDeleteWeight: (id: string) => void;
-  onNewHeight: () => void;
-  onEditHeight: (h: HeightEntry) => void;
-  onDeleteHeight: (id: string) => void;
-  onNewHeadCirc: () => void;
-  onEditHeadCirc: (h: import('../types').HeadCircEntry) => void;
-  onDeleteHeadCirc: (id: string) => void;
-  onOpenWeightChart: () => void;
-  onOpenHeightChart: () => void;
-  onOpenHeadCircChart: () => void;
   onOpenMilestones: () => void;
   onOpenVaccines: () => void;
   onOpenPediatraSummary: () => void;
@@ -36,29 +20,19 @@ interface Props {
 }
 
 export default function BabyProfile({
-  config, weights, heights, headCircs, vitaminDLogs, probioticLogs, massageLogs,
-  onOpenFamily, onOpenReference, onNewWeight, onEditWeight, onDeleteWeight,
-  onNewHeight, onEditHeight, onDeleteHeight, onNewHeadCirc, onEditHeadCirc, onDeleteHeadCirc,
-  onOpenWeightChart, onOpenHeightChart, onOpenHeadCircChart, onOpenMilestones, onOpenVaccines, onOpenPediatraSummary, onOpenExport, onUpdateConfig, readOnly,
+  config, weights, heights, headCircs,
+  onOpenGrowth, onOpenCare, onOpenFamily, onOpenReference,
+  onOpenMilestones, onOpenVaccines, onOpenPediatraSummary, onOpenExport,
+  onUpdateConfig, readOnly,
 }: Props) {
-  const confirm = useConfirm();
   const daysOfLife = getCurrentDaysOfLife(config);
-  const sorted = [...weights].sort((a, b) => b.date.localeCompare(a.date));
-  const latest = sorted[0] ?? null;
-  const sortedHeights = [...heights].sort((a, b) => b.date.localeCompare(a.date));
-  const latestHeight = sortedHeights[0] ?? null;
+  const latestWeight = ultimo(weights)?.weightKg;
+  const latestHeight = ultimo(heights)?.heightCm;
+  const latestHeadCirc = ultimo(headCircs)?.headCm;
   const [nameInput, setNameInput] = useState(config.name ?? '');
 
   // Al cambiar de bebé activo, refrescar el campo de nombre
   useEffect(() => { setNameInput(config.name ?? ''); }, [config.id, config.name]);
-
-  async function handleDelete(id: string) {
-    if (await confirm('¿Eliminar este registro de peso?')) onDeleteWeight(id);
-  }
-
-  async function handleDeleteHeight(id: string) {
-    if (await confirm('¿Eliminar este registro de altura?')) onDeleteHeight(id);
-  }
 
   function handleNameSave() {
     const trimmed = nameInput.trim();
@@ -67,28 +41,26 @@ export default function BabyProfile({
     }
   }
 
+  // Subtítulo de «Crecimiento»: las últimas medidas de un vistazo
+  const medidas = [
+    latestWeight != null ? `${latestWeight} kg` : null,
+    latestHeight != null ? `${latestHeight} cm` : null,
+    latestHeadCirc != null ? `${latestHeadCirc} cm de perímetro` : null,
+  ].filter(Boolean) as string[];
+
+  // Subtítulo de «Cuidados»: qué hay activo ahora mismo
+  const cuidadosActivos = [
+    config.vitaminDEnabled && 'vitamina D3',
+    config.probioticEnabled && 'probiótico',
+    config.frenectomyEnabled && 'masajes',
+  ].filter(Boolean) as string[];
+
   return (
     <div className="p-4 pb-24">
       <h1 className="text-2xl font-bold text-gray-900 mb-4">{config.name ?? 'Mi bebé'}</h1>
 
-      {/* Info del bebé — nombre, fecha de nacimiento y resumen de peso */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm mb-4">
-        {/* Nombre */}
-        <div className="mb-4 pb-4 border-b border-gray-100">
-          <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5 block">
-            Nombre del bebé
-          </label>
-          <input
-            type="text"
-            value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
-            onBlur={handleNameSave}
-            onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget.blur())}
-            disabled={readOnly}
-            placeholder="Escribe el nombre…"
-            className="w-full text-lg font-medium text-gray-900 placeholder-gray-300 border-none outline-none focus:ring-0 bg-transparent"
-          />
-        </div>
+      {/* Ficha — edad, últimas medidas y datos de identidad */}
+      <div className="bg-white rounded-2xl p-4 shadow-sm mb-6">
         <div className="flex items-center justify-between">
           <div>
             {daysOfLife < 30 ? (
@@ -111,22 +83,37 @@ export default function BabyProfile({
               );
             })()}
           </div>
-          {(latest || latestHeight) && (
+          {(latestWeight != null || latestHeight != null) && (
             <div className="text-right">
-              {latest && (
+              {latestWeight != null && (
                 <>
-                  <p className="text-4xl font-bold text-sage-600">{latest.weightKg} <span className="text-2xl">kg</span></p>
+                  <p className="text-4xl font-bold text-sage-600">{latestWeight} <span className="text-2xl">kg</span></p>
                   <p className="text-sm text-gray-500">último peso</p>
                 </>
               )}
-              {latestHeight && (
+              {latestHeight != null && (
                 <p className="text-sm text-gray-500 mt-1">
-                  <span className="font-bold text-gray-700">{latestHeight.heightCm} cm</span> de altura
+                  <span className="font-bold text-gray-700">{latestHeight} cm</span> de altura
                 </p>
               )}
             </div>
           )}
         </div>
+
+        <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between gap-3">
+          <p className="text-sm text-gray-700 shrink-0">Nombre</p>
+          <input
+            type="text"
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            onBlur={handleNameSave}
+            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+            disabled={readOnly}
+            placeholder="Escribe el nombre…"
+            className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 text-gray-800 text-right min-w-0 flex-1 max-w-[12rem] focus:outline-none focus:ring-2 focus:ring-sage-400"
+          />
+        </div>
+
         <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
           <p className="text-sm text-gray-700">Fecha de nacimiento</p>
           <input
@@ -138,6 +125,7 @@ export default function BabyProfile({
             className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-sage-400"
           />
         </div>
+
         <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
           <p className="text-sm text-gray-700">Sexo</p>
           <div className="flex gap-1.5">
@@ -163,785 +151,80 @@ export default function BabyProfile({
         </div>
       </div>
 
-      {/* Acceso a Familia (solo móvil; en desktop es una pestaña aparte) */}
-      <button
-        onClick={onOpenFamily}
-        className="lg:hidden w-full flex items-center justify-between bg-white rounded-2xl shadow-sm px-4 py-3 mb-6 active:bg-gray-50 touch-manipulation"
-      >
-        <span className="flex items-center gap-2 text-sm font-medium text-gray-900">
-          <span className="text-lg">👨‍👩‍👧</span> Mi familia
-        </span>
-        <span className="text-gray-300">›</span>
-      </button>
+      {/* Seguimiento — subpáginas propias */}
+      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Seguimiento</h2>
+      <Grupo>
+        <Fila
+          emoji="📈"
+          titulo="Crecimiento"
+          subtitulo={medidas.length > 0 ? medidas.join(' · ') : 'Peso, altura y perímetro craneal'}
+          onClick={onOpenGrowth}
+        />
+        <Fila
+          emoji="💊"
+          titulo="Cuidados"
+          subtitulo={cuidadosActivos.length > 0
+            ? `Activos: ${cuidadosActivos.join(' · ')}`
+            : 'Vitamina D3, probiótico, frenectomía y sueño'}
+          onClick={onOpenCare}
+        />
+      </Grupo>
 
-      {/* Referencia orientativa — disponible en móvil y escritorio */}
-      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Salud</h2>
-      <button
-        onClick={onOpenReference}
-        className="w-full flex items-center justify-between bg-white rounded-2xl shadow-sm px-4 py-3 mb-6 active:bg-gray-50 touch-manipulation text-left"
-      >
-        <span className="flex items-start gap-3 min-w-0">
-          <span className="text-xl shrink-0">📊</span>
-          <span className="min-w-0">
-            <span className="block text-sm font-medium text-gray-900">Valores de referencia</span>
-            <span className="block text-xs text-gray-500 mt-0.5">
-              Tomas, leche y sueño orientativos para su edad y peso. Abre la página de Referencia.
-            </span>
-          </span>
-        </span>
-        <span className="text-gray-300 shrink-0 self-center">›</span>
-      </button>
-      <button
-        onClick={onOpenMilestones}
-        className="w-full flex items-center justify-between bg-white rounded-2xl shadow-sm px-4 py-3 mb-3 active:bg-gray-50 touch-manipulation text-left"
-      >
-        <span className="flex items-start gap-3 min-w-0">
-          <span className="text-xl shrink-0">🌟</span>
-          <span className="min-w-0">
-            <span className="block text-sm font-medium text-gray-900">Hitos del desarrollo</span>
-            <span className="block text-xs text-gray-500 mt-0.5">
-              Seguimiento de habilidades motoras, sociales, cognitivas y más.
-            </span>
-          </span>
-        </span>
-        <span className="text-gray-300 shrink-0 self-center">›</span>
-      </button>
-      <button
-        onClick={onOpenVaccines}
-        className="w-full flex items-center justify-between bg-white rounded-2xl shadow-sm px-4 py-3 mb-3 active:bg-gray-50 touch-manipulation text-left"
-      >
-        <span className="flex items-start gap-3 min-w-0">
-          <span className="text-xl shrink-0">💉</span>
-          <span className="min-w-0">
-            <span className="block text-sm font-medium text-gray-900">Vacunas</span>
-            <span className="block text-xs text-gray-500 mt-0.5">
-              Calendario vacunal AEP. Marca las administradas.
-            </span>
-          </span>
-        </span>
-        <span className="text-gray-300 shrink-0 self-center">›</span>
-      </button>
-      <button
-        onClick={onOpenPediatraSummary}
-        className="w-full flex items-center justify-between bg-white rounded-2xl shadow-sm px-4 py-3 mb-6 active:bg-gray-50 touch-manipulation text-left"
-      >
-        <span className="flex items-start gap-3 min-w-0">
-          <span className="text-xl shrink-0">📄</span>
-          <span className="min-w-0">
-            <span className="block text-sm font-medium text-gray-900">Resumen para el pediatra</span>
-            <span className="block text-xs text-gray-500 mt-0.5">
-              Últimos 14 días: tomas, peso, sueño y hitos. Listo para imprimir.
-            </span>
-          </span>
-        </span>
-        <span className="text-gray-300 shrink-0 self-center">›</span>
-      </button>
-      <button
-        onClick={onOpenExport}
-        className="w-full flex items-center justify-between bg-white rounded-2xl shadow-sm px-4 py-3 mb-6 active:bg-gray-50 touch-manipulation text-left"
-      >
-        <span className="flex items-start gap-3 min-w-0">
-          <span className="text-xl shrink-0">📤</span>
-          <span className="min-w-0">
-            <span className="block text-sm font-medium text-gray-900">
-              Exportar registros para analizar patrones de alimentación y sueño
-            </span>
-            <span className="block text-xs text-gray-500 mt-0.5">
-              El día a día entre dos fechas, para compartir con un profesional o analizarlo con una IA.
-            </span>
-          </span>
-        </span>
-        <span className="text-gray-300 shrink-0 self-center">›</span>
-      </button>
+      {/* Salud */}
+      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 mt-6">Salud</h2>
+      <Grupo>
+        <Fila emoji="🌟" titulo="Hitos del desarrollo" subtitulo="Habilidades motoras, sociales y cognitivas" onClick={onOpenMilestones} />
+        <Fila emoji="💉" titulo="Vacunas" subtitulo="Calendario vacunal AEP" onClick={onOpenVaccines} />
+        <Fila emoji="📊" titulo="Valores de referencia" subtitulo="Tomas, leche y sueño orientativos para su edad" onClick={onOpenReference} />
+      </Grupo>
 
-      {/* Historial de peso */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Historial de peso</h2>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onOpenWeightChart}
-            aria-label="Ver gráfica de peso"
-            title="Ver gráfica de peso"
-            className="text-sage-600 p-2 rounded-xl active:bg-sage-50 touch-manipulation"
-          >
-            <ChartIcon />
-          </button>
-          {!readOnly && <button
-            onClick={onNewWeight}
-            className="bg-sage-600 text-white font-semibold px-4 py-2 rounded-xl text-sm active:bg-sage-700 touch-manipulation"
-          >
-            + Peso
-          </button>}
-        </div>
+      {/* Informes */}
+      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 mt-6">Informes</h2>
+      <Grupo>
+        <Fila emoji="📄" titulo="Resumen para el pediatra" subtitulo="Últimos 14 días, listo para imprimir" onClick={onOpenPediatraSummary} />
+        <Fila emoji="📤" titulo="Exportar registros" subtitulo="El día a día entre dos fechas, para compartir o analizar" onClick={onOpenExport} />
+      </Grupo>
+
+      {/* Familia — en escritorio ya es una pestaña aparte */}
+      <div className="lg:hidden mt-6">
+        <Grupo>
+          <Fila emoji="👨‍👩‍👧" titulo="Mi familia" subtitulo="Miembros, invitaciones y bebés de la cuenta" onClick={onOpenFamily} />
+        </Grupo>
       </div>
-
-      {sorted.length === 0 ? (
-        <div className="text-center py-10 text-gray-400 mb-6">
-          <p className="text-3xl mb-2">⚖️</p>
-          <p className="text-sm">Aún no hay registros de peso.</p>
-          <button onClick={onNewWeight} className="mt-3 text-sage-600 font-medium touch-manipulation text-sm">
-            Registrar primer peso
-          </button>
-        </div>
-      ) : (
-        <div className={`space-y-2 mb-6 ${sorted.length > 5 ? 'max-h-[28rem] overflow-y-auto pr-1' : ''}`}>
-          {sorted.map((entry, i) => {
-            const prev = sorted[i + 1];
-            const diff = prev ? Math.round((entry.weightKg - prev.weightKg) * 1000) : null;
-            const daysBetween = prev
-              ? Math.round(
-                  (new Date(entry.date + 'T12:00:00').getTime() - new Date(prev.date + 'T12:00:00').getTime()) / 86400000
-                )
-              : null;
-            return (
-              <div
-                key={entry.id}
-                onClick={readOnly ? undefined : () => onEditWeight(entry)}
-                className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer active:bg-gray-50 select-none"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-500">
-                        {formatDate(entry.date)}
-                      </span>
-                      {i === 0 && (
-                        <span className="text-xs bg-sage-100 text-sage-700 px-1.5 py-0.5 rounded-full font-medium">
-                          último
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-baseline gap-2 mt-0.5">
-                      <span className="text-2xl font-bold text-gray-900">{entry.weightKg} kg</span>
-                      {diff !== null && (
-                        <span className={`text-sm font-medium ${diff >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                          {diff >= 0 ? '+' : ''}{diff} g
-                          {daysBetween != null && daysBetween > 0 && (
-                            <span className="text-gray-400 font-normal"> en {daysBetween} {daysBetween === 1 ? 'día' : 'días'}</span>
-                          )}
-                        </span>
-                      )}
-                    </div>
-                    {entry.notes && (
-                      <p className="text-xs text-gray-400 mt-0.5 truncate italic">"{entry.notes}"</p>
-                    )}
-                  </div>
-                  {!readOnly && <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(entry.id); }}
-                    className="text-gray-300 hover:text-red-400 p-2 shrink-0 touch-manipulation"
-                    aria-label="Eliminar peso"
-                  >
-                    <TrashIcon />
-                  </button>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Historial de altura */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Historial de altura</h2>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onOpenHeightChart}
-            aria-label="Ver gráfica de altura"
-            title="Ver gráfica de altura"
-            className="text-sage-600 p-2 rounded-xl active:bg-sage-50 touch-manipulation"
-          >
-            <ChartIcon />
-          </button>
-          {!readOnly && <button
-            onClick={onNewHeight}
-            className="bg-sage-600 text-white font-semibold px-4 py-2 rounded-xl text-sm active:bg-sage-700 touch-manipulation"
-          >
-            + Altura
-          </button>}
-        </div>
-      </div>
-
-      {sortedHeights.length === 0 ? (
-        <div className="text-center py-10 text-gray-400 mb-6">
-          <p className="text-3xl mb-2">📏</p>
-          <p className="text-sm">Aún no hay registros de altura.</p>
-          <button onClick={onNewHeight} className="mt-3 text-sage-600 font-medium touch-manipulation text-sm">
-            Registrar primera altura
-          </button>
-        </div>
-      ) : (
-        <div className={`space-y-2 mb-6 ${sortedHeights.length > 5 ? 'max-h-[28rem] overflow-y-auto pr-1' : ''}`}>
-          {sortedHeights.map((entry, i) => {
-            const prev = sortedHeights[i + 1];
-            const diff = prev ? Math.round((entry.heightCm - prev.heightCm) * 10) / 10 : null;
-            const daysBetween = prev
-              ? Math.round(
-                  (new Date(entry.date + 'T12:00:00').getTime() - new Date(prev.date + 'T12:00:00').getTime()) / 86400000
-                )
-              : null;
-            return (
-              <div
-                key={entry.id}
-                onClick={readOnly ? undefined : () => onEditHeight(entry)}
-                className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer active:bg-gray-50 select-none"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-500">
-                        {formatDate(entry.date)}
-                      </span>
-                      {i === 0 && (
-                        <span className="text-xs bg-sage-100 text-sage-700 px-1.5 py-0.5 rounded-full font-medium">
-                          último
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-baseline gap-2 mt-0.5">
-                      <span className="text-2xl font-bold text-gray-900">{entry.heightCm} cm</span>
-                      {diff !== null && (
-                        <span className={`text-sm font-medium ${diff >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                          {diff >= 0 ? '+' : ''}{diff} cm
-                          {daysBetween != null && daysBetween > 0 && (
-                            <span className="text-gray-400 font-normal"> en {daysBetween} {daysBetween === 1 ? 'día' : 'días'}</span>
-                          )}
-                        </span>
-                      )}
-                    </div>
-                    {entry.notes && (
-                      <p className="text-xs text-gray-400 mt-0.5 truncate italic">"{entry.notes}"</p>
-                    )}
-                  </div>
-                  {!readOnly && <button
-                    onClick={(e) => { e.stopPropagation(); handleDeleteHeight(entry.id); }}
-                    className="text-gray-300 hover:text-red-400 p-2 shrink-0 touch-manipulation"
-                    aria-label="Eliminar altura"
-                  >
-                    <TrashIcon />
-                  </button>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Historial de perímetro craneal */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Perímetro craneal</h2>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onOpenHeadCircChart}
-            aria-label="Ver gráfica de perímetro"
-            title="Ver gráfica de perímetro craneal"
-            className="text-sage-600 p-2 rounded-xl active:bg-sage-50 touch-manipulation"
-          >
-            <ChartIcon />
-          </button>
-          {!readOnly && <button
-            onClick={onNewHeadCirc}
-            className="bg-sage-600 text-white font-semibold px-4 py-2 rounded-xl text-sm active:bg-sage-700 touch-manipulation"
-          >
-            + PC
-          </button>}
-        </div>
-      </div>
-
-      {(() => {
-        const sortedHC = [...headCircs].sort((a, b) => b.date.localeCompare(a.date));
-        return sortedHC.length === 0 ? (
-          <div className="text-center py-10 text-gray-400 mb-6">
-            <p className="text-3xl mb-2">🧒</p>
-            <p className="text-sm">Aún no hay registros de perímetro craneal.</p>
-            <button onClick={onNewHeadCirc} className="mt-3 text-sage-600 font-medium touch-manipulation text-sm">
-              Registrar primer perímetro
-            </button>
-          </div>
-        ) : (
-          <div className={`space-y-2 mb-6 ${sortedHC.length > 5 ? 'max-h-[28rem] overflow-y-auto pr-1' : ''}`}>
-            {sortedHC.map((entry, i) => {
-              const prev = sortedHC[i + 1];
-              const diff = prev ? Math.round((entry.headCm - prev.headCm) * 10) / 10 : null;
-              return (
-                <div
-                  key={entry.id}
-                  onClick={readOnly ? undefined : () => onEditHeadCirc(entry)}
-                  className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer active:bg-gray-50 select-none"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-gray-500">{formatDate(entry.date)}</span>
-                        {i === 0 && <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-medium">último</span>}
-                      </div>
-                      <div className="flex items-baseline gap-2 mt-0.5">
-                        <span className="text-2xl font-bold text-gray-900">{entry.headCm} cm</span>
-                        {diff !== null && (
-                          <span className={`text-sm font-medium ${diff >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                            {diff >= 0 ? '+' : ''}{diff} cm
-                          </span>
-                        )}
-                      </div>
-                      {entry.notes && <p className="text-xs text-gray-400 mt-0.5 truncate italic">"{entry.notes}"</p>}
-                    </div>
-                    {!readOnly && <button
-                      onClick={async (e) => { e.stopPropagation(); if (await confirm('¿Eliminar?')) onDeleteHeadCirc(entry.id); }}
-                      className="text-gray-300 hover:text-red-400 p-2 shrink-0 touch-manipulation"
-                      aria-label="Eliminar"
-                    >
-                      <TrashIcon />
-                    </button>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        );
-      })()}
-
-      {/* Vitamina D3 — configuración */}
-      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Vitamina D3</h2>
-      <div className="bg-white rounded-2xl shadow-sm p-4 mb-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-900">
-              Registrar vitamina D3
-              {config.vitaminDMedName && <span className="text-gray-400 font-normal"> · {config.vitaminDMedName}</span>}
-            </p>
-            <p className="text-xs text-gray-500 mt-0.5">2 gotas diarias durante el primer año</p>
-          </div>
-          <Toggle
-            enabled={config.vitaminDEnabled ?? false}
-            onChange={(v) => onUpdateConfig({ vitaminDEnabled: v })}
-          />
-        </div>
-
-        {config.vitaminDEnabled && (
-          <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-700">Medicamento</p>
-              <input
-                key={`vitd-${config.id}`}
-                type="text"
-                defaultValue={config.vitaminDMedName ?? ''}
-                placeholder="Ej. Deltius"
-                onBlur={(e) => {
-                  const v = e.target.value.trim();
-                  if (v !== (config.vitaminDMedName ?? '')) onUpdateConfig({ vitaminDMedName: v || undefined });
-                }}
-                className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 text-gray-800 text-right w-40 focus:outline-none focus:ring-2 focus:ring-sage-400"
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-700">Recordatorio diario</p>
-              <select
-                value={config.vitaminDReminderHour ?? ''}
-                onChange={(e) => onUpdateConfig({
-                  vitaminDReminderHour: e.target.value !== '' ? Number(e.target.value) : undefined,
-                })}
-                className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-sage-400"
-              >
-                <option value="">Sin recordatorio</option>
-                {Array.from({ length: 24 }, (_, i) => (
-                  <option key={i} value={i}>
-                    {String(i).padStart(2, '0')}:00
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-700">Hasta</p>
-                <p className="text-xs text-gray-400">Por defecto, hasta el año de vida</p>
-              </div>
-              <input
-                type="date"
-                value={vitaminDEndDate(config) ?? ''}
-                onChange={(e) => onUpdateConfig({ vitaminDEndDate: e.target.value || undefined })}
-                className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-sage-400"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Vitamina D3 — historial */}
-      {config.vitaminDEnabled && (
-        <VitaminDHistory logs={vitaminDLogs} />
-      )}
-
-      {/* Probiótico */}
-      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 mt-6">Probiótico</h2>
-      <div className="bg-white rounded-2xl shadow-sm p-4 mb-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-900">
-              Registrar probiótico
-              {config.probioticMedName && <span className="text-gray-400 font-normal"> · {config.probioticMedName}</span>}
-            </p>
-            <p className="text-xs text-gray-500 mt-0.5">5 gotas diarias para los cólicos</p>
-          </div>
-          <Toggle
-            enabled={config.probioticEnabled ?? false}
-            onChange={(v) => onUpdateConfig({ probioticEnabled: v })}
-          />
-        </div>
-        {config.probioticEnabled && (
-          <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-700">Medicamento</p>
-              <input
-                key={`prob-${config.id}`}
-                type="text"
-                defaultValue={config.probioticMedName ?? ''}
-                placeholder="Ej. Reuteri"
-                onBlur={(e) => {
-                  const v = e.target.value.trim();
-                  if (v !== (config.probioticMedName ?? '')) onUpdateConfig({ probioticMedName: v || undefined });
-                }}
-                className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 text-gray-800 text-right w-40 focus:outline-none focus:ring-2 focus:ring-sage-400"
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-700">Recordatorio diario</p>
-              <select
-                value={config.probioticReminderHour ?? ''}
-                onChange={(e) => onUpdateConfig({
-                  probioticReminderHour: e.target.value !== '' ? Number(e.target.value) : undefined,
-                })}
-                className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-sage-400"
-              >
-                <option value="">Sin recordatorio</option>
-                {Array.from({ length: 24 }, (_, i) => (
-                  <option key={i} value={i}>{String(i).padStart(2, '0')}:00</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        )}
-      </div>
-      {/* Historial probiótico — siempre visible si hay registros */}
-      {probioticLogs.length > 0 && (
-        <ProbioticHistory logs={probioticLogs} />
-      )}
-
-      {/* Frenectomía */}
-      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 mt-6">Frenectomía</h2>
-      <div className="bg-white rounded-2xl shadow-sm p-4 mb-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-900">Masajes post-frenectomía</p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {massagesPerDay(config)} masajes/día
-              {config.frenectomyDate && (() => {
-                const fin = frenectomyEndDate(config);
-                return fin ? ` hasta el ${new Date(fin + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}` : '';
-              })()}
-            </p>
-          </div>
-          <Toggle
-            enabled={config.frenectomyEnabled ?? false}
-            onChange={(v) => onUpdateConfig({ frenectomyEnabled: v })}
-          />
-        </div>
-
-        {config.frenectomyEnabled && (
-          <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-700">Fecha de la intervención</p>
-              <input
-                type="date"
-                value={config.frenectomyDate ?? ''}
-                onChange={(e) => onUpdateConfig({ frenectomyDate: e.target.value || undefined })}
-                className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-sage-400"
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-700">Primera toma del día</p>
-              <input
-                type="time"
-                value={config.frenectomyStartTime ?? '08:30'}
-                onChange={(e) => onUpdateConfig({ frenectomyStartTime: e.target.value })}
-                className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-sage-400"
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-700">Última toma del día</p>
-              <input
-                type="time"
-                value={config.frenectomyEndTime ?? '22:30'}
-                onChange={(e) => onUpdateConfig({ frenectomyEndTime: e.target.value })}
-                className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-sage-400"
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-700">Masajes al día</p>
-                <p className="text-xs text-gray-400">El protocolo habitual son 5</p>
-              </div>
-              <input
-                type="number"
-                min={1}
-                max={12}
-                value={massagesPerDay(config)}
-                onChange={(e) => {
-                  const n = Number(e.target.value);
-                  if (n >= 1 && n <= 12) onUpdateConfig({ frenectomyMassagesPerDay: n });
-                }}
-                className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 text-gray-800 text-center w-20 focus:outline-none focus:ring-2 focus:ring-sage-400"
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-700">Fin de los masajes</p>
-                <p className="text-xs text-gray-400">Por defecto, 21 días tras la intervención</p>
-              </div>
-              <input
-                type="date"
-                value={frenectomyEndDate(config) ?? ''}
-                min={config.frenectomyDate}
-                onChange={(e) => onUpdateConfig({ frenectomyEndDate: e.target.value || undefined })}
-                className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-sage-400"
-              />
-            </div>
-            {/* Horas recomendadas */}
-            <div className="bg-blue-50 rounded-xl p-3">
-              <p className="text-xs text-blue-700 font-medium mb-2">Horas recomendadas (calculadas)</p>
-              <div className="flex justify-between">
-                {getRecommendedMassageTimes(config.frenectomyStartTime ?? '08:30', config.frenectomyEndTime ?? '22:30', massagesPerDay(config)).map((t, i) => (
-                  <div key={i} className="text-center">
-                    <p className="text-xs font-bold text-blue-800">{t}</p>
-                    <p className="text-xs text-blue-500">#{i + 1}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-            {config.frenectomyDate && (
-              <FrenectomyCountdown config={config} massageLogs={massageLogs} />
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Franja de sueño nocturno */}
-      <div className="bg-white rounded-2xl shadow-sm p-4 mb-3">
-        <p className="text-sm font-medium text-gray-900">Sueño nocturno</p>
-        <p className="text-xs text-gray-500 mt-0.5 mb-3">
-          Los sueños que empiecen en esta franja se numeran como nocturnos; el resto, como siestas.
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Desde</label>
-            <input
-              type="time"
-              value={ventanaNocturna(config).inicio}
-              onChange={(e) => onUpdateConfig({ nightSleepStart: e.target.value })}
-              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-sage-400"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Hasta</label>
-            <input
-              type="time"
-              value={ventanaNocturna(config).fin}
-              onChange={(e) => onUpdateConfig({ nightSleepEnd: e.target.value })}
-              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-sage-400"
-            />
-          </div>
-        </div>
-      </div>
-
     </div>
   );
 }
 
-function VitaminDHistory({ logs }: { logs: VitaminDLog[] }) {
-  const logDates = new Set(logs.map((l) => l.date));
-  const today = todayIso();
-
-  // Racha: días consecutivos hacia atrás desde hoy (o ayer si hoy no está dado)
-  let streak = 0;
-  const d = new Date();
-  if (!logDates.has(today)) d.setDate(d.getDate() - 1);
-  while (logDates.has(d.toISOString().slice(0, 10))) {
-    streak++;
-    d.setDate(d.getDate() - 1);
-  }
-
-  // Últimos 14 días (más reciente a la derecha)
-  const days = Array.from({ length: 14 }, (_, i) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (13 - i));
-    const iso = date.toISOString().slice(0, 10);
-    const day = date.getDate();
-    return { iso, day, given: logDates.has(iso), isToday: iso === today };
-  });
-
+function Grupo({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm p-4 mb-2">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-medium text-gray-700">Historial</p>
-        <div className="flex items-center gap-1.5">
-          <span className="text-base">🔥</span>
-          <span className="text-sm font-bold text-gray-900">{streak}</span>
-          <span className="text-xs text-gray-500">días seguidos</span>
-        </div>
-      </div>
-      <div className="grid grid-cols-7 gap-1.5">
-        {days.map(({ iso, day, given, isToday }) => (
-          <div
-            key={iso}
-            className={`aspect-square rounded-lg flex flex-col items-center justify-center gap-0.5
-              ${isToday ? 'ring-2 ring-sage-400' : ''}
-              ${given ? 'bg-sage-100' : 'bg-gray-100'}`}
-          >
-            <span className={`text-xs font-semibold leading-none ${given ? 'text-sage-700' : 'text-gray-400'}`}>
-              {day}
-            </span>
-            <span className="text-xs leading-none">{given ? '✓' : '·'}</span>
-          </div>
-        ))}
-      </div>
+    <div className="bg-white rounded-2xl shadow-sm overflow-hidden divide-y divide-gray-100">
+      {children}
     </div>
   );
 }
 
-function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean) => void }) {
+function Fila({ emoji, titulo, subtitulo, onClick }: {
+  emoji: string;
+  titulo: string;
+  subtitulo?: string;
+  onClick: () => void;
+}) {
   return (
     <button
-      onClick={() => onChange(!enabled)}
-      className={`relative w-12 h-6 rounded-full transition-colors touch-manipulation shrink-0 ${enabled ? 'bg-sage-600' : 'bg-gray-200'}`}
-      aria-label={enabled ? 'Desactivar' : 'Activar'}
+      onClick={onClick}
+      className="w-full flex items-center gap-3 px-4 py-3 active:bg-gray-50 touch-manipulation text-left"
     >
-      <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${enabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
+      <span className="text-xl shrink-0">{emoji}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium text-gray-900">{titulo}</span>
+        {subtitulo && <span className="block text-xs text-gray-500 truncate">{subtitulo}</span>}
+      </span>
+      <span className="text-gray-300 shrink-0">›</span>
     </button>
   );
 }
 
-function ProbioticHistory({ logs }: { logs: ProbioticLog[] }) {
-  const logDates = new Set(logs.map((l) => l.date));
-  const today = todayIso();
-
-  let streak = 0;
-  const d = new Date();
-  if (!logDates.has(today)) d.setDate(d.getDate() - 1);
-  while (logDates.has(d.toISOString().slice(0, 10))) {
-    streak++;
-    d.setDate(d.getDate() - 1);
-  }
-
-  const days = Array.from({ length: 14 }, (_, i) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (13 - i));
-    const iso = date.toISOString().slice(0, 10);
-    return { iso, day: date.getDate(), given: logDates.has(iso), isToday: iso === today };
-  });
-
-  return (
-    <div className="bg-white rounded-2xl shadow-sm p-4 mb-2">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-medium text-gray-700">Historial</p>
-        <div className="flex items-center gap-1.5">
-          <span className="text-base">🔥</span>
-          <span className="text-sm font-bold text-gray-900">{streak}</span>
-          <span className="text-xs text-gray-500">días seguidos</span>
-        </div>
-      </div>
-      <div className="grid grid-cols-7 gap-1.5">
-        {days.map(({ iso, day, given, isToday }) => (
-          <div
-            key={iso}
-            className={`aspect-square rounded-lg flex flex-col items-center justify-center gap-0.5
-              ${isToday ? 'ring-2 ring-sage-400' : ''}
-              ${given ? 'bg-sage-100' : 'bg-gray-100'}`}
-          >
-            <span className={`text-xs font-semibold leading-none ${given ? 'text-sage-700' : 'text-gray-400'}`}>{day}</span>
-            <span className="text-xs leading-none">{given ? '✓' : '·'}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function FrenectomyCountdown({ config, massageLogs }: { config: BabyConfig; massageLogs: MassageLog[] }) {
-  const objetivo = massagesPerDay(config);
-  const fin = frenectomyEndDate(config);
-  const totalDias = fin && config.frenectomyDate
-    ? Math.round((new Date(fin + 'T12:00:00').getTime() - new Date(config.frenectomyDate + 'T12:00:00').getTime()) / 86400000)
-    : DIAS_DE_MASAJES_POR_DEFECTO;
-  // Se comparan fechas, no marcas de tiempo: con Date.now() el redondeo daba
-  // un día de más ("22 / 21" el primer día).
-  const daysLeft = fin
-    ? Math.round((new Date(fin + 'T12:00:00').getTime() - new Date(todayIso() + 'T12:00:00').getTime()) / 86400000)
-    : 0;
-  const completed = daysLeft < 0;
-
-  // Last 7 days of the treatment for progress display
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-    const iso = d.toISOString().slice(0, 10);
-    const count = massageLogs.filter((m) => m.date === iso).length;
-    return { iso, day: d.getDate(), count, isToday: iso === todayIso() };
-  });
-
-  if (completed) {
-    return (
-      <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-green-800 text-center font-medium">
-        ✓ Período de masajes completado
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between bg-blue-50 rounded-xl px-3 py-2">
-        <span className="text-xs text-blue-700">Días restantes de masajes</span>
-        <span className="text-sm font-bold text-blue-800">{daysLeft} / {totalDias}</span>
-      </div>
-      <div>
-        <p className="text-xs text-gray-400 mb-2">Últimos 7 días</p>
-        <div className="grid grid-cols-7 gap-1">
-          {days.map(({ iso, day, count, isToday }) => (
-            <div
-              key={iso}
-              className={`aspect-square rounded-lg flex flex-col items-center justify-center gap-0.5
-                ${isToday ? 'ring-2 ring-blue-400' : ''}
-                ${count >= objetivo ? 'bg-blue-100' : count > 0 ? 'bg-blue-50' : 'bg-gray-100'}`}
-            >
-              <span className={`text-xs font-semibold leading-none ${count > 0 ? 'text-blue-700' : 'text-gray-400'}`}>{day}</span>
-              <span className="text-xs leading-none">{count > 0 ? `${count}/${objetivo}` : '·'}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function formatDate(isoDate: string): string {
-  return new Date(isoDate + 'T12:00:00').toLocaleDateString('es-ES', {
-    day: 'numeric', month: 'long', year: 'numeric',
-  });
-}
-
-function ChartIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 3v18h18" />
-      <path d="M7 14l4-4 3 3 5-6" />
-    </svg>
-  );
-}
-
-function TrashIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="3 6 5 6 21 6" />
-      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-      <path d="M10 11v6M14 11v6" />
-      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-    </svg>
-  );
+/** Última entrada por fecha (las listas no vienen ordenadas). */
+function ultimo<T extends { date: string }>(entradas: T[]): T | undefined {
+  return [...entradas].sort((a, b) => b.date.localeCompare(a.date))[0];
 }

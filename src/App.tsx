@@ -5,6 +5,8 @@ import { calcBreastEstimatedMl, generateId } from './utils/feedingUtils';
 import * as api from './api';
 import BabyConfigScreen from './components/BabyConfig';
 import BabyProfile from './components/BabyProfile';
+import GrowthView from './components/GrowthView';
+import CareSettings from './components/CareSettings';
 import LoginScreen from './components/LoginScreen';
 import DailySummary from './components/DailySummary';
 import FeedingForm from './components/FeedingForm';
@@ -53,6 +55,9 @@ type Screen =
   | 'editar-altura'
   | 'nuevo-pc'
   | 'editar-pc'
+  // Subpáginas de «Mi bebé»: no son pestañas, así que activeTab sigue en 'config'
+  | 'crecimiento'
+  | 'cuidados'
   | 'ajustes'
   | 'mis-datos'
   | 'resumen-pediatra'
@@ -111,8 +116,23 @@ export default function App() {
   const [editingHeight, setEditingHeight] = useState<HeightEntry | null>(null);
   const [editingHeadCirc, setEditingHeadCirc] = useState<HeadCircEntry | null>(null);
   const [chartTarget, setChartTarget] = useState<string | null>(null);
+  // Pantalla a la que volver al cerrar un formulario. Hace falta para las
+  // subpáginas de «Mi bebé», que no son pestañas y no se recuperan con activeTab.
+  const [returnTo, setReturnTo] = useState<Screen | null>(null);
   const [showExtraFabs, setShowExtraFabs] = useState(false);
   const askAmount = useAmount();
+
+  // Abre un formulario recordando desde dónde se abrió.
+  function openForm(target: Screen) {
+    setReturnTo(screen);
+    setScreen(target);
+  }
+
+  // Cierra el formulario actual y vuelve a la pantalla de origen.
+  function closeForm() {
+    setScreen(returnTo ?? activeTab);
+    setReturnTo(null);
+  }
 
   // Abre la pestaña Gráficas y desplaza a la gráfica indicada (peso/talla).
   function openChart(anchor: string) {
@@ -580,7 +600,7 @@ export default function App() {
     }
     toast(editingWeight ? 'Peso actualizado' : 'Peso registrado');
     setEditingWeight(null);
-    navigate(activeTab);
+    closeForm();
   }
 
   async function handleDeleteWeight(id: string) {
@@ -599,7 +619,7 @@ export default function App() {
     }
     toast(editingHeight ? 'Altura actualizada' : 'Altura registrada');
     setEditingHeight(null);
-    navigate(activeTab);
+    closeForm();
   }
 
   async function handleDeleteHeight(id: string) {
@@ -618,7 +638,7 @@ export default function App() {
     }
     toast(editingHeadCirc ? 'Perímetro actualizado' : 'Perímetro registrado');
     setEditingHeadCirc(null);
-    navigate(activeTab);
+    closeForm();
   }
 
   async function handleDeleteHeadCirc(id: string) {
@@ -1012,7 +1032,7 @@ export default function App() {
           <WeightForm
             existing={editingWeight}
             onSave={handleSaveWeight}
-            onCancel={() => { setEditingWeight(null); navigate(activeTab); }}
+            onCancel={() => { setEditingWeight(null); closeForm(); }}
           />
         )}
 
@@ -1021,7 +1041,7 @@ export default function App() {
           <HeightForm
             existing={editingHeight}
             onSave={handleSaveHeight}
-            onCancel={() => { setEditingHeight(null); navigate(activeTab); }}
+            onCancel={() => { setEditingHeight(null); closeForm(); }}
           />
         )}
 
@@ -1029,7 +1049,7 @@ export default function App() {
           <HeadCircForm
             existing={editingHeadCirc}
             onSave={handleSaveHeadCirc}
-            onCancel={() => { setEditingHeadCirc(null); navigate(activeTab); }}
+            onCancel={() => { setEditingHeadCirc(null); closeForm(); }}
           />
         )}
 
@@ -1090,9 +1110,9 @@ export default function App() {
                 case 'bano':        setEditingBath(null);     setScreen('nuevo-bano'); break;
                 case 'paseo':       setEditingWalk(null);     setScreen('nuevo-paseo'); break;
                 case 'medicamento': setEditingMedication(null); setScreen('nuevo-medicamento'); break;
-                case 'peso':        setEditingWeight(null);   setScreen('nuevo-peso'); break;
-                case 'altura':      setEditingHeight(null);   setScreen('nuevo-altura'); break;
-                case 'perimetro':   setEditingHeadCirc(null); setScreen('nuevo-pc'); break;
+                case 'peso':        setEditingWeight(null);   openForm('nuevo-peso'); break;
+                case 'altura':      setEditingHeight(null);   openForm('nuevo-altura'); break;
+                case 'perimetro':   setEditingHeadCirc(null); openForm('nuevo-pc'); break;
               }
             }}
             onEditFeeding={(f) => { setEditingFeeding(f); setScreen('editar-toma'); }}
@@ -1229,27 +1249,48 @@ export default function App() {
             weights={weights}
             heights={heights}
             headCircs={headCircs}
-            vitaminDLogs={vitaminDLogs}
-            probioticLogs={probioticLogs}
-            massageLogs={massageLogs}
+            onOpenGrowth={() => setScreen('crecimiento')}
+            onOpenCare={() => setScreen('cuidados')}
             onOpenFamily={() => navigate('familia')}
             onOpenReference={() => navigate('referencia')}
-            onNewWeight={() => { setEditingWeight(null); setScreen('nuevo-peso'); }}
-            onEditWeight={(w) => { setEditingWeight(w); setScreen('editar-peso'); }}
-            onDeleteWeight={handleDeleteWeight}
-            onNewHeight={() => { setEditingHeight(null); setScreen('nuevo-altura'); }}
-            onEditHeight={(h) => { setEditingHeight(h); setScreen('editar-altura'); }}
-            onDeleteHeight={handleDeleteHeight}
-            onNewHeadCirc={() => { setEditingHeadCirc(null); setScreen('nuevo-pc'); }}
-            onEditHeadCirc={(h) => { setEditingHeadCirc(h); setScreen('editar-pc'); }}
-            onDeleteHeadCirc={handleDeleteHeadCirc}
-            onOpenWeightChart={() => openChart('chart-weight')}
-            onOpenHeightChart={() => openChart('chart-height')}
-            onOpenHeadCircChart={() => openChart('chart-headcirc')}
             onOpenMilestones={() => navigate('hitos')}
             onOpenVaccines={() => navigate('vacunas')}
             onOpenPediatraSummary={() => setScreen('resumen-pediatra')}
             onOpenExport={() => setScreen('exportar')}
+            onUpdateConfig={handleUpdateConfig}
+            readOnly={isViewer}
+          />
+        )}
+
+        {screen === 'crecimiento' && config && (
+          <GrowthView
+            weights={weights}
+            heights={heights}
+            headCircs={headCircs}
+            onBack={() => setScreen('config')}
+            onNewWeight={() => { setEditingWeight(null); openForm('nuevo-peso'); }}
+            onEditWeight={(w) => { setEditingWeight(w); openForm('editar-peso'); }}
+            onDeleteWeight={handleDeleteWeight}
+            onNewHeight={() => { setEditingHeight(null); openForm('nuevo-altura'); }}
+            onEditHeight={(h) => { setEditingHeight(h); openForm('editar-altura'); }}
+            onDeleteHeight={handleDeleteHeight}
+            onNewHeadCirc={() => { setEditingHeadCirc(null); openForm('nuevo-pc'); }}
+            onEditHeadCirc={(h) => { setEditingHeadCirc(h); openForm('editar-pc'); }}
+            onDeleteHeadCirc={handleDeleteHeadCirc}
+            onOpenWeightChart={() => openChart('chart-weight')}
+            onOpenHeightChart={() => openChart('chart-height')}
+            onOpenHeadCircChart={() => openChart('chart-headcirc')}
+            readOnly={isViewer}
+          />
+        )}
+
+        {screen === 'cuidados' && config && (
+          <CareSettings
+            config={config}
+            vitaminDLogs={vitaminDLogs}
+            probioticLogs={probioticLogs}
+            massageLogs={massageLogs}
+            onBack={() => setScreen('config')}
             onUpdateConfig={handleUpdateConfig}
             readOnly={isViewer}
           />
@@ -1358,7 +1399,7 @@ export default function App() {
                   y el emoji ⚖️ (marrón) quedaba embarrado sobre él. */}
               <ExtraFab
                 label="Peso" color="bg-slate-600 active:bg-slate-700 shadow-slate-600/30"
-                onClick={() => { setShowExtraFabs(false); setEditingWeight(null); setScreen('nuevo-peso'); }}
+                onClick={() => { setShowExtraFabs(false); setEditingWeight(null); openForm('nuevo-peso'); }}
               >
                 <ScaleIcon size={23} />
               </ExtraFab>
