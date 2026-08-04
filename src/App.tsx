@@ -188,6 +188,16 @@ export default function App() {
     }
   }
 
+  async function handleLogout() {
+    await api.logout();
+    // Si se entró desde el enlace «/?registro» de la landing, el parámetro sigue
+    // en la URL: hay que quitarlo para que al salir se vea el login, no el alta.
+    if (window.location.search.includes('registro')) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+    setCurrentUser(null);
+  }
+
   useEffect(() => {
     api.checkAuth().then((auth) => {
       setCurrentUser(auth?.username ?? null);
@@ -332,7 +342,7 @@ export default function App() {
         existing={config}
         initialWeight={currentWeightKg}
         username={currentUser}
-        onLogout={() => { api.logout(); setCurrentUser(null); }}
+        onLogout={handleLogout}
         onSave={async (c) => {
           if (config) {
             const updated = await api.updateBaby({ ...config, ...c });
@@ -927,7 +937,7 @@ export default function App() {
               currentUser={currentUser}
               onOpenProfile={() => setScreen('mis-datos')}
               onOpenSettings={isAdmin ? () => navigate('admin-settings') : () => setScreen('ajustes')}
-              onLogout={async () => { await api.logout(); setCurrentUser(null); }}
+              onLogout={handleLogout}
             />
           </div>
         </aside>
@@ -943,7 +953,7 @@ export default function App() {
           currentUser={currentUser}
           onOpenProfile={() => setScreen('mis-datos')}
           onOpenSettings={() => setScreen('ajustes')}
-          onLogout={async () => { await api.logout(); setCurrentUser(null); }}
+          onLogout={handleLogout}
           onOpenDrawer={() => setDrawerOpen(true)}
         />
       )}
@@ -959,7 +969,7 @@ export default function App() {
               currentUser={currentUser}
               onOpenProfile={() => setScreen('mis-datos')}
               onOpenSettings={() => navigate('admin-settings')}
-              onLogout={async () => { await api.logout(); setCurrentUser(null); }}
+              onLogout={handleLogout}
             />
           </div>
         </div>
@@ -1254,7 +1264,7 @@ export default function App() {
             onSwitchBaby={switchBaby}
             onCreateBaby={handleCreateBaby}
             onDeleteBaby={handleDeleteBaby}
-            onLogout={async () => { await api.logout(); setCurrentUser(null); }}
+            onLogout={handleLogout}
           />
         )}
 
@@ -1473,7 +1483,7 @@ export default function App() {
                 currentUser={currentUser}
                 onOpenProfile={() => { setDrawerOpen(false); setScreen('mis-datos'); }}
                 onOpenSettings={() => { setDrawerOpen(false); setScreen('ajustes'); }}
-                onLogout={async () => { await api.logout(); setCurrentUser(null); }}
+                onLogout={handleLogout}
               />
             </div>
           </aside>
