@@ -565,34 +565,6 @@ export default function BabyProfile({
         )}
       </div>
 
-      {/* Franja de sueño nocturno */}
-      <div className="bg-white rounded-2xl shadow-sm p-4 mb-3">
-        <p className="text-sm font-medium text-gray-900">Sueño nocturno</p>
-        <p className="text-xs text-gray-500 mt-0.5 mb-3">
-          Los sueños que empiecen en esta franja se numeran como nocturnos; el resto, como siestas.
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Desde</label>
-            <input
-              type="time"
-              value={ventanaNocturna(config).inicio}
-              onChange={(e) => onUpdateConfig({ nightSleepStart: e.target.value })}
-              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-sage-400"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Hasta</label>
-            <input
-              type="time"
-              value={ventanaNocturna(config).fin}
-              onChange={(e) => onUpdateConfig({ nightSleepEnd: e.target.value })}
-              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-sage-400"
-            />
-          </div>
-        </div>
-      </div>
-
       {/* Vitamina D3 — historial */}
       {config.vitaminDEnabled && (
         <VitaminDHistory logs={vitaminDLogs} />
@@ -749,6 +721,34 @@ export default function BabyProfile({
             )}
           </div>
         )}
+      </div>
+
+      {/* Franja de sueño nocturno */}
+      <div className="bg-white rounded-2xl shadow-sm p-4 mb-3">
+        <p className="text-sm font-medium text-gray-900">Sueño nocturno</p>
+        <p className="text-xs text-gray-500 mt-0.5 mb-3">
+          Los sueños que empiecen en esta franja se numeran como nocturnos; el resto, como siestas.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Desde</label>
+            <input
+              type="time"
+              value={ventanaNocturna(config).inicio}
+              onChange={(e) => onUpdateConfig({ nightSleepStart: e.target.value })}
+              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-sage-400"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Hasta</label>
+            <input
+              type="time"
+              value={ventanaNocturna(config).fin}
+              onChange={(e) => onUpdateConfig({ nightSleepEnd: e.target.value })}
+              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-sage-400"
+            />
+          </div>
+        </div>
       </div>
 
     </div>
