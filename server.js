@@ -150,6 +150,8 @@ ensureColumn('users', 'role', "TEXT NOT NULL DEFAULT 'user'");
 ensureColumn('users', 'family_role', "TEXT NOT NULL DEFAULT 'editor'");
 ensureColumn('users', 'last_login_at');
 ensureColumn('users', 'email');
+// Preferencia personal: qué diseño del timeline de «Hoy» ve cada usuario
+ensureColumn('users', 'timeline_design', "TEXT NOT NULL DEFAULT 'clasico'");
 // Índice único parcial: permite NULL para usuarios antiguos sin email, pero
 // impide duplicados entre los que sí lo tienen.
 db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL`);
@@ -416,16 +418,30 @@ app.get('/api/app-info', (_, res) => res.json({ app: 'Lacty' }));
 
 app.get('/api/auth/me', (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: 'No autenticado' });
-  const user = db.prepare(`SELECT email, role, family_role FROM users WHERE id = ?`).get(req.session.userId);
+  const user = db.prepare(`SELECT email, role, family_role, timeline_design FROM users WHERE id = ?`).get(req.session.userId);
   res.json({
     username: req.session.username,
     email: user?.email ?? null,
     accountId: req.session.accountId,
     role: user?.role ?? 'user',
     familyRole: user?.family_role ?? 'editor',
+    timelineDesign: user?.timeline_design ?? 'clasico',
     impersonating: !!req.session.originalUserId,
     originalUsername: req.session.originalUsername ?? null,
   });
+});
+
+// Preferencias personales del usuario (de momento, solo el diseño del timeline).
+app.put('/api/auth/preferences', (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ error: 'No autenticado' });
+  const { timelineDesign } = req.body ?? {};
+  if (timelineDesign !== undefined) {
+    if (timelineDesign !== 'clasico' && timelineDesign !== 'rail') {
+      return res.status(400).json({ error: 'Diseño no válido' });
+    }
+    db.prepare(`UPDATE users SET timeline_design = ? WHERE id = ?`).run(timelineDesign, req.session.userId);
+  }
+  res.json({ ok: true });
 });
 
 // El propio usuario edita su nombre de usuario y/o email.

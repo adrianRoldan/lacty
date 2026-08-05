@@ -33,7 +33,7 @@ interface Props {
   calendarEvents: CalendarEvent[];
   readOnly?: boolean;
   onOpenAgenda: () => void;
-  /** TEMPORAL: abre la propuesta de rediseño del timeline (TodayRail). */
+  /** Cambia el timeline a la versión en línea de tiempo (TodayRail) y lo recuerda. */
   onProbarDiseñoNuevo?: () => void;
   onAdd: (tipo: TipoRegistro) => void;
   onEditFeeding: (f: Feeding) => void;
@@ -247,7 +247,7 @@ export default function DailySummary({
               onClick={onProbarDiseñoNuevo}
               className="text-xs font-semibold text-sage-700 bg-sage-100 rounded-full px-2.5 py-1 touch-manipulation active:brightness-95"
             >
-              ✨ Probar timeline nuevo
+              ✨ Probar la línea de tiempo
             </button>
           )}
         </div>

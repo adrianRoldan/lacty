@@ -6,7 +6,7 @@ import * as api from './api';
 import BabyConfigScreen from './components/BabyConfig';
 import BabyProfile from './components/BabyProfile';
 import GrowthView from './components/GrowthView';
-import TodayRail from './components/TodayRail'; // TEMPORAL: rediseño del timeline
+import TodayRail from './components/TodayRail';
 import CareSettings from './components/CareSettings';
 import LoginScreen from './components/LoginScreen';
 import DailySummary from './components/DailySummary';
@@ -41,6 +41,7 @@ import AdminView, { ActivityDashboard, PushBroadcastView, BabiesAdminView } from
 import GuiasAdminView from './components/GuiasAdminView';
 import ThemeSelector from './components/ThemeSelector';
 import { Toaster, toast } from './toast';
+import { useTimelineDesign } from './timelineDesign';
 const ChartsView = lazy(() => import('./components/ChartsView'));
 
 type Tab = 'hoy' | 'graficas' | 'historial' | 'hitos' | 'vacunas' | 'referencia' | 'visitas' | 'consultas' | 'config' | 'familia' | 'admin-users' | 'admin-babies' | 'admin-activity' | 'admin-push' | 'admin-guias' | 'admin-settings';
@@ -60,8 +61,6 @@ type Screen =
   // Subpáginas de «Mi bebé»: no son pestañas, así que activeTab sigue en 'config'
   | 'crecimiento'
   | 'cuidados'
-  // TEMPORAL: propuesta de rediseño del timeline, para compararla con «Hoy»
-  | 'hoy-rail'
   | 'ajustes'
   | 'mis-datos'
   | 'resumen-pediatra'
@@ -109,6 +108,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(false);
 
+  const { design: timelineDesign, setDesign: setTimelineDesign, hydrate: hydrateTimelineDesign } = useTimelineDesign();
   const [activeTab, setActiveTab] = useState<Tab>('hoy');
   const [screen, setScreen] = useState<Screen>('hoy');
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -229,6 +229,7 @@ export default function App() {
       setFamilyRole(auth?.familyRole ?? 'editor');
       setImpersonating(auth?.impersonating ?? false);
       setOriginalUsername(auth?.originalUsername ?? null);
+      hydrateTimelineDesign(auth?.timelineDesign ?? 'clasico');
       if (auth?.role === 'admin') { setActiveTab('admin-users'); setScreen('admin-users'); }
       setAuthChecked(true);
       if (!auth) { setLoading(false); return; }
@@ -314,6 +315,8 @@ export default function App() {
       if (joined) setJustJoined(true);
       if (role === 'admin') { setActiveTab('admin-users'); setScreen('admin-users'); }
       else { setActiveTab('hoy'); setScreen('hoy'); }
+      // El diseño del timeline viaja con la cuenta: se recupera al entrar.
+      api.checkAuth().then((auth) => hydrateTimelineDesign(auth?.timelineDesign ?? 'clasico'));
       setLoading(true);
       loadAllData()
         .then(() => setApiError(false))
@@ -888,6 +891,12 @@ export default function App() {
     setDrawerOpen(false);
   }
 
+  // La preferencia se guarda; se vuelve al clásico desde Ajustes.
+  function activarTimelineNuevo() {
+    setTimelineDesign('rail');
+    toast('Línea de tiempo activada · puedes volver al diseño anterior en Ajustes');
+  }
+
   // Props de la pantalla «Hoy». Se comparten con la propuesta de rediseño
   // (TodayRail) para que ambas se comporten igual y la comparación sea justa.
   const propsHoy = config ? {
@@ -1149,12 +1158,9 @@ export default function App() {
 
         {/* Main tabs */}
         {screen === 'hoy' && propsHoy && (
-          <DailySummary {...propsHoy} onProbarDiseñoNuevo={() => setScreen('hoy-rail')} />
-        )}
-
-        {/* TEMPORAL: misma pantalla con la propuesta de timeline nuevo */}
-        {screen === 'hoy-rail' && propsHoy && (
-          <TodayRail {...propsHoy} onVolverAlActual={() => setScreen('hoy')} />
+          timelineDesign === 'rail'
+            ? <TodayRail {...propsHoy} />
+            : <DailySummary {...propsHoy} onProbarDiseñoNuevo={activarTimelineNuevo} />
         )}
 
         {screen === 'graficas' && config && (
@@ -1400,7 +1406,7 @@ export default function App() {
       </main>
 
       {/* FABs — inicio rápido (solo en Hoy, no admin, no viewer) */}
-      {(screen === 'hoy' || screen === 'hoy-rail') && !isAdmin && !isViewer && (
+      {screen === 'hoy' && !isAdmin && !isViewer && (
         <div className="fixed right-5 bottom-20 lg:bottom-6 z-20 flex flex-col items-end gap-3">
           {/* FABs extra — visibles solo al expandir, algo más pequeños que los
               principales. En una columna la pila mide 552 px: con la cabecera

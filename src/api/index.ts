@@ -35,6 +35,8 @@ export interface AuthUser {
   accountId: string;
   role: 'admin' | 'user';
   familyRole: 'owner' | 'editor' | 'viewer';
+  /** Diseño del timeline de «Hoy» que ha elegido este usuario. */
+  timelineDesign: 'clasico' | 'rail';
   impersonating?: boolean;
   originalUsername?: string;
 }
@@ -80,12 +82,24 @@ export async function checkAuth(): Promise<AuthUser | null> {
       accountId: data.accountId,
       role: data.role ?? 'user',
       familyRole: data.familyRole ?? 'editor',
+      timelineDesign: data.timelineDesign === 'rail' ? 'rail' : 'clasico',
       impersonating: data.impersonating ?? false,
       originalUsername: data.originalUsername ?? undefined,
     };
   } catch {
     return null;
   }
+}
+
+/** Guarda el diseño del timeline elegido en la cuenta, no en el dispositivo. */
+export async function updateTimelineDesign(timelineDesign: 'clasico' | 'rail'): Promise<void> {
+  const res = await fetch(`${BASE}/auth/preferences`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ timelineDesign }),
+  });
+  if (!res.ok) throw new Error('No se pudo guardar la preferencia');
 }
 
 export async function updateProfile(username: string, email: string, password?: string): Promise<{ username: string; email: string }> {
@@ -114,7 +128,7 @@ export async function login(username: string, password: string): Promise<AuthUse
     throw new Error(err.error ?? 'Error al iniciar sesión');
   }
   const data = await res.json();
-  return { username: data.username, accountId: data.accountId, role: data.role ?? 'user', familyRole: data.familyRole ?? 'editor' };
+  return { username: data.username, accountId: data.accountId, role: data.role ?? 'user', familyRole: data.familyRole ?? 'editor', timelineDesign: data.timelineDesign === 'rail' ? 'rail' : 'clasico' };
 }
 
 export async function signup(opts: { username: string; email: string; password: string; babyName?: string; inviteCode?: string }): Promise<AuthUser> {
@@ -129,7 +143,7 @@ export async function signup(opts: { username: string; email: string; password: 
     throw new Error(err.error ?? 'Error al crear la cuenta');
   }
   const data = await res.json();
-  return { username: data.username, accountId: data.accountId, role: data.role ?? 'user', familyRole: data.familyRole ?? 'editor' };
+  return { username: data.username, accountId: data.accountId, role: data.role ?? 'user', familyRole: data.familyRole ?? 'editor', timelineDesign: data.timelineDesign === 'rail' ? 'rail' : 'clasico' };
 }
 
 export interface AccountMember { id: string; username: string; isAdmin: boolean; isMe: boolean; familyRole: 'owner' | 'editor' | 'viewer'; }

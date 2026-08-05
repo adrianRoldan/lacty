@@ -1,13 +1,11 @@
 /**
- * PÁGINA TEMPORAL — propuesta de rediseño del timeline de «Hoy».
+ * «Hoy» con el timeline en línea de tiempo. Es una de las dos versiones que
+ * conviven mientras se decide cuál se queda (la otra es DailySummary); cada
+ * persona elige la suya y la preferencia se guarda (ver src/timelineDesign.tsx).
  *
- * Convive con DailySummary (el diseño actual) para poder compararlas. Todo lo
- * que hay por encima del timeline (cabecera, barra de estado, alertas, chips de
- * cuidados) es idéntico al actual a propósito: así la comparación aísla el
- * cambio real, que es el timeline.
- *
- * Para retirarla: borrar este archivo, la pantalla 'hoy-rail' de App.tsx y la
- * prop `onProbarDiseñoNuevo` de DailySummary.
+ * Todo lo que hay por encima del timeline —cabecera, barra de estado, alertas y
+ * chips de cuidados— es idéntico al clásico a propósito: lo único que cambia es
+ * el timeline. Cuando se elija una definitiva, la otra se borra.
  */
 import { useState, useEffect } from 'react';
 import type { BabyConfig, Feeding, Rest, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent, DiaperChange, MedicationLog, Walk, Bath, CareEntry } from '../types';
@@ -43,7 +41,6 @@ interface Props {
   calendarEvents: CalendarEvent[];
   readOnly?: boolean;
   onOpenAgenda: () => void;
-  onVolverAlActual: () => void;
   onAdd: (tipo: TipoRegistro) => void;
   onEditFeeding: (f: Feeding) => void;
   onEditRest: (r: Rest) => void;
@@ -102,7 +99,7 @@ type Acento = keyof typeof ACENTO;
 export default function TodayRail({
   config, feedings, rests, currentWeightKg, vitaminDLogs,
   calendarEvents, readOnly,
-  onOpenAgenda, onVolverAlActual,
+  onOpenAgenda,
   onAdd,
   onEditFeeding, onEditRest,
   onDeleteFeeding, onDeleteRest,
@@ -250,12 +247,6 @@ export default function TodayRail({
           <span className="text-base font-semibold text-gray-500">
             {new Date().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
           </span>
-          <button
-            onClick={onVolverAlActual}
-            className="text-xs font-semibold text-sage-700 bg-sage-100 rounded-full px-2.5 py-1 touch-manipulation active:brightness-95"
-          >
-            ✨ Diseño nuevo · ver el actual
-          </button>
         </div>
         <div className="flex items-center justify-between mt-0.5">
           <p className="text-sm text-gray-500">{formatBabyAge(daysOfLife)}</p>

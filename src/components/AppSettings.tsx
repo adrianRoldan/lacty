@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import ThemeSelector from './ThemeSelector';
+import TimelineDesignSelector from './TimelineDesignSelector';
 import type { BabyConfig } from '../types';
 import * as api from '../api';
 import { isPushSupported, subscribe, unsubscribe, getSubscription } from '../utils/pushNotifications';
@@ -124,6 +125,11 @@ export default function AppSettings({ onBack, baby }: Props) {
       {/* Apariencia */}
       <div className="mb-4">
         <ThemeSelector />
+      </div>
+
+      {/* Diseño del timeline de «Hoy» */}
+      <div className="mb-4">
+        <TimelineDesignSelector />
       </div>
 
       {/* Notificaciones */}
