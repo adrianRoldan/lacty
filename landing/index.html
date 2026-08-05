@@ -217,6 +217,37 @@
         <a href="https://app.lacty.es?registro" class="btn-primary text-sm font-semibold px-5 py-2.5 rounded-xl whitespace-nowrap">
           Empezar gratis
         </a>
+
+        <!-- Menú de móvil: <details> como el acordeón de preguntas, sin
+             depender de JavaScript para abrirse. -->
+        <details id="menu-movil" class="md:hidden">
+          <summary
+            class="list-none flex items-center justify-center w-10 h-10 -mr-2 rounded-xl text-taupe-700 cursor-pointer hover:bg-cream-100 transition-colors"
+            aria-label="Abrir el menú"
+          >
+            <svg class="menu-abrir" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+              <line x1="3" y1="7" x2="21" y2="7"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="17" x2="21" y2="17"/>
+            </svg>
+            <svg class="menu-cerrar" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </summary>
+
+          <nav class="absolute left-0 right-0 top-16 bg-white border-b border-gray-100 shadow-lg px-6 py-3" aria-label="Principal (móvil)">
+            <a href="#funcionalidades"  class="block py-3 text-base font-medium text-taupe-700 border-b border-cream-100">Funcionalidades</a>
+            <a href="#linea-de-tiempo"  class="flex items-center gap-2 py-3 text-base font-medium text-taupe-700 border-b border-cream-100">
+              Línea de tiempo
+              <span class="bg-sage-100 text-sage-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide">Nuevo</span>
+            </a>
+            <a href="#como-funciona"    class="block py-3 text-base font-medium text-taupe-700 border-b border-cream-100">Cómo funciona</a>
+            <a href="#para-quien"       class="block py-3 text-base font-medium text-taupe-700 border-b border-cream-100">Para quién</a>
+            <a href="/guias/"           class="block py-3 text-base font-medium text-taupe-700 border-b border-cream-100">Guías</a>
+            <a href="#preguntas"        class="block py-3 text-base font-medium text-taupe-700">Preguntas</a>
+            <a href="https://app.lacty.es" class="block py-3 mt-2 text-base font-semibold text-sage-700 border-t border-cream-200">
+              Iniciar sesión
+            </a>
+          </nav>
+        </details>
       </div>
     </div>
   </header>
@@ -410,6 +441,179 @@
           </p>
         </article>
 
+      </div>
+    </div>
+  </section>
+
+  <!-- ── LÍNEA DE TIEMPO ──────────────────────────────────────── -->
+  <section id="linea-de-tiempo" class="py-24 px-6 bg-cream-50">
+    <div class="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center">
+
+      <!-- Texto -->
+      <div>
+        <span class="inline-block bg-sage-100 text-sage-700 text-xs font-semibold px-3 py-1.5 rounded-full mb-6 tracking-wide uppercase">
+          Nuevo
+        </span>
+        <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-5">
+          El día entero en una línea de tiempo
+        </h2>
+        <p class="text-lg text-taupe-700 leading-relaxed mb-6">
+          Las horas van en su propia columna, así que recorres la jornada de un vistazo,
+          y cada sueño o paseo se dibuja como una barra: ves cuánto duró sin leer un solo número.
+        </p>
+        <ul class="space-y-3 text-taupe-700">
+          <li class="flex items-start gap-3">
+            <span class="text-sage-600 mt-0.5" aria-hidden="true">✓</span>
+            <span>Las tomas, siestas, pañales y cuidados del día, en orden y sin ruido de colores.</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="text-sage-600 mt-0.5" aria-hidden="true">✓</span>
+            <span>El tiempo que lleva sin comer, marcado sobre la propia línea.</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="text-sage-600 mt-0.5" aria-hidden="true">✓</span>
+            <span>¿Prefieres las tarjetas de siempre? Se cambia de vista en Ajustes cuando quieras.</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Mockup del teléfono con la línea de tiempo -->
+      <div class="flex justify-center overflow-hidden md:overflow-visible px-8 md:px-0">
+        <div class="relative w-64 md:w-72">
+          <div class="bg-gray-900 rounded-[40px] p-3 shadow-2xl">
+            <div class="phone-screen bg-cream-50" style="height: 520px;">
+
+              <!-- Cabecera -->
+              <div class="px-4 pt-9 pb-3">
+                <div class="flex items-baseline gap-2">
+                  <p class="text-lg font-bold text-gray-900">Hoy</p>
+                  <p class="text-[11px] font-semibold text-gray-500">dom, 13 jul</p>
+                </div>
+                <p class="text-[10px] text-gray-500">2 meses y 1 semana</p>
+              </div>
+
+              <!-- Línea de tiempo -->
+              <div class="px-3 pb-3">
+                <p class="text-[9px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Registros de hoy</p>
+
+                <!-- Ahora -->
+                <div class="flex gap-1.5">
+                  <span class="w-8 shrink-0 text-right text-[9px] font-semibold text-sage-700 tabular-nums">12:42</span>
+                  <span class="w-3 shrink-0 relative">
+                    <span class="absolute left-1/2 -translate-x-1/2 top-1.5 bottom-0 w-px bg-gray-300"></span>
+                    <span class="absolute left-1/2 -translate-x-1/2 top-1 w-1.5 h-1.5 rounded-full bg-sage-600"></span>
+                  </span>
+                  <span class="flex-1 text-[9px] font-semibold uppercase tracking-wide text-sage-700">ahora</span>
+                </div>
+
+                <!-- Franja -->
+                <div class="flex gap-1.5">
+                  <span class="w-8 shrink-0"></span>
+                  <span class="w-3 shrink-0 relative"><span class="absolute left-1/2 -translate-x-1/2 inset-y-0 w-px bg-gray-300"></span></span>
+                  <span class="flex-1 text-[8px] font-bold uppercase tracking-widest text-gray-400 px-1 py-1.5">Mediodía</span>
+                </div>
+
+                <!-- Toma en curso -->
+                <div class="flex gap-1.5">
+                  <span class="w-8 shrink-0 text-right text-[9px] font-semibold text-gray-600 tabular-nums pt-1.5">12:20</span>
+                  <span class="w-3 shrink-0 relative">
+                    <span class="absolute left-1/2 -translate-x-1/2 inset-y-0 w-px bg-gray-300"></span>
+                    <span class="absolute left-1/2 -translate-x-1/2 top-1.5 bottom-1.5 w-1 rounded-full bg-pink-600 animate-pulse"></span>
+                  </span>
+                  <span class="flex-1 flex items-center gap-1.5 bg-white rounded-lg shadow-sm px-1.5 py-1">
+                    <span class="text-[11px]" aria-hidden="true">🤱</span>
+                    <span class="text-[10px] font-semibold text-gray-900">Pecho</span>
+                    <span class="bg-pink-100 text-pink-700 text-[8px] font-semibold px-1.5 py-0.5 rounded-full">En curso…</span>
+                  </span>
+                </div>
+
+                <!-- Pañal -->
+                <div class="flex gap-1.5">
+                  <span class="w-8 shrink-0 text-right text-[9px] font-semibold text-gray-600 tabular-nums pt-1.5">12:10</span>
+                  <span class="w-3 shrink-0 relative">
+                    <span class="absolute left-1/2 -translate-x-1/2 inset-y-0 w-px bg-gray-300"></span>
+                    <span class="absolute left-1/2 -translate-x-1/2 top-2 w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+                  </span>
+                  <span class="flex-1 flex items-center gap-1.5 px-1.5 py-1">
+                    <span class="text-[11px]" aria-hidden="true">💩</span>
+                    <span class="text-[10px] font-semibold text-gray-900">Pipí + caca</span>
+                  </span>
+                </div>
+
+                <!-- Biberón -->
+                <div class="flex gap-1.5">
+                  <div class="w-8 shrink-0 text-right pt-1.5">
+                    <p class="text-[9px] font-semibold text-gray-600 tabular-nums leading-none">11:45</p>
+                    <p class="text-[9px] text-gray-400 tabular-nums leading-none mt-1">12:05</p>
+                  </div>
+                  <span class="w-3 shrink-0 relative">
+                    <span class="absolute left-1/2 -translate-x-1/2 inset-y-0 w-px bg-gray-300"></span>
+                    <span class="absolute left-1/2 -translate-x-1/2 top-1.5 bottom-1.5 w-1 rounded-full bg-blue-600"></span>
+                  </span>
+                  <span class="flex-1 flex items-center gap-1.5 px-1.5 py-1">
+                    <span class="text-[11px]" aria-hidden="true">🍼</span>
+                    <span class="text-[10px] font-semibold text-gray-900">Biberón</span>
+                    <span class="bg-blue-100 text-blue-700 text-[8px] font-semibold px-1.5 py-0.5 rounded-full">80 ml</span>
+                  </span>
+                </div>
+
+                <!-- Hueco entre tomas -->
+                <div class="flex gap-1.5">
+                  <span class="w-8 shrink-0"></span>
+                  <span class="w-3 shrink-0 relative"><span class="absolute left-1/2 -translate-x-1/2 inset-y-0 border-l border-dashed border-gray-300"></span></span>
+                  <span class="flex-1 text-[9px] text-gray-400 px-1.5 py-1">2h 8m sin comer</span>
+                </div>
+
+                <!-- Franja -->
+                <div class="flex gap-1.5">
+                  <span class="w-8 shrink-0"></span>
+                  <span class="w-3 shrink-0 relative"><span class="absolute left-1/2 -translate-x-1/2 inset-y-0 w-px bg-gray-300"></span></span>
+                  <span class="flex-1 text-[8px] font-bold uppercase tracking-widest text-gray-400 px-1 py-1.5">Mañana</span>
+                </div>
+
+                <!-- Siesta -->
+                <div class="flex gap-1.5">
+                  <div class="w-8 shrink-0 text-right pt-1.5">
+                    <p class="text-[9px] font-semibold text-gray-600 tabular-nums leading-none">10:00</p>
+                    <p class="text-[9px] text-gray-400 tabular-nums leading-none mt-1">11:30</p>
+                  </div>
+                  <span class="w-3 shrink-0 relative">
+                    <span class="absolute left-1/2 -translate-x-1/2 inset-y-0 w-px bg-gray-300"></span>
+                    <span class="absolute left-1/2 -translate-x-1/2 top-1.5 bottom-1.5 w-1 rounded-full bg-lagoon-300"></span>
+                  </span>
+                  <span class="flex-1 flex items-center gap-1.5 px-1.5 py-1">
+                    <span class="text-[11px]" aria-hidden="true">🌙</span>
+                    <span class="text-[10px] font-semibold text-gray-900">Siesta #1</span>
+                    <span class="bg-lagoon-100 text-lagoon-700 text-[8px] font-semibold px-1.5 py-0.5 rounded-full">1h 30m</span>
+                  </span>
+                </div>
+
+                <!-- Toma de pecho -->
+                <div class="flex gap-1.5">
+                  <div class="w-8 shrink-0 text-right pt-1.5">
+                    <p class="text-[9px] font-semibold text-gray-600 tabular-nums leading-none">09:15</p>
+                    <p class="text-[9px] text-gray-400 tabular-nums leading-none mt-1">09:37</p>
+                  </div>
+                  <span class="w-3 shrink-0 relative">
+                    <span class="absolute left-1/2 -translate-x-1/2 inset-y-0 w-px bg-gray-300"></span>
+                    <span class="absolute left-1/2 -translate-x-1/2 top-1.5 bottom-1.5 w-1 rounded-full bg-pink-600"></span>
+                  </span>
+                  <div class="flex-1 px-1.5 py-1">
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-[11px]" aria-hidden="true">🤱</span>
+                      <span class="text-[10px] font-semibold text-gray-900">Pecho</span>
+                      <span class="bg-pink-100 text-pink-700 text-[8px] font-semibold px-1.5 py-0.5 rounded-full">22m</span>
+                    </div>
+                    <p class="text-[9px] text-gray-400 mt-0.5 pl-4">izq 12 min · der 10 min</p>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+          <!-- Notch -->
+          <div class="absolute top-3 left-1/2 -translate-x-1/2 w-20 h-5 bg-gray-900 rounded-full"></div>
+        </div>
       </div>
     </div>
   </section>
@@ -832,6 +1036,19 @@
       </p>
     </div>
   </footer>
+
+  <!-- Menú de móvil: se abre y se cierra solo con <details>; esto únicamente lo
+       recoge al elegir un enlace, al tocar fuera o al pulsar Escape. -->
+  <script>
+    (function () {
+      var menu = document.getElementById('menu-movil');
+      if (!menu) return;
+      var cerrar = function () { menu.removeAttribute('open'); };
+      menu.querySelectorAll('nav a').forEach(function (a) { a.addEventListener('click', cerrar); });
+      document.addEventListener('click', function (e) { if (!menu.contains(e.target)) cerrar(); });
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') cerrar(); });
+    })();
+  </script>
 
 </body>
 </html>

@@ -184,6 +184,13 @@
   .faq-item summary::-webkit-details-marker { display: none; }
   .faq-item summary .faq-chevron { transition: transform 0.2s ease; }
   .faq-item[open] summary .faq-chevron { transform: rotate(180deg); }
+
+  /* Menú de móvil: el icono cambia de rayas a aspa al abrirse */
+  #menu-movil summary { list-style: none; cursor: pointer; }
+  #menu-movil summary::-webkit-details-marker { display: none; }
+  #menu-movil .menu-cerrar { display: none; }
+  #menu-movil[open] .menu-abrir { display: none; }
+  #menu-movil[open] .menu-cerrar { display: block; }
 }
 
 @keyframes float {
