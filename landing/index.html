@@ -36,7 +36,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
   <!-- ── Estilos (compilados, sin CDN que bloquee el render) ── -->
-  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/styles.css?v=20260805" />
 
   <!-- ── Fuente, cargada sin bloquear el render ─────────────── -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -228,7 +228,9 @@
             <svg class="menu-abrir" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
               <line x1="3" y1="7" x2="21" y2="7"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="17" x2="21" y2="17"/>
             </svg>
-            <svg class="menu-cerrar" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+            <!-- Oculta en línea: si el CSS llegara cacheado y sin las reglas del
+                 menú, se vería solo la hamburguesa en vez de los dos iconos. -->
+            <svg class="menu-cerrar" style="display:none" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
           </summary>

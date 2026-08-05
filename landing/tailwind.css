@@ -1,6 +1,12 @@
 /* Fuente de estilos de la landing.
    Se compila a styles.css (minificado y ya versionado) con:
      npm run build:landing
+
+   IMPORTANTE: al cambiar algo aquí, sube también la fecha de «?v=» en los
+   enlaces a /styles.css (landing/*.html y lib/guias-render.mjs). Caddy cachea
+   el CSS una hora pero el HTML no, así que sin ese cambio de URL hay visitas
+   que reciben el HTML nuevo con el CSS viejo y la página se ve rota.
+
    Así la landing no depende del CDN de Tailwind, que bloquea el render
    y penaliza las Core Web Vitals (y por tanto el posicionamiento). */
 @import "tailwindcss";
@@ -185,12 +191,13 @@
   .faq-item summary .faq-chevron { transition: transform 0.2s ease; }
   .faq-item[open] summary .faq-chevron { transform: rotate(180deg); }
 
-  /* Menú de móvil: el icono cambia de rayas a aspa al abrirse */
+  /* Menú de móvil: el icono cambia de rayas a aspa al abrirse. El aspa nace
+     oculta con un style en línea (ver index.html), así que hace falta
+     !important para descubrirla. */
   #menu-movil summary { list-style: none; cursor: pointer; }
   #menu-movil summary::-webkit-details-marker { display: none; }
-  #menu-movil .menu-cerrar { display: none; }
   #menu-movil[open] .menu-abrir { display: none; }
-  #menu-movil[open] .menu-cerrar { display: block; }
+  #menu-movil[open] .menu-cerrar { display: block !important; }
 }
 
 @keyframes float {
