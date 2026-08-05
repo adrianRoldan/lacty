@@ -351,9 +351,9 @@ export default function AdminView() {
 
       {/* Sheet: user actions */}
       {sheet && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end">
+        <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:items-center sm:p-6">
           <div className="absolute inset-0 bg-black/40" onClick={closeSheet} />
-          <div className="relative bg-white rounded-t-2xl shadow-xl max-h-[85vh] overflow-y-auto">
+          <div className="relative bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto">
             <div className="px-4 pt-4 pb-2 border-b border-gray-100 flex items-center justify-between">
               <div>
                 <p className="font-semibold text-gray-900">{sheet.user.username}</p>
@@ -492,9 +492,9 @@ export default function AdminView() {
 
       {/* Modal: crear usuario */}
       {creating && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end">
+        <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:items-center sm:p-6">
           <div className="absolute inset-0 bg-black/40" onClick={() => setCreating(false)} />
-          <div className="relative bg-white rounded-t-2xl shadow-xl max-h-[85vh] overflow-y-auto">
+          <div className="relative bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto">
             <div className="px-4 pt-4 pb-2 border-b border-gray-100 flex items-center justify-between">
               <p className="font-semibold text-gray-900">Nuevo usuario</p>
               <button onClick={() => setCreating(false)} className="text-gray-400 text-xl w-8 h-8 flex items-center justify-center">✕</button>
@@ -1011,9 +1011,9 @@ export function BabiesAdminView() {
 
       {/* Sheet edición */}
       {editing && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end">
+        <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:items-center sm:p-6">
           <div className="absolute inset-0 bg-black/40" onClick={() => setEditing(null)} />
-          <div className="relative bg-white rounded-t-2xl shadow-xl">
+          <div className="relative bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto">
             <div className="px-4 pt-4 pb-2 border-b border-gray-100 flex items-center justify-between">
               <p className="font-semibold text-gray-900">Editar bebé</p>
               <button onClick={() => setEditing(null)} className="text-gray-400 text-xl w-8 h-8 flex items-center justify-center">✕</button>

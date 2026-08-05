@@ -43,9 +43,9 @@ const MEDIDAS: Opcion[] = [
 
 export default function AddRecordSheet({ onSelect, onClose }: Props) {
   return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col justify-end">
+    <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:items-center sm:p-6">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-t-3xl shadow-xl max-h-[85vh] overflow-y-auto pb-safe animate-[fadeSlideUp_0.18s_ease-out]">
+      <div className="relative bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-xl max-h-[85vh] overflow-y-auto pb-safe animate-[fadeSlideUp_0.18s_ease-out]">
         <div className="px-5 pt-5 pb-3 flex items-center justify-between">
           <div>
             <p className="text-lg font-bold text-gray-900">Añadir un registro</p>

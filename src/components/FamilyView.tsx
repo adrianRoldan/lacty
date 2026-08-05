@@ -272,8 +272,8 @@ function NewBabyModal({ onCreate, onCancel }: {
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end lg:items-center justify-center bg-black/40" onClick={onCancel}>
-      <div className="bg-cream-50 w-full lg:max-w-sm rounded-t-3xl lg:rounded-3xl p-5" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/40 sm:p-6" onClick={onCancel}>
+      <div className="bg-cream-50 w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-gray-900">Nuevo bebé</h2>
           <button onClick={onCancel} className="text-gray-400 text-xl touch-manipulation">✕</button>

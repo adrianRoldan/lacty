@@ -243,9 +243,9 @@ function EventForm({ event, isNew, consultations, onSave, onDelete, onCancel }: 
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end lg:items-center justify-center bg-black/40" onClick={onCancel}>
+    <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/40 sm:p-6" onClick={onCancel}>
       <div
-        className="bg-cream-50 w-full lg:max-w-md rounded-t-3xl lg:rounded-3xl p-5 max-h-[90vh] overflow-y-auto"
+        className="bg-cream-50 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 max-h-[90vh] overflow-y-auto"
         onClick={(ev) => ev.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
