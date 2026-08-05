@@ -10,6 +10,7 @@ import TodayRail from './components/TodayRail';
 import CareSettings from './components/CareSettings';
 import LoginScreen from './components/LoginScreen';
 import DailySummary from './components/DailySummary';
+import AddRecordSheet from './components/AddRecordSheet';
 import type { TipoRegistro } from './components/AddRecordSheet';
 import FeedingForm from './components/FeedingForm';
 import RestForm from './components/RestForm';
@@ -130,6 +131,9 @@ export default function App() {
   // subpáginas de «Mi bebé», que no son pestañas y no se recuperan con activeTab.
   const [returnTo, setReturnTo] = useState<Screen | null>(null);
   const [showExtraFabs, setShowExtraFabs] = useState(false);
+  // La hoja de «Añadir registro» vive aquí: la abren tanto la cabecera de «Hoy»
+  // como el botón central de la barra inferior.
+  const [añadirAbierto, setAñadirAbierto] = useState(false);
   const askAmount = useAmount();
 
   // Abre un formulario recordando desde dónde se abrió.
@@ -920,6 +924,7 @@ export default function App() {
     calendarEvents,
     readOnly: isViewer,
     onOpenAgenda: () => navigate('visitas'),
+    onAbrirAñadir: () => setAñadirAbierto(true),
     onAdd: (tipo: TipoRegistro) => {
       switch (tipo) {
         case 'toma':        setEditingFeeding(null);    openForm('nueva-toma'); break;
@@ -1518,11 +1523,19 @@ export default function App() {
             <NavButton label="Guías" icon={NotesIcon} active={activeTab === 'admin-guias'} onClick={() => navigate('admin-guias')} />
             <NavButton label="Ajustes" icon={SettingsIcon} active={activeTab === 'admin-settings'} onClick={() => navigate('admin-settings')} />
           </>) : (<>
+            {/* El botón central registra, que es lo que más se hace. El resto de
+                secciones (Visitas, Dudas, Hitos, Vacunas, Mi bebé…) cuelgan de
+                «Más», al alcance del pulgar en vez de en la esquina de arriba. */}
             <NavButton label="Hoy" icon={HomeIcon} active={activeTab === 'hoy'} onClick={() => navigate('hoy')} />
-            <NavButton label="Gráficas" icon={ChartIcon} active={activeTab === 'graficas'} onClick={() => navigate('graficas')} />
             <NavButton label="Historial" icon={ListIcon} active={activeTab === 'historial'} onClick={() => navigate('historial')} />
-            <NavButton label="Visitas" icon={CalendarIcon} active={activeTab === 'visitas'} onClick={() => navigate('visitas')} />
-            <NavButton label={config?.name ?? 'Mi bebé'} icon={BabyIcon} active={activeTab === 'config' || activeTab === 'familia'} onClick={() => navigate('config')} />
+            {!isViewer && <NavAddButton onClick={() => setAñadirAbierto(true)} />}
+            <NavButton label="Gráficas" icon={ChartIcon} active={activeTab === 'graficas'} onClick={() => navigate('graficas')} />
+            <NavButton
+              label="Más"
+              icon={MenuIcon}
+              active={drawerOpen || !['hoy', 'historial', 'graficas'].includes(activeTab)}
+              onClick={() => setDrawerOpen(true)}
+            />
           </>)}
         </nav>
       )}
@@ -1566,6 +1579,15 @@ export default function App() {
             </div>
           </aside>
         </div>
+      )}
+
+      {/* Hoja de «Añadir registro»: la abren la cabecera de «Hoy» y el botón
+          central de la barra inferior, así que vive aquí y no dentro de «Hoy». */}
+      {añadirAbierto && propsHoy && (
+        <AddRecordSheet
+          onSelect={(tipo) => { setAñadirAbierto(false); propsHoy.onAdd(tipo); }}
+          onClose={() => setAñadirAbierto(false)}
+        />
       )}
 
       </div>
@@ -1783,6 +1805,24 @@ function NavButton({ label, icon: Icon, active, onClick }: {
   );
 }
 
+/**
+ * Botón central de la barra: abre la hoja de «Añadir registro». Sobresale por
+ * encima de la barra para que se distinga de las secciones, que solo navegan.
+ */
+function NavAddButton({ onClick }: { onClick: () => void }) {
+  return (
+    <div className="flex-1 flex justify-center">
+      <button
+        onClick={onClick}
+        aria-label="Añadir registro"
+        className="-mt-5 w-14 h-14 rounded-full bg-sage-600 text-white text-2xl font-bold shadow-lg shadow-sage-600/30 ring-4 ring-white flex items-center justify-center active:scale-95 active:bg-sage-700 transition-transform touch-manipulation"
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
 function SidebarButton({ label, icon: Icon, active, onClick }: {
   label: string; icon: (p: { active: boolean }) => React.ReactNode; active: boolean; onClick: () => void;
 }) {
@@ -1810,6 +1850,16 @@ function navIconProps(active: boolean) {
     stroke: 'currentColor', strokeWidth: active ? 2.2 : 2,
     strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
   };
+}
+
+function MenuIcon({ active }: { active: boolean }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" {...navIconProps(active)} fill="none">
+      <line x1="4" y1="7" x2="20" y2="7" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <line x1="4" y1="17" x2="20" y2="17" />
+    </svg>
+  );
 }
 
 function HomeIcon({ active }: { active: boolean }) {

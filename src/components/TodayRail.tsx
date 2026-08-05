@@ -29,7 +29,6 @@ import { useConfirm } from './ConfirmDialog';
 import { MedicineIcon, StrollerIcon } from './CareIcons';
 import DayInsights from './DayInsights';
 import WeekComparison from './WeekComparison';
-import AddRecordSheet from './AddRecordSheet';
 import type { TipoRegistro } from './AddRecordSheet';
 
 interface Props {
@@ -42,6 +41,8 @@ interface Props {
   readOnly?: boolean;
   onOpenAgenda: () => void;
   onAdd: (tipo: TipoRegistro) => void;
+  /** Abre la hoja de «Añadir registro», que vive en App para compartirla con la barra inferior. */
+  onAbrirAñadir: () => void;
   onEditFeeding: (f: Feeding) => void;
   onEditRest: (r: Rest) => void;
   onDeleteFeeding: (id: string) => void;
@@ -100,7 +101,7 @@ export default function TodayRail({
   config, feedings, rests, currentWeightKg, vitaminDLogs,
   calendarEvents, readOnly,
   onOpenAgenda,
-  onAdd,
+  onAdd, onAbrirAñadir,
   onEditFeeding, onEditRest,
   onDeleteFeeding, onDeleteRest,
   onStopFeeding, onStopRest,
@@ -204,7 +205,6 @@ export default function TodayRail({
   const careChips = buildCareChips();
 
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [añadirAbierto, setAñadirAbierto] = useState(false);
 
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -252,7 +252,7 @@ export default function TodayRail({
           <p className="text-sm text-gray-500">{formatBabyAge(daysOfLife)}</p>
           {!readOnly && (
             <button
-              onClick={() => setAñadirAbierto(true)}
+              onClick={onAbrirAñadir}
               className="bg-sage-600 text-white font-semibold px-4 py-2 rounded-xl text-sm active:bg-sage-700 touch-manipulation"
             >
               + Añadir
@@ -402,12 +402,6 @@ export default function TodayRail({
         />
       )}
 
-      {añadirAbierto && (
-        <AddRecordSheet
-          onSelect={(tipo) => { setAñadirAbierto(false); onAdd(tipo); }}
-          onClose={() => setAñadirAbierto(false)}
-        />
-      )}
     </div>
   );
 }
