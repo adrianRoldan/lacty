@@ -1513,8 +1513,10 @@ export default function App() {
         </div>
       )}
 
+      {/* z-30: las cabeceras de franja del timeline son `sticky z-10` y, al estar
+          siempre posicionadas, se pintaban por encima de esta barra. */}
       {!showForm && (
-        <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 flex pb-safe">
+        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-gray-200 flex pb-safe">
           {isAdmin ? (<>
             <NavButton label="Usuarios" icon={FamilyIcon} active={activeTab === 'admin-users'} onClick={() => navigate('admin-users')} />
             <NavButton label="Bebés" icon={BabyIcon} active={activeTab === 'admin-babies'} onClick={() => navigate('admin-babies')} />

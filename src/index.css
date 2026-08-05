@@ -52,6 +52,13 @@
   --color-taupe-800: #4A3F3A;
 }
 
+/* Hueco para la barra de gestos del móvil (iPhone con notch, Android con barra
+   de navegación). Se usaba `pb-safe` en la barra inferior y en las hojas
+   emergentes, pero la utilidad no existía y no reservaba nada. */
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
 /* ── Modo noche ──────────────────────────────────────────────────────────────
    Se activa con la clase `.dark` en <html>. En Tailwind v4 cada utilidad de
    color (`bg-gray-100`, `text-sage-700`, …) referencia su variable `--color-*`,
