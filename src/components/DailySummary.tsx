@@ -33,8 +33,11 @@ interface Props {
   calendarEvents: CalendarEvent[];
   readOnly?: boolean;
   onOpenAgenda: () => void;
-  /** Cambia el timeline a la versión en línea de tiempo (TodayRail) y lo recuerda. */
-  onProbarDiseñoNuevo?: () => void;
+  /**
+   * Aviso de la nueva línea de tiempo. Solo llega mientras no se haya ofrecido:
+   * al probarla o al cerrarlo, deja de aparecer para siempre.
+   */
+  avisoLineaDeTiempo?: { onProbar: () => void; onCerrar: () => void };
   onAdd: (tipo: TipoRegistro) => void;
   onEditFeeding: (f: Feeding) => void;
   onEditRest: (r: Rest) => void;
@@ -85,7 +88,7 @@ interface CareChip {
 export default function DailySummary({
   config, feedings, rests, currentWeightKg, vitaminDLogs,
   calendarEvents, readOnly,
-  onOpenAgenda, onProbarDiseñoNuevo,
+  onOpenAgenda, avisoLineaDeTiempo,
   onAdd,
   onEditFeeding, onEditRest,
   onDeleteFeeding, onDeleteRest,
@@ -235,6 +238,9 @@ export default function DailySummary({
 
   return (
     <div className="p-4 pb-24">
+      {/* ── 0. Aviso de la nueva línea de tiempo (una sola vez) ────────── */}
+      {avisoLineaDeTiempo && <AvisoLineaDeTiempo {...avisoLineaDeTiempo} />}
+
       {/* ── 1. Header ──────────────────────────────────────────────────── */}
       <div className="mb-3">
         <div className="flex items-baseline gap-2 flex-wrap">
@@ -242,14 +248,6 @@ export default function DailySummary({
           <span className="text-base font-semibold text-gray-500">
             {new Date().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
           </span>
-          {onProbarDiseñoNuevo && (
-            <button
-              onClick={onProbarDiseñoNuevo}
-              className="text-xs font-semibold text-sage-700 bg-sage-100 rounded-full px-2.5 py-1 touch-manipulation active:brightness-95"
-            >
-              ✨ Probar la línea de tiempo
-            </button>
-          )}
         </div>
         <div className="flex items-center justify-between mt-0.5">
           <p className="text-sm text-gray-500">{formatBabyAge(daysOfLife)}</p>
@@ -427,6 +425,43 @@ export default function DailySummary({
           onClose={() => setAñadirAbierto(false)}
         />
       )}
+    </div>
+  );
+}
+
+// ── Aviso de la nueva línea de tiempo ───────────────────────────────────────
+
+/**
+ * Barra de lado a lado sobre la cabecera. Se ofrece una sola vez: tanto probarla
+ * como cerrarla la retiran para siempre, y a partir de ahí se cambia en Ajustes.
+ */
+function AvisoLineaDeTiempo({ onProbar, onCerrar }: { onProbar: () => void; onCerrar: () => void }) {
+  return (
+    <div className="-mx-4 -mt-4 mb-4 bg-sage-100 border-b border-sage-200">
+      <div className="flex items-center gap-3 px-4 py-3">
+        <button onClick={onProbar} className="flex items-start gap-3 flex-1 min-w-0 text-left touch-manipulation">
+          <span className="text-lg shrink-0 leading-none mt-0.5">✨</span>
+          <span className="min-w-0">
+            <span className="block text-sm font-bold text-sage-800">
+              Prueba la nueva vista de los registros
+            </span>
+            <span className="block text-xs text-sage-700 mt-0.5">
+              Una línea de tiempo con las horas a un lado y una barra por cada sueño o paseo.
+              Puedes volver a la de ahora cuando quieras desde Ajustes.
+            </span>
+          </span>
+        </button>
+        <button
+          onClick={onCerrar}
+          aria-label="No, gracias"
+          title="No, gracias"
+          className="text-sage-700/60 hover:text-sage-800 p-1 shrink-0 self-start touch-manipulation"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }

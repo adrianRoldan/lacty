@@ -108,7 +108,13 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(false);
 
-  const { design: timelineDesign, setDesign: setTimelineDesign, hydrate: hydrateTimelineDesign } = useTimelineDesign();
+  const {
+    design: timelineDesign,
+    promptSeen: timelinePromptSeen,
+    setDesign: setTimelineDesign,
+    dismissPrompt: dismissTimelinePrompt,
+    hydrate: hydrateTimelineDesign,
+  } = useTimelineDesign();
   const [activeTab, setActiveTab] = useState<Tab>('hoy');
   const [screen, setScreen] = useState<Screen>('hoy');
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -229,7 +235,10 @@ export default function App() {
       setFamilyRole(auth?.familyRole ?? 'editor');
       setImpersonating(auth?.impersonating ?? false);
       setOriginalUsername(auth?.originalUsername ?? null);
-      hydrateTimelineDesign(auth?.timelineDesign ?? 'clasico');
+      hydrateTimelineDesign({
+        design: auth?.timelineDesign ?? 'clasico',
+        promptSeen: auth?.timelinePromptSeen ?? true,
+      });
       if (auth?.role === 'admin') { setActiveTab('admin-users'); setScreen('admin-users'); }
       setAuthChecked(true);
       if (!auth) { setLoading(false); return; }
@@ -316,7 +325,10 @@ export default function App() {
       if (role === 'admin') { setActiveTab('admin-users'); setScreen('admin-users'); }
       else { setActiveTab('hoy'); setScreen('hoy'); }
       // El diseño del timeline viaja con la cuenta: se recupera al entrar.
-      api.checkAuth().then((auth) => hydrateTimelineDesign(auth?.timelineDesign ?? 'clasico'));
+      api.checkAuth().then((auth) => hydrateTimelineDesign({
+        design: auth?.timelineDesign ?? 'clasico',
+        promptSeen: auth?.timelinePromptSeen ?? true,
+      }));
       setLoading(true);
       loadAllData()
         .then(() => setApiError(false))
@@ -891,7 +903,7 @@ export default function App() {
     setDrawerOpen(false);
   }
 
-  // La preferencia se guarda; se vuelve al clásico desde Ajustes.
+  // La preferencia se guarda en la cuenta; se vuelve al clásico desde Ajustes.
   function activarTimelineNuevo() {
     setTimelineDesign('rail');
     toast('Línea de tiempo activada · puedes volver al diseño anterior en Ajustes');
@@ -1160,7 +1172,13 @@ export default function App() {
         {screen === 'hoy' && propsHoy && (
           timelineDesign === 'rail'
             ? <TodayRail {...propsHoy} />
-            : <DailySummary {...propsHoy} onProbarDiseñoNuevo={activarTimelineNuevo} />
+            : <DailySummary
+                {...propsHoy}
+                avisoLineaDeTiempo={timelinePromptSeen ? undefined : {
+                  onProbar: activarTimelineNuevo,
+                  onCerrar: dismissTimelinePrompt,
+                }}
+              />
         )}
 
         {screen === 'graficas' && config && (
