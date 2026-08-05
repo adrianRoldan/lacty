@@ -1703,7 +1703,9 @@ function ExtraFab({ label, color, onClick, children }: {
       aria-label={label}
       className="flex items-center gap-2 active:scale-95 transition-transform touch-manipulation"
     >
-      <span className="bg-white/95 text-gray-700 text-xs font-semibold px-2.5 py-1 rounded-lg shadow-md whitespace-nowrap">
+      {/* `bg-white` a secas, sin opacidad: el modo noche oscurece esa clase, y
+          `bg-white/95` genera otra distinta que se quedaba blanca. */}
+      <span className="bg-white text-gray-700 text-xs font-semibold px-2.5 py-1 rounded-lg shadow-md whitespace-nowrap">
         {label}
       </span>
       <span className={`w-12 h-12 rounded-full text-white shadow-lg flex items-center justify-center shrink-0 ${color}`}>

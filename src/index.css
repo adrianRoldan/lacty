@@ -179,7 +179,13 @@
 }
 
 /* Superficies blancas (tarjetas, barras, formularios) → superficie oscura,
-   un punto más clara que el fondo de página para separarse visualmente. */
+   un punto más clara que el fondo de página para separarse visualmente.
+
+   OJO: esto casa con la clase `bg-white` exacta. Las variantes con opacidad
+   (`bg-white/95`, `bg-white/70`…) generan otra clase y NO se oscurecen, así que
+   sobre ellas el texto oscuro-que-se-vuelve-claro queda ilegible. Para
+   superficies usa `bg-white` a secas; deja las variantes con alfa solo para
+   velos sobre fondos de color, donde el blanco translúcido es lo que se busca. */
 .dark .bg-white {
   background-color: #1e211c;
 }
