@@ -6,9 +6,11 @@ import * as api from './api';
 import BabyConfigScreen from './components/BabyConfig';
 import BabyProfile from './components/BabyProfile';
 import GrowthView from './components/GrowthView';
+import TodayRail from './components/TodayRail'; // TEMPORAL: rediseño del timeline
 import CareSettings from './components/CareSettings';
 import LoginScreen from './components/LoginScreen';
 import DailySummary from './components/DailySummary';
+import type { TipoRegistro } from './components/AddRecordSheet';
 import FeedingForm from './components/FeedingForm';
 import RestForm from './components/RestForm';
 import WeightForm from './components/WeightForm';
@@ -58,6 +60,8 @@ type Screen =
   // Subpáginas de «Mi bebé»: no son pestañas, así que activeTab sigue en 'config'
   | 'crecimiento'
   | 'cuidados'
+  // TEMPORAL: propuesta de rediseño del timeline, para compararla con «Hoy»
+  | 'hoy-rail'
   | 'ajustes'
   | 'mis-datos'
   | 'resumen-pediatra'
@@ -452,7 +456,7 @@ export default function App() {
     }
     toast(editingFeeding ? 'Toma actualizada' : 'Toma registrada');
     setEditingFeeding(null);
-    setScreen(activeTab);
+    closeForm();
   }
 
   async function handleDeleteFeeding(id: string) {
@@ -581,7 +585,7 @@ export default function App() {
     }
     toast(editingRest ? 'Sueño actualizado' : 'Sueño registrado');
     setEditingRest(null);
-    setScreen(activeTab);
+    closeForm();
   }
 
   async function handleDeleteRest(id: string) {
@@ -777,7 +781,7 @@ export default function App() {
     }
     toast(editingDiaper ? 'Pañal actualizado' : 'Pañal registrado');
     setEditingDiaper(null);
-    navigate(activeTab);
+    closeForm();
   }
 
   async function handleDeleteDiaper(id: string) {
@@ -798,7 +802,7 @@ export default function App() {
     }
     toast(editingMedication ? 'Medicamento actualizado' : 'Medicamento registrado');
     setEditingMedication(null);
-    navigate(activeTab);
+    closeForm();
   }
 
   async function handleDeleteMedication(id: string) {
@@ -806,7 +810,7 @@ export default function App() {
     setMedications((prev) => prev.filter((m) => m.id !== id));
     toast('Medicamento eliminado');
     setEditingMedication(null);
-    navigate(activeTab);
+    closeForm();
   }
 
   // ── Baños ──────────────────────────────────────────────────────────────────
@@ -830,7 +834,7 @@ export default function App() {
     }
     toast(editingBath ? 'Baño actualizado' : 'Baño registrado');
     setEditingBath(null);
-    navigate(activeTab);
+    closeForm();
   }
 
   async function handleDeleteBath(id: string) {
@@ -838,7 +842,7 @@ export default function App() {
     setBaths((prev) => prev.filter((b) => b.id !== id));
     toast('Baño eliminado');
     setEditingBath(null);
-    navigate(activeTab);
+    closeForm();
   }
 
   // ── Paseos ─────────────────────────────────────────────────────────────────
@@ -853,7 +857,7 @@ export default function App() {
     }
     toast(editingWalk ? 'Paseo actualizado' : 'Paseo registrado');
     setEditingWalk(null);
-    navigate(activeTab);
+    closeForm();
   }
 
   async function handleDeleteWalk(id: string) {
@@ -883,6 +887,58 @@ export default function App() {
     setScreen(tab);
     setDrawerOpen(false);
   }
+
+  // Props de la pantalla «Hoy». Se comparten con la propuesta de rediseño
+  // (TodayRail) para que ambas se comporten igual y la comparación sea justa.
+  const propsHoy = config ? {
+    config,
+    feedings,
+    rests,
+    currentWeightKg,
+    vitaminDLogs,
+    calendarEvents,
+    readOnly: isViewer,
+    onOpenAgenda: () => navigate('visitas'),
+    onAdd: (tipo: TipoRegistro) => {
+      switch (tipo) {
+        case 'toma':        setEditingFeeding(null);    openForm('nueva-toma'); break;
+        case 'sueno':       setEditingRest(null);       openForm('nuevo-sueño'); break;
+        case 'panal':       setEditingDiaper(null);     openForm('nuevo-pañal'); break;
+        case 'bano':        setEditingBath(null);       openForm('nuevo-bano'); break;
+        case 'paseo':       setEditingWalk(null);       openForm('nuevo-paseo'); break;
+        case 'medicamento': setEditingMedication(null); openForm('nuevo-medicamento'); break;
+        case 'peso':        setEditingWeight(null);     openForm('nuevo-peso'); break;
+        case 'altura':      setEditingHeight(null);     openForm('nuevo-altura'); break;
+        case 'perimetro':   setEditingHeadCirc(null);   openForm('nuevo-pc'); break;
+      }
+    },
+    onEditFeeding: (f: Feeding) => { setEditingFeeding(f); openForm('editar-toma'); },
+    onEditRest: (r: Rest) => { setEditingRest(r); openForm('editar-sueño'); },
+    onDeleteFeeding: handleDeleteFeeding,
+    onDeleteRest: handleDeleteRest,
+    onStopFeeding: handleStopFeeding,
+    onStopRest: handleStopRest,
+    onGiveVitaminD: handleGiveVitaminD,
+    onRemoveVitaminD: handleRemoveVitaminD,
+    probioticLogs,
+    onGiveProbiotic: handleGiveProbiotic,
+    onRemoveProbiotic: handleRemoveProbiotic,
+    onRecalculateTodayBreast: handleRecalculateTodayBreast,
+    massageLogs,
+    onAddMassage: handleAddMassage,
+    onRemoveMassage: handleRemoveMassage,
+    diapers,
+    onEditDiaper: (d: DiaperChange) => { setEditingDiaper(d); openForm('editar-pañal'); },
+    onDeleteDiaper: handleDeleteDiaper,
+    medications,
+    onEditMedication: (m: MedicationLog) => { setEditingMedication(m); openForm('editar-medicamento'); },
+    walks,
+    onEditWalk: (w: Walk) => { setEditingWalk(w); openForm('editar-paseo'); },
+    onDeleteWalk: handleDeleteWalk,
+    onStopWalk: handleStopWalk,
+    baths,
+    onEditBath: (b: Bath) => { setEditingBath(b); openForm('editar-bano'); },
+  } : null;
 
   const showForm = [
     'nueva-toma', 'editar-toma',
@@ -1001,7 +1057,7 @@ export default function App() {
           <FeedingForm
             existing={editingFeeding}
             onSave={handleSaveFeeding}
-            onCancel={() => { setEditingFeeding(null); setScreen(activeTab); }}
+            onCancel={() => { setEditingFeeding(null); closeForm(); }}
           />
         )}
 
@@ -1010,7 +1066,7 @@ export default function App() {
           <RestForm
             existing={editingRest}
             onSave={handleSaveRest}
-            onCancel={() => { setEditingRest(null); setScreen(activeTab); }}
+            onCancel={() => { setEditingRest(null); closeForm(); }}
           />
         )}
 
@@ -1058,7 +1114,7 @@ export default function App() {
           <DiaperForm
             existing={editingDiaper}
             onSave={handleSaveDiaper}
-            onCancel={() => { setEditingDiaper(null); navigate(activeTab); }}
+            onCancel={() => { setEditingDiaper(null); closeForm(); }}
           />
         )}
 
@@ -1068,7 +1124,7 @@ export default function App() {
             existing={editingMedication}
             onSave={handleSaveMedication}
             onDelete={handleDeleteMedication}
-            onCancel={() => { setEditingMedication(null); navigate(activeTab); }}
+            onCancel={() => { setEditingMedication(null); closeForm(); }}
           />
         )}
 
@@ -1077,8 +1133,8 @@ export default function App() {
           <WalkForm
             existing={editingWalk}
             onSave={handleSaveWalk}
-            onDelete={async (id) => { await handleDeleteWalk(id); setEditingWalk(null); navigate(activeTab); }}
-            onCancel={() => { setEditingWalk(null); navigate(activeTab); }}
+            onDelete={async (id) => { await handleDeleteWalk(id); setEditingWalk(null); closeForm(); }}
+            onCancel={() => { setEditingWalk(null); closeForm(); }}
           />
         )}
 
@@ -1087,61 +1143,18 @@ export default function App() {
             existing={editingBath}
             onSave={handleSaveBath}
             onDelete={handleDeleteBath}
-            onCancel={() => { setEditingBath(null); navigate(activeTab); }}
+            onCancel={() => { setEditingBath(null); closeForm(); }}
           />
         )}
 
         {/* Main tabs */}
-        {screen === 'hoy' && config && (
-          <DailySummary
-            config={config}
-            feedings={feedings}
-            rests={rests}
-            currentWeightKg={currentWeightKg}
-            vitaminDLogs={vitaminDLogs}
-            calendarEvents={calendarEvents}
-            readOnly={isViewer}
-            onOpenAgenda={() => navigate('visitas')}
-            onAdd={(tipo) => {
-              switch (tipo) {
-                case 'toma':        setEditingFeeding(null);  setScreen('nueva-toma'); break;
-                case 'sueno':       setEditingRest(null);     setScreen('nuevo-sueño'); break;
-                case 'panal':       setEditingDiaper(null);   setScreen('nuevo-pañal'); break;
-                case 'bano':        setEditingBath(null);     setScreen('nuevo-bano'); break;
-                case 'paseo':       setEditingWalk(null);     setScreen('nuevo-paseo'); break;
-                case 'medicamento': setEditingMedication(null); setScreen('nuevo-medicamento'); break;
-                case 'peso':        setEditingWeight(null);   openForm('nuevo-peso'); break;
-                case 'altura':      setEditingHeight(null);   openForm('nuevo-altura'); break;
-                case 'perimetro':   setEditingHeadCirc(null); openForm('nuevo-pc'); break;
-              }
-            }}
-            onEditFeeding={(f) => { setEditingFeeding(f); setScreen('editar-toma'); }}
-            onEditRest={(r) => { setEditingRest(r); setScreen('editar-sueño'); }}
-            onDeleteFeeding={handleDeleteFeeding}
-            onDeleteRest={handleDeleteRest}
-            onStopFeeding={handleStopFeeding}
-            onStopRest={handleStopRest}
-            onGiveVitaminD={handleGiveVitaminD}
-            onRemoveVitaminD={handleRemoveVitaminD}
-            probioticLogs={probioticLogs}
-            onGiveProbiotic={handleGiveProbiotic}
-            onRemoveProbiotic={handleRemoveProbiotic}
-            onRecalculateTodayBreast={handleRecalculateTodayBreast}
-            massageLogs={massageLogs}
-            onAddMassage={handleAddMassage}
-            onRemoveMassage={handleRemoveMassage}
-            diapers={diapers}
-            onEditDiaper={(d) => { setEditingDiaper(d); setScreen('editar-pañal'); }}
-            onDeleteDiaper={handleDeleteDiaper}
-            medications={medications}
-            onEditMedication={(m) => { setEditingMedication(m); setScreen('editar-medicamento'); }}
-            walks={walks}
-            onEditWalk={(w) => { setEditingWalk(w); setScreen('editar-paseo'); }}
-            onDeleteWalk={handleDeleteWalk}
-            onStopWalk={handleStopWalk}
-            baths={baths}
-            onEditBath={(b) => { setEditingBath(b); setScreen('editar-bano'); }}
-          />
+        {screen === 'hoy' && propsHoy && (
+          <DailySummary {...propsHoy} onProbarDiseñoNuevo={() => setScreen('hoy-rail')} />
+        )}
+
+        {/* TEMPORAL: misma pantalla con la propuesta de timeline nuevo */}
+        {screen === 'hoy-rail' && propsHoy && (
+          <TodayRail {...propsHoy} onVolverAlActual={() => setScreen('hoy')} />
         )}
 
         {screen === 'graficas' && config && (
@@ -1387,7 +1400,7 @@ export default function App() {
       </main>
 
       {/* FABs — inicio rápido (solo en Hoy, no admin, no viewer) */}
-      {screen === 'hoy' && !isAdmin && !isViewer && (
+      {(screen === 'hoy' || screen === 'hoy-rail') && !isAdmin && !isViewer && (
         <div className="fixed right-5 bottom-20 lg:bottom-6 z-20 flex flex-col items-end gap-3">
           {/* FABs extra — visibles solo al expandir, algo más pequeños que los
               principales. En una columna la pila mide 552 px: con la cabecera

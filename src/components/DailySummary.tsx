@@ -33,6 +33,8 @@ interface Props {
   calendarEvents: CalendarEvent[];
   readOnly?: boolean;
   onOpenAgenda: () => void;
+  /** TEMPORAL: abre la propuesta de rediseño del timeline (TodayRail). */
+  onProbarDiseñoNuevo?: () => void;
   onAdd: (tipo: TipoRegistro) => void;
   onEditFeeding: (f: Feeding) => void;
   onEditRest: (r: Rest) => void;
@@ -83,7 +85,7 @@ interface CareChip {
 export default function DailySummary({
   config, feedings, rests, currentWeightKg, vitaminDLogs,
   calendarEvents, readOnly,
-  onOpenAgenda,
+  onOpenAgenda, onProbarDiseñoNuevo,
   onAdd,
   onEditFeeding, onEditRest,
   onDeleteFeeding, onDeleteRest,
@@ -235,11 +237,19 @@ export default function DailySummary({
     <div className="p-4 pb-24">
       {/* ── 1. Header ──────────────────────────────────────────────────── */}
       <div className="mb-3">
-        <div className="flex items-baseline gap-2">
+        <div className="flex items-baseline gap-2 flex-wrap">
           <h1 className="text-2xl font-bold text-gray-900">Hoy</h1>
           <span className="text-base font-semibold text-gray-500">
             {new Date().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
           </span>
+          {onProbarDiseñoNuevo && (
+            <button
+              onClick={onProbarDiseñoNuevo}
+              className="text-xs font-semibold text-sage-700 bg-sage-100 rounded-full px-2.5 py-1 touch-manipulation active:brightness-95"
+            >
+              ✨ Probar timeline nuevo
+            </button>
+          )}
         </div>
         <div className="flex items-center justify-between mt-0.5">
           <p className="text-sm text-gray-500">{formatBabyAge(daysOfLife)}</p>
