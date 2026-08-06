@@ -5,6 +5,12 @@
   --color-sage-50:  #EEF4EF;
   --color-sage-100: #D0E4D3;
   --color-sage-200: #A8C9AC;
+  /* 300–500 interpolados entre el 200 y el 600. Se usaban por toda la app
+     (anillos de foco, barras de progreso, el interruptor de notificaciones)
+     sin estar declarados, así que esas clases no llegaban a generarse. */
+  --color-sage-300: #9DBEA1;
+  --color-sage-400: #92B497;
+  --color-sage-500: #88A98C;
   --color-sage-600: #7D9E82;
   --color-sage-700: #5A7F5F;
   --color-sage-800: #3B5C40;
@@ -23,6 +29,7 @@
   --color-mustard-100: #F5E6C4;
   --color-mustard-200: #E8CF96;
   --color-mustard-300: #D4AD4A;
+  --color-mustard-500: #BC972D;
   --color-mustard-600: #B08C1E;
   --color-mustard-700: #8A6E18;
   --color-mustard-800: #635012;
@@ -39,6 +46,7 @@
   --color-lagoon-100: #D4EEF0;
   --color-lagoon-200: #A8DDE2;
   --color-lagoon-300: #5BBCC6;
+  --color-lagoon-500: #309BA6;
   --color-lagoon-600: #1A8A96;
   --color-lagoon-700: #14707A;
   --color-lagoon-800: #0E535B;
