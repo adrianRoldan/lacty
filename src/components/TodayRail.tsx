@@ -23,8 +23,7 @@ import {
 } from '../utils/feedingUtils';
 import { getEffectiveReference, getSleepReference } from '../data/referenceTable';
 import { etiquetarSuenos, contarPorTipo } from '../utils/sleepUtils';
-import { massagesPerDay, frenectomyEndDate, getRecommendedMassageTimes } from '../utils/careUtils';
-import { pautaVigente, dosisDelDia, dosisPendiente } from '../utils/medicationUtils';
+import { cuidadosDeHoy } from '../utils/cuidadosHoy';
 import { useElapsedTime } from '../hooks/useElapsedMinutes';
 import { useConfirm } from './ConfirmDialog';
 import { MedicineIcon, StrollerIcon } from './CareIcons';
@@ -149,83 +148,47 @@ export default function TodayRail({
   const reference = getEffectiveReference(daysOfLife, currentWeightKg);
   const sleepRef = getSleepReference(daysOfLife);
 
-  function buildCareChips(): CareChip[] {
-    const chips: CareChip[] = [];
-    const now = new Date();
-    const nowHour = now.getHours();
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
-
-    if (config.vitaminDEnabled) {
-      const given = vitaminDLogs.some((l) => l.date === today);
-      const urgent = !given && config.vitaminDReminderHour !== undefined && nowHour >= config.vitaminDReminderHour;
-      chips.push({
-        key: 'vitaminD', icon: '💊', label: config.vitaminDMedName || 'Vit. D',
-        done: given, urgent,
-        onAdd: () => onGiveVitaminD(today),
-        onUndo: given ? () => onRemoveVitaminD(today) : undefined,
-      });
-    }
-
-    if (config.probioticEnabled) {
-      const given = probioticLogs.some((l) => l.date === today);
-      const urgent = !given && config.probioticReminderHour !== undefined && nowHour >= config.probioticReminderHour;
-      chips.push({
-        key: 'probiotic', icon: '🦠', label: config.probioticMedName || 'Probiótico',
-        done: given, urgent,
-        onAdd: () => onGiveProbiotic(today),
-        onUndo: given ? () => onRemoveProbiotic(today) : undefined,
-      });
-    }
-
-    if (config.frenectomyEnabled && config.frenectomyDate) {
-      const fin = frenectomyEndDate(config);
-      if (fin != null && today <= fin) {
-        const objetivo = massagesPerDay(config);
-        const todayMassages = massageLogs
+  // Los cuidados que tocan hoy los calcula una única función compartida; aquí
+  // solo se les enganchan las acciones de esta pantalla.
+  const careChips: CareChip[] = cuidadosDeHoy({
+    config, today,
+    ahoraMin: new Date().getHours() * 60 + new Date().getMinutes(),
+    vitaminDLogs, probioticLogs, massageLogs, medications, medPlans,
+  }).map((c) => {
+    const base = {
+      key: c.key,
+      icon: c.icono,
+      label: c.etiqueta,
+      done: c.hecho,
+      urgent: c.urgente,
+      count: c.total > 1 ? { current: c.hechas, total: c.total } : undefined,
+    };
+    switch (c.tipo) {
+      case 'vitaminD':
+        return { ...base,
+          onAdd: () => onGiveVitaminD(today),
+          onUndo: c.hecho ? () => onRemoveVitaminD(today) : undefined };
+      case 'probiotic':
+        return { ...base,
+          onAdd: () => onGiveProbiotic(today),
+          onUndo: c.hecho ? () => onRemoveProbiotic(today) : undefined };
+      case 'massage': {
+        const ultimo = massageLogs
           .filter((m) => m.date === today)
-          .sort((a, b) => a.performedAt.localeCompare(b.performedAt));
-        const count = todayMassages.length;
-        const done = count >= objetivo;
-        const recommended = getRecommendedMassageTimes(
-          config.frenectomyStartTime ?? '08:30',
-          config.frenectomyEndTime ?? '22:30',
-          objetivo
-        );
-        const nextPending = Math.min(count, objetivo - 1);
-        const urgent = !done && nowMin >= toMin(recommended[nextPending]);
-        const lastMassage = todayMassages[todayMassages.length - 1];
-        chips.push({
-          key: 'massage', icon: '👅', label: 'Masajes',
-          done, urgent,
-          count: { current: count, total: objetivo },
+          .sort((a, b) => a.performedAt.localeCompare(b.performedAt))
+          .at(-1);
+        return { ...base,
+          count: { current: c.hechas, total: c.total },
           onAdd: () => onAddMassage(today),
-          onUndo: count > 0 ? () => onRemoveMassage(lastMassage.id) : undefined,
-        });
+          onUndo: ultimo ? () => onRemoveMassage(ultimo.id) : undefined };
       }
+      default:
+        return { ...base,
+          count: { current: c.hechas, total: c.total },
+          onAdd: () => onGiveMedicationDose(c.plan!),
+          onUndo: c.hechas > 0 ? () => onUndoMedicationDose(c.plan!.id) : undefined };
     }
-
-    // Medicación programada: un chip por pauta vigente, con las dosis del día.
-    for (const plan of medPlans) {
-      if (!pautaVigente(plan, today)) continue;
-      const dadas = dosisDelDia(medications, plan.id, today);
-      const total = plan.times.length;
-      chips.push({
-        key: `medplan-${plan.id}`,
-        icon: '💊',
-        label: plan.name,
-        done: dadas >= total,
-        urgent: dosisPendiente(plan, dadas, nowMin) >= 0,
-        count: { current: dadas, total },
-        onAdd: () => onGiveMedicationDose(plan),
-        onUndo: dadas > 0 ? () => onUndoMedicationDose(plan.id) : undefined,
-      });
-    }
-
-    return chips;
-  }
-
-  const careChips = buildCareChips();
+  });
 
   const [detailsOpen, setDetailsOpen] = useState(false);
 

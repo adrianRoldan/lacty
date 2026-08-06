@@ -1,4 +1,5 @@
 import { createPortal } from 'react-dom';
+import type { CuidadoHoy } from '../utils/cuidadosHoy';
 import { DiaperIcon } from './DiaperItem';
 import { MedicineIcon, StrollerIcon, ScaleIcon } from './CareIcons';
 
@@ -17,6 +18,10 @@ export type TipoRegistro =
 interface Props {
   onSelect: (tipo: TipoRegistro) => void;
   onClose: () => void;
+  /** Cuidados activos hoy (vitamina D, probiótico, masajes, medicación). */
+  cuidados?: CuidadoHoy[];
+  /** Apunta el cuidado con la hora actual, sin pasar por ningún formulario. */
+  onRegistrarCuidado?: (cuidado: CuidadoHoy) => void;
 }
 
 interface Opcion {
@@ -41,7 +46,7 @@ const MEDIDAS: Opcion[] = [
   { tipo: 'perimetro', etiqueta: 'Perímetro', color: 'bg-slate-100 text-slate-700', icono: <span className="text-xl">🧠</span> },
 ];
 
-export default function AddRecordSheet({ onSelect, onClose }: Props) {
+export default function AddRecordSheet({ onSelect, onClose, cuidados = [], onRegistrarCuidado }: Props) {
   return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:items-center sm:p-6">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
@@ -62,12 +67,58 @@ export default function AddRecordSheet({ onSelect, onClose }: Props) {
 
         <div className="px-5 pb-5">
           <Grupo opciones={DIA_A_DIA} onSelect={onSelect} />
+
+          {cuidados.length > 0 && onRegistrarCuidado && (
+            <>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mt-5 mb-2">
+                Cuidados de hoy
+              </p>
+              <div className="space-y-2">
+                {cuidados.map((c) => (
+                  <BotonCuidado key={c.key} cuidado={c} onSelect={onRegistrarCuidado} />
+                ))}
+              </div>
+            </>
+          )}
+
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mt-5 mb-2">Medidas</p>
           <Grupo opciones={MEDIDAS} onSelect={onSelect} />
         </div>
       </div>
     </div>,
     document.body
+  );
+}
+
+/**
+ * Cuidado del día. A diferencia del resto, no abre formulario: apunta la
+ * administración con la hora actual, igual que el chip de «Hoy».
+ */
+function BotonCuidado({ cuidado, onSelect }: { cuidado: CuidadoHoy; onSelect: (c: CuidadoHoy) => void }) {
+  const { hecho, urgente, hechas, total } = cuidado;
+  return (
+    <button
+      onClick={() => onSelect(cuidado)}
+      disabled={hecho}
+      className={`w-full flex items-center gap-3 rounded-2xl px-3 py-3 text-left touch-manipulation transition-colors ${
+        hecho ? 'bg-gray-50 opacity-60 cursor-default' : 'bg-gray-50 active:bg-gray-100'
+      }`}
+    >
+      <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl ${
+        hecho ? 'bg-green-100' : urgente ? 'bg-amber-100' : 'bg-violet-100'
+      }`}>
+        {cuidado.icono}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-gray-800 truncate">{cuidado.etiqueta}</span>
+        <span className="block text-xs text-gray-500 truncate">{cuidado.detalle}</span>
+      </span>
+      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${
+        hecho ? 'bg-green-100 text-green-700' : urgente ? 'bg-amber-100 text-amber-800' : 'bg-gray-200 text-gray-600'
+      }`}>
+        {hecho ? '✓ hecho' : total > 1 ? `${hechas}/${total}` : 'pendiente'}
+      </span>
+    </button>
   );
 }
 

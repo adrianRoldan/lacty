@@ -34,6 +34,7 @@ import { MedicineIcon, StrollerIcon, ScaleIcon } from './components/CareIcons';
 import { useAmount } from './components/AmountDialog';
 import { getEffectiveReference } from './data/referenceTable';
 import { massagesPerDay, frenectomyEndDate } from './utils/careUtils';
+import { cuidadosDeHoy, type CuidadoHoy } from './utils/cuidadosHoy';
 import AppSettings from './components/AppSettings';
 import MilestonesView from './components/MilestonesView';
 import VaccinesView from './components/VaccinesView';
@@ -855,6 +856,17 @@ export default function App() {
     toast('Dosis deshecha');
   }
 
+  /** Apunta un cuidado del día desde la hoja de «Añadir un registro». */
+  function registrarCuidado(c: CuidadoHoy) {
+    const hoy = todayIso();
+    switch (c.tipo) {
+      case 'vitaminD': handleGiveVitaminD(hoy); break;
+      case 'probiotic': handleGiveProbiotic(hoy); break;
+      case 'massage':  handleAddMassage(hoy); break;
+      case 'medplan':  if (c.plan) handleGiveMedicationDose(c.plan); break;
+    }
+  }
+
   async function handleDeleteMedicationPlan(id: string) {
     await api.deleteMedicationPlan(id);
     setMedPlans((prev) => prev.filter((p) => p.id !== id));
@@ -1630,10 +1642,16 @@ export default function App() {
 
       {/* Hoja de «Añadir registro»: la abren la cabecera de «Hoy» y el botón
           central de la barra inferior, así que vive aquí y no dentro de «Hoy». */}
-      {añadirAbierto && propsHoy && (
+      {añadirAbierto && propsHoy && config && (
         <AddRecordSheet
           onSelect={(tipo) => { setAñadirAbierto(false); propsHoy.onAdd(tipo); }}
           onClose={() => setAñadirAbierto(false)}
+          cuidados={isViewer ? [] : cuidadosDeHoy({
+            config, today: todayIso(),
+            ahoraMin: new Date().getHours() * 60 + new Date().getMinutes(),
+            vitaminDLogs, probioticLogs, massageLogs, medications, medPlans,
+          })}
+          onRegistrarCuidado={(c) => { setAñadirAbierto(false); registrarCuidado(c); }}
         />
       )}
 
