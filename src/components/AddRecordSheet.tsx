@@ -50,8 +50,15 @@ export default function AddRecordSheet({ onSelect, onClose, cuidados = [], onReg
   return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:items-center sm:p-6">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-xl max-h-[85vh] overflow-y-auto pb-safe animate-[fadeSlideUp_0.18s_ease-out]">
-        <div className="px-5 pt-5 pb-3 flex items-center justify-between">
+      {/* Columna con cabecera y pie fijos: con los cuidados la hoja se alarga y
+          el botón de cerrar quedaba fuera de la vista hasta hacer scroll. */}
+      <div className="relative bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-xl max-h-[85vh] flex flex-col animate-[fadeSlideUp_0.18s_ease-out]">
+        {/* Asa: en móvil indica que es una hoja que se puede cerrar */}
+        <div className="sm:hidden flex justify-center pt-2.5 pb-1 shrink-0">
+          <span className="w-10 h-1 rounded-full bg-gray-300" />
+        </div>
+
+        <div className="px-5 pt-3 sm:pt-5 pb-3 flex items-center justify-between shrink-0">
           <div>
             <p className="text-lg font-bold text-gray-900">Añadir un registro</p>
             <p className="text-xs text-gray-400 mt-0.5">Podrás ajustar la hora si ya ha pasado</p>
@@ -65,7 +72,7 @@ export default function AddRecordSheet({ onSelect, onClose, cuidados = [], onReg
           </button>
         </div>
 
-        <div className="px-5 pb-5">
+        <div className="px-5 pb-5 overflow-y-auto flex-1">
           <Grupo opciones={DIA_A_DIA} onSelect={onSelect} />
 
           {cuidados.length > 0 && onRegistrarCuidado && (
@@ -83,6 +90,21 @@ export default function AddRecordSheet({ onSelect, onClose, cuidados = [], onReg
 
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mt-5 mb-2">Medidas</p>
           <Grupo opciones={MEDIDAS} onSelect={onSelect} />
+        </div>
+
+        {/* Cerrar desde abajo, siempre a mano y en la zona del pulgar. El hueco
+            de la barra de gestos va en el contenedor: en el botón chocaría con
+            su propio padding vertical. */}
+        <div className="shrink-0 border-t border-gray-100 pb-safe">
+          <button
+            onClick={onClose}
+            className="w-full py-3 flex flex-col items-center gap-0.5 text-gray-400 active:bg-gray-50 touch-manipulation"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+            <span className="text-xs font-semibold">Cerrar</span>
+          </button>
         </div>
       </div>
     </div>,
