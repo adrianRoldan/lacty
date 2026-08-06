@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CuidadoHoy } from '../utils/cuidadosHoy';
 import { DiaperIcon } from './DiaperItem';
@@ -46,19 +47,62 @@ const MEDIDAS: Opcion[] = [
   { tipo: 'perimetro', etiqueta: 'Perímetro', color: 'bg-slate-100 text-slate-700', icono: <span className="text-xl">🧠</span> },
 ];
 
+const ARRASTRE_PARA_CERRAR = 90; // px
+
 export default function AddRecordSheet({ onSelect, onClose, cuidados = [], onRegistrarCuidado }: Props) {
+  // Arrastrar la cabecera hacia abajo cierra la hoja. La cabecera lleva
+  // `touch-none`, así que el navegador no se queda el gesto: sin eso, en Chrome
+  // de Android acababa siendo un «tirar para recargar» y se perdía la pantalla.
+  const [arrastre, setArrastre] = useState(0);
+  const [soltando, setSoltando] = useState(false);
+  const inicioY = useRef(0);
+
+  function alEmpezar(e: React.TouchEvent) {
+    inicioY.current = e.touches[0].clientY;
+    setSoltando(false);
+  }
+
+  function alMover(e: React.TouchEvent) {
+    const dy = e.touches[0].clientY - inicioY.current;
+    setArrastre(dy > 0 ? dy : 0);
+  }
+
+  function alSoltar() {
+    setSoltando(true);
+    if (arrastre > ARRASTRE_PARA_CERRAR) {
+      // Se acompaña la salida antes de desmontar, para que no desaparezca de golpe.
+      setArrastre(window.innerHeight);
+      setTimeout(onClose, 160);
+    } else {
+      setArrastre(0);
+    }
+  }
+
+  const gestos = {
+    onTouchStart: alEmpezar,
+    onTouchMove: alMover,
+    onTouchEnd: alSoltar,
+    onTouchCancel: alSoltar,
+  };
+
   return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:items-center sm:p-6">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       {/* Columna con cabecera y pie fijos: con los cuidados la hoja se alarga y
           el botón de cerrar quedaba fuera de la vista hasta hacer scroll. */}
-      <div className="relative bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-xl max-h-[85vh] flex flex-col animate-[fadeSlideUp_0.18s_ease-out]">
-        {/* Asa: en móvil indica que es una hoja que se puede cerrar */}
-        <div className="sm:hidden flex justify-center pt-2.5 pb-1 shrink-0">
+      <div
+        className={`relative bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-xl max-h-[85vh] flex flex-col ${
+          arrastre === 0 && !soltando ? 'animate-[fadeSlideUp_0.18s_ease-out]' : ''
+        } ${soltando ? 'transition-transform duration-150 ease-out' : ''}`}
+        style={arrastre > 0 ? { transform: `translateY(${arrastre}px)` } : undefined}
+      >
+        {/* Asa: en móvil indica que es una hoja que se puede cerrar, y es la
+            zona por la que se arrastra hacia abajo para hacerlo. */}
+        <div className="sm:hidden flex justify-center pt-2.5 pb-1 shrink-0 touch-none" {...gestos}>
           <span className="w-10 h-1 rounded-full bg-gray-300" />
         </div>
 
-        <div className="px-5 pt-3 sm:pt-5 pb-3 flex items-center justify-between shrink-0">
+        <div className="px-5 pt-3 sm:pt-5 pb-3 flex items-center justify-between shrink-0 touch-none" {...gestos}>
           <div>
             <p className="text-lg font-bold text-gray-900">Añadir un registro</p>
             <p className="text-xs text-gray-400 mt-0.5">Podrás ajustar la hora si ya ha pasado</p>
@@ -72,7 +116,7 @@ export default function AddRecordSheet({ onSelect, onClose, cuidados = [], onReg
           </button>
         </div>
 
-        <div className="px-5 pb-5 overflow-y-auto flex-1">
+        <div className="px-5 pb-5 overflow-y-auto overscroll-contain flex-1">
           <Grupo opciones={DIA_A_DIA} onSelect={onSelect} />
 
           {cuidados.length > 0 && onRegistrarCuidado && (
@@ -98,12 +142,12 @@ export default function AddRecordSheet({ onSelect, onClose, cuidados = [], onReg
         <div className="shrink-0 border-t border-gray-100 pb-safe">
           <button
             onClick={onClose}
-            className="w-full py-3 flex flex-col items-center gap-0.5 text-gray-400 active:bg-gray-50 touch-manipulation"
+            aria-label="Cerrar"
+            className="w-full py-3.5 flex items-center justify-center text-gray-400 active:bg-gray-50 touch-manipulation"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M6 9l6 6 6-6" />
             </svg>
-            <span className="text-xs font-semibold">Cerrar</span>
           </button>
         </div>
       </div>
