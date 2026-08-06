@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, Walk, Bath } from './types';
-import { getCurrentDaysOfLife, getBirthDate } from './utils/dateUtils';
+import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath } from './types';
+import { getCurrentDaysOfLife, getBirthDate, todayIso, localDateOf } from './utils/dateUtils';
 import { calcBreastEstimatedMl, generateId } from './utils/feedingUtils';
 import * as api from './api';
 import BabyConfigScreen from './components/BabyConfig';
@@ -93,6 +93,7 @@ export default function App() {
   const [diapers, setDiapers] = useState<DiaperChange[]>([]);
   const [editingDiaper, setEditingDiaper] = useState<DiaperChange | null>(null);
   const [medications, setMedications] = useState<MedicationLog[]>([]);
+  const [medPlans, setMedPlans] = useState<MedicationPlan[]>([]);
   const [editingMedication, setEditingMedication] = useState<MedicationLog | null>(null);
   const [walks, setWalks] = useState<Walk[]>([]);
   const [editingWalk, setEditingWalk] = useState<Walk | null>(null);
@@ -156,15 +157,15 @@ export default function App() {
 
   // Trae todos los datos del bebé activo (asume que api.setActiveBaby ya está fijado).
   async function loadBabyData() {
-    const [fds, rsts, wts, hts, hcs, vdLogs, prLogs, mLogs, msLogs, vacLogs, cons, cal, dps, meds, wks, bths] = await Promise.all([
+    const [fds, rsts, wts, hts, hcs, vdLogs, prLogs, mLogs, msLogs, vacLogs, cons, cal, dps, meds, plans, wks, bths] = await Promise.all([
       api.getFeedings(), api.getRests(), api.getWeights(), api.getHeights(), api.getHeadCircs(), api.getVitaminDLogs(),
       api.getProbioticLogs(), api.getMassageLogs(), api.getMilestones(), api.getVaccines(), api.getConsultations(), api.getCalendarEvents(),
-      api.getDiapers(), api.getMedications(), api.getWalks(), api.getBaths(),
+      api.getDiapers(), api.getMedications(), api.getMedicationPlans(), api.getWalks(), api.getBaths(),
     ]);
     setFeedings(fds); setRests(rsts); setWeights(wts); setHeights(hts); setHeadCircs(hcs);
     setVitaminDLogs(vdLogs); setProbioticLogs(prLogs); setMassageLogs(mLogs);
     setMilestoneLogs(msLogs); setVaccineLogs(vacLogs); setConsultations(cons); setCalendarEvents(cal);
-    setDiapers(dps); setMedications(meds); setWalks(wks); setBaths(bths);
+    setDiapers(dps); setMedications(meds); setMedPlans(plans); setWalks(wks); setBaths(bths);
   }
 
   // Carga los bebés de la cuenta, fija el activo (el último usado si existe) y sus datos.
@@ -278,6 +279,7 @@ export default function App() {
         case 'calendar':   api.getCalendarEvents().then(setCalendarEvents); break;
         case 'diapers':    api.getDiapers().then(setDiapers); break;
         case 'medications': api.getMedications().then(setMedications); break;
+        case 'medplans':   api.getMedicationPlans().then(setMedPlans); break;
         case 'walks':      api.getWalks().then(setWalks); break;
         case 'baths':      api.getBaths().then(setBaths); break;
       }
@@ -811,7 +813,11 @@ export default function App() {
 
   // ── Medicamentos ───────────────────────────────────────────────────────────
 
-  async function handleSaveMedication(entry: MedicationLog) {
+  async function handleSaveMedication(entry: MedicationLog, plan?: MedicationPlan) {
+    if (plan) {
+      const creado = await api.createMedicationPlan(plan);
+      setMedPlans((prev) => [...prev, creado]);
+    }
     if (editingMedication) {
       const updated = await api.updateMedication(entry);
       setMedications((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
@@ -819,9 +825,40 @@ export default function App() {
       const created = await api.createMedication(entry);
       setMedications((prev) => [...prev, created]);
     }
-    toast(editingMedication ? 'Medicamento actualizado' : 'Medicamento registrado');
+    toast(plan ? 'Pauta programada' : editingMedication ? 'Medicamento actualizado' : 'Medicamento registrado');
     setEditingMedication(null);
     closeForm();
+  }
+
+  /** Apunta una dosis de una pauta con la hora actual, desde el chip de «Hoy». */
+  async function handleGiveMedicationDose(plan: MedicationPlan) {
+    const created = await api.createMedication({
+      id: generateId(),
+      timestamp: new Date().toISOString(),
+      name: plan.name,
+      ...(plan.doseMl != null ? { doseMl: plan.doseMl } : {}),
+      planId: plan.id,
+    });
+    setMedications((prev) => [...prev, created]);
+    toast(`${plan.name} registrado`);
+  }
+
+  /** Deshace la última dosis de la pauta apuntada hoy. */
+  async function handleUndoMedicationDose(planId: string) {
+    const hoy = todayIso();
+    const ultima = medications
+      .filter((m) => m.planId === planId && localDateOf(m.timestamp) === hoy)
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0];
+    if (!ultima) return;
+    await api.deleteMedication(ultima.id);
+    setMedications((prev) => prev.filter((m) => m.id !== ultima.id));
+    toast('Dosis deshecha');
+  }
+
+  async function handleDeleteMedicationPlan(id: string) {
+    await api.deleteMedicationPlan(id);
+    setMedPlans((prev) => prev.filter((p) => p.id !== id));
+    toast('Pauta eliminada');
   }
 
   async function handleDeleteMedication(id: string) {
@@ -958,6 +995,9 @@ export default function App() {
     onDeleteDiaper: handleDeleteDiaper,
     medications,
     onEditMedication: (m: MedicationLog) => { setEditingMedication(m); openForm('editar-medicamento'); },
+    medPlans,
+    onGiveMedicationDose: handleGiveMedicationDose,
+    onUndoMedicationDose: handleUndoMedicationDose,
     walks,
     onEditWalk: (w: Walk) => { setEditingWalk(w); openForm('editar-paseo'); },
     onDeleteWalk: handleDeleteWalk,
@@ -1332,6 +1372,9 @@ export default function App() {
             vitaminDLogs={vitaminDLogs}
             probioticLogs={probioticLogs}
             massageLogs={massageLogs}
+            medications={medications}
+            medPlans={medPlans}
+            onDeleteMedicationPlan={handleDeleteMedicationPlan}
             onBack={() => setScreen('config')}
             onUpdateConfig={handleUpdateConfig}
             readOnly={isViewer}

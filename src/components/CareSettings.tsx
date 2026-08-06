@@ -1,20 +1,27 @@
-import type { BabyConfig, VitaminDLog, ProbioticLog, MassageLog } from '../types';
+import type { BabyConfig, VitaminDLog, ProbioticLog, MassageLog, MedicationLog, MedicationPlan } from '../types';
 import { todayIso } from '../utils/dateUtils';
 import { massagesPerDay, frenectomyEndDate, vitaminDEndDate, getRecommendedMassageTimes, DIAS_DE_MASAJES_POR_DEFECTO } from '../utils/careUtils';
 import { ventanaNocturna } from '../utils/sleepUtils';
+import { pautaVigente, dosisDelDia, resumenPauta, diasRestantes } from '../utils/medicationUtils';
+import { useConfirm } from './ConfirmDialog';
 
 interface Props {
   config: BabyConfig;
   vitaminDLogs: VitaminDLog[];
   probioticLogs: ProbioticLog[];
   massageLogs: MassageLog[];
+  medications: MedicationLog[];
+  medPlans: MedicationPlan[];
+  onDeleteMedicationPlan: (id: string) => void;
   onBack: () => void;
   onUpdateConfig: (partial: Partial<Omit<BabyConfig, 'id'>>) => Promise<void>;
   readOnly?: boolean;
 }
 
 export default function CareSettings({
-  config, vitaminDLogs, probioticLogs, massageLogs, onBack, onUpdateConfig, readOnly,
+  config, vitaminDLogs, probioticLogs, massageLogs,
+  medications, medPlans, onDeleteMedicationPlan,
+  onBack, onUpdateConfig, readOnly,
 }: Props) {
   return (
     <div className="p-4 pb-24">
@@ -153,6 +160,15 @@ export default function CareSettings({
       {/* Historial del probiótico — siempre visible si hay registros */}
       {probioticLogs.length > 0 && <RachaHistorial logs={probioticLogs} />}
 
+      {/* Medicación programada */}
+      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 mt-6">Medicación programada</h2>
+      <PautasMedicacion
+        planes={medPlans}
+        medications={medications}
+        readOnly={readOnly}
+        onEliminar={onDeleteMedicationPlan}
+      />
+
       {/* Frenectomía */}
       <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 mt-6">Frenectomía</h2>
       <div className="bg-white rounded-2xl shadow-sm p-4 mb-2">
@@ -288,6 +304,112 @@ export default function CareSettings({
       </div>
     </div>
   );
+}
+
+/**
+ * Tratamientos con horario. Las vigentes muestran las dosis de hoy y los días
+ * que quedan; las terminadas se quedan abajo, apagadas, hasta que se borran.
+ */
+function PautasMedicacion({ planes, medications, readOnly, onEliminar }: {
+  planes: MedicationPlan[];
+  medications: MedicationLog[];
+  readOnly?: boolean;
+  onEliminar: (id: string) => void;
+}) {
+  const confirm = useConfirm();
+  const hoy = todayIso();
+
+  if (planes.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl shadow-sm p-4 mb-2">
+        <p className="text-sm text-gray-500">
+          No hay ninguna pauta programada.
+        </p>
+        <p className="text-xs text-gray-400 mt-1">
+          Al apuntar un medicamento puedes marcar que se administra periódicamente:
+          Lacty te avisará cuando toque cada dosis.
+        </p>
+      </div>
+    );
+  }
+
+  const ordenadas = [...planes].sort((a, b) => {
+    const vigA = pautaVigente(a, hoy) ? 0 : 1;
+    const vigB = pautaVigente(b, hoy) ? 0 : 1;
+    return vigA - vigB || b.startDate.localeCompare(a.startDate);
+  });
+
+  return (
+    <div className="space-y-2 mb-2">
+      {ordenadas.map((plan) => {
+        const vigente = plan.startDate <= hoy && hoy <= plan.endDate;
+        const pendiente = plan.startDate > hoy;
+        const dadas = dosisDelDia(medications, plan.id, hoy);
+        const restantes = diasRestantes(plan, hoy);
+
+        return (
+          <div key={plan.id} className={`bg-white rounded-2xl shadow-sm p-4 ${vigente ? '' : 'opacity-60'}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-900">
+                  {plan.name}
+                  {plan.doseMl != null && (
+                    <span className="text-gray-400 font-normal"> · {String(plan.doseMl).replace('.', ',')} ml</span>
+                  )}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">{resumenPauta(plan)}</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {pendiente
+                    ? `Empieza el ${formatFechaCorta(plan.startDate)}`
+                    : vigente
+                      ? `Hasta el ${formatFechaCorta(plan.endDate)} · ${restantes === 0 ? 'último día' : `quedan ${restantes} días`}`
+                      : `Terminada el ${formatFechaCorta(plan.endDate)}`}
+                </p>
+              </div>
+              {!readOnly && (
+                <button
+                  onClick={async () => {
+                    const aviso = vigente
+                      ? `¿Eliminar la pauta de ${plan.name}? Dejarás de recibir avisos; las dosis ya apuntadas se conservan.`
+                      : `¿Eliminar la pauta de ${plan.name}?`;
+                    if (await confirm(aviso)) onEliminar(plan.id);
+                  }}
+                  className="text-gray-300 hover:text-red-400 p-1 shrink-0 touch-manipulation"
+                  aria-label="Eliminar pauta"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                    <path d="M10 11v6M14 11v6" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {vigente && (
+              <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-1.5">
+                <span className="text-xs text-gray-500 mr-1">Hoy</span>
+                {plan.times.map((h, i) => (
+                  <span
+                    key={h + i}
+                    className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                      i < dadas ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'
+                    }`}
+                  >
+                    {i < dadas ? '✓ ' : ''}{h}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function formatFechaCorta(iso: string): string {
+  return new Date(iso + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
 }
 
 /** Racha y calendario de 14 días — vale para vitamina D y para el probiótico. */

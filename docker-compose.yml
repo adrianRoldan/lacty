@@ -8,6 +8,10 @@ services:
       # fichero estático, disponible incluso mientras se despliega.
       - ./landing:/app/landing
     environment:
+      # Los avisos comparan la hora del servidor con las horas que configura la
+      # familia («el masaje toca a las 08:30»). Sin esto el contenedor va en UTC
+      # y en España llegarían con una o dos horas de retraso.
+      TZ: Europe/Madrid
       DATA_DIR: /app/data
       SESSION_SECRET: ${SESSION_SECRET}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}

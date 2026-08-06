@@ -117,6 +117,23 @@ export interface MedicationLog {
   name: string;      // nombre del medicamento (de la lista rápida o escrito a mano)
   doseMl?: number;   // dosis administrada en mililitros
   notes?: string;
+  /** Pauta a la que pertenece esta dosis, si venía programada. */
+  planId?: string;
+}
+
+/**
+ * Tratamiento con horario: «Omeprazol, 1 vez al día a las 09:00, dos semanas».
+ * Con él la app sabe qué dosis faltan hoy y puede avisar cuando se pasa la hora.
+ */
+export interface MedicationPlan {
+  id: string;
+  name: string;
+  doseMl?: number;
+  /** Horas del día en formato "HH:MM"; su número es las veces al día. */
+  times: string[];
+  startDate: string;   // "YYYY-MM-DD" inclusive
+  endDate: string;     // "YYYY-MM-DD" inclusive
+  notes?: string;
 }
 
 export interface Walk {

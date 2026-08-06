@@ -1,15 +1,24 @@
 import { useState } from 'react';
-import type { MedicationLog } from '../types';
+import type { MedicationLog, MedicationPlan } from '../types';
 import { generateId } from '../utils/feedingUtils';
-import { toLocalDatetimeInputValue } from '../utils/dateUtils';
+import { toLocalDatetimeInputValue, todayIso } from '../utils/dateUtils';
+import { horasPorDefecto, isoMasDias } from '../utils/medicationUtils';
 import { useConfirm } from './ConfirmDialog';
 
 interface Props {
-  onSave: (m: MedicationLog) => void;
+  /** `plan` solo llega al programar la administración: crea la pauta y sus avisos. */
+  onSave: (m: MedicationLog, plan?: MedicationPlan) => void;
   onCancel: () => void;
   onDelete?: (id: string) => void;
   existing?: MedicationLog | null;
 }
+
+const DURACIONES = [
+  { etiqueta: '3 días',    dias: 2 },
+  { etiqueta: '1 semana',  dias: 6 },
+  { etiqueta: '2 semanas', dias: 13 },
+  { etiqueta: '1 mes',     dias: 29 },
+];
 
 // Los más habituales en lactantes. Cualquier otro se escribe a mano.
 const COMUNES = ['Apiretal', 'Dalsy', 'Paracetamol', 'Ibuprofeno', 'Suero fisiológico'];
@@ -29,7 +38,26 @@ export default function MedicationForm({ onSave, onCancel, onDelete, existing }:
   const [notes, setNotes] = useState(existing?.notes ?? '');
   const [error, setError] = useState('');
 
+  // Pauta programada (opcional). Solo se ofrece al crear un registro nuevo:
+  // editar uno viejo no debería estrenar un tratamiento.
+  const hoy = todayIso();
+  const [programar, setProgramar] = useState(false);
+  const [horas, setHoras] = useState<string[]>(horasPorDefecto(1));
+  const [hasta, setHasta] = useState(isoMasDias(hoy, 6));
+
   const nombreFinal = (usaOtro ? otro : name).trim();
+
+  function cambiarVeces(veces: number) {
+    setHoras((prev) => {
+      const base = horasPorDefecto(veces);
+      // Se respetan las horas ya tocadas por el usuario al añadir o quitar una.
+      return base.map((h, i) => prev[i] ?? h);
+    });
+  }
+
+  function cambiarHora(i: number, valor: string) {
+    setHoras((prev) => prev.map((h, j) => (j === i ? valor : h)));
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -42,12 +70,38 @@ export default function MedicationForm({ onSave, onCancel, onDelete, existing }:
       setError('La dosis debe ser un número mayor que cero.');
       return;
     }
-    onSave({
+    if (programar) {
+      if (horas.some((h) => !h)) {
+        setError('Indica todas las horas de administración.');
+        return;
+      }
+      if (hasta < hoy) {
+        setError('La fecha de fin no puede ser anterior a hoy.');
+        return;
+      }
+    }
+
+    const planId = programar ? generateId() : undefined;
+    const log: MedicationLog = {
       id: existing?.id ?? generateId(),
       timestamp: new Date(timestamp).toISOString(),
       name: nombreFinal,
       ...(doseMl != null ? { doseMl } : {}),
       ...(notes.trim() ? { notes: notes.trim() } : {}),
+      ...(planId ? { planId } : {}),
+    };
+
+    if (!planId) {
+      onSave(log);
+      return;
+    }
+    onSave(log, {
+      id: planId,
+      name: nombreFinal,
+      ...(doseMl != null ? { doseMl } : {}),
+      times: [...horas].sort(),
+      startDate: hoy,
+      endDate: hasta,
     });
   }
 
@@ -145,6 +199,107 @@ export default function MedicationForm({ onSave, onCancel, onDelete, existing }:
             <span className="text-base font-medium text-gray-500">ml</span>
           </div>
         </div>
+
+        {/* Pauta programada — solo al crear, no al editar un registro pasado */}
+        {!existing && (
+          <div className="bg-white rounded-2xl p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-900">¿Debes administrarlo periódicamente?</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Programa la pauta y Lacty te avisa cuando toque, hasta que termine el tratamiento.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setProgramar((v) => !v)}
+                aria-label={programar ? 'No programar' : 'Programar'}
+                className={`relative w-12 h-6 rounded-full transition-colors touch-manipulation shrink-0 ${programar ? 'bg-sage-600' : 'bg-gray-200'}`}
+              >
+                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${programar ? 'translate-x-6' : 'translate-x-0.5'}`} />
+              </button>
+            </div>
+
+            {programar && (
+              <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
+                {/* Veces al día */}
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-2">Veces al día</p>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => cambiarVeces(n)}
+                        className={`flex-1 py-2 rounded-xl text-sm font-semibold touch-manipulation transition-colors ${
+                          horas.length === n
+                            ? 'bg-violet-100 text-violet-700 ring-2 ring-violet-300'
+                            : 'bg-gray-100 text-gray-500'
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Horas */}
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-2">
+                    {horas.length === 1 ? 'Hora' : 'Horas'}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {horas.map((h, i) => (
+                      <input
+                        key={i}
+                        type="time"
+                        value={h}
+                        onChange={(e) => cambiarHora(i, e.target.value)}
+                        className="border border-gray-200 rounded-xl px-3 py-2.5 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-600"
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Hasta cuándo */}
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-2">Hasta</p>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {DURACIONES.map((d) => {
+                      const fecha = isoMasDias(hoy, d.dias);
+                      return (
+                        <button
+                          key={d.etiqueta}
+                          type="button"
+                          onClick={() => setHasta(fecha)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold touch-manipulation transition-colors ${
+                            hasta === fecha
+                              ? 'bg-violet-100 text-violet-700 ring-2 ring-violet-300'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}
+                        >
+                          {d.etiqueta}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <input
+                    type="date"
+                    value={hasta}
+                    min={hoy}
+                    onChange={(e) => setHasta(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-600"
+                  />
+                </div>
+
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  La dosis de arriba se usará para cada administración. Este registro cuenta como
+                  la primera; el resto los irás marcando desde «Hoy».
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Observaciones */}
         <div className="bg-white rounded-2xl p-4 shadow-sm">

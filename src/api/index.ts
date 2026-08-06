@@ -1,4 +1,4 @@
-import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, Walk, Bath } from '../types';
+import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath } from '../types';
 
 const BASE = '/api';
 
@@ -863,6 +863,32 @@ export async function updateMedication(m: MedicationLog): Promise<MedicationLog>
 
 export async function deleteMedication(id: string): Promise<void> {
   await fetch(`${BASE}/medications/${id}`, { method: 'DELETE', headers: mutHeaders() });
+}
+
+// ── Pautas de medicación ──────────────────────────────────────────────────────
+
+export async function getMedicationPlans(): Promise<MedicationPlan[]> {
+  return json(await fetch(`${BASE}/medplans`, { headers: babyHeaders() }));
+}
+
+export async function createMedicationPlan(p: MedicationPlan): Promise<MedicationPlan> {
+  return json(await fetch(`${BASE}/medplans`, {
+    method: 'POST',
+    headers: mutHeaders(),
+    body: JSON.stringify(p),
+  }));
+}
+
+export async function updateMedicationPlan(p: MedicationPlan): Promise<MedicationPlan> {
+  return json(await fetch(`${BASE}/medplans/${p.id}`, {
+    method: 'PUT',
+    headers: mutHeaders(),
+    body: JSON.stringify(p),
+  }));
+}
+
+export async function deleteMedicationPlan(id: string): Promise<void> {
+  await fetch(`${BASE}/medplans/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 // ── Paseos ────────────────────────────────────────────────────────────────────

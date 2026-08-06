@@ -113,7 +113,7 @@ const authLimiter = rateLimit({
 
 const db = new Database(DB_PATH);
 
-const DATA_TABLES = ['feedings', 'rests', 'weights', 'heights', 'headcircs', 'vitamind', 'probiotics', 'massages', 'consultations', 'calendar', 'milestones', 'vaccines', 'diapers', 'medications', 'walks', 'baths'];
+const DATA_TABLES = ['feedings', 'rests', 'weights', 'heights', 'headcircs', 'vitamind', 'probiotics', 'massages', 'consultations', 'calendar', 'milestones', 'vaccines', 'diapers', 'medications', 'medplans', 'walks', 'baths'];
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS accounts (
@@ -190,6 +190,24 @@ ensureColumn('push_subscriptions', 'user_agent');
 
 ensureColumn('notification_prefs', 'massage_threshold_mins', 'INTEGER NOT NULL DEFAULT 15');
 ensureColumn('notification_prefs', 'last_massage_notif_at', 'TEXT');
+
+// Último aviso enviado por «cosa que se repite»: cada pauta de medicación, la
+// vitamina D y el probiótico de cada bebé. Como el número de claves crece con
+// los datos, no caben como columnas de notification_prefs.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS notif_state (
+    key           TEXT PRIMARY KEY,
+    last_notif_at TEXT NOT NULL
+  );
+`);
+
+const ultimoAviso = (key) =>
+  db.prepare(`SELECT last_notif_at FROM notif_state WHERE key = ?`).get(key)?.last_notif_at ?? null;
+
+const anotarAviso = (key) =>
+  db.prepare(`INSERT INTO notif_state (key, last_notif_at) VALUES (?, ?)
+              ON CONFLICT(key) DO UPDATE SET last_notif_at = excluded.last_notif_at`)
+    .run(key, new Date().toISOString());
 
 // ── Guías (contenido público de lacty.es/guias/) ──────────────────────────────
 // Los artículos se escriben desde el panel de administración y se guardan aquí;
@@ -1319,6 +1337,11 @@ function sendPushToAccount(accountId, payload) {
   }
 }
 
+/** Fecha «YYYY-MM-DD» en la zona del servidor, no en UTC (ver TZ del compose). */
+function fechaLocal(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function checkNotifications() {
   const accounts = db.prepare(`SELECT DISTINCT account_id FROM push_subscriptions`).all();
   const now = Date.now();
@@ -1386,7 +1409,7 @@ function checkNotifications() {
 
       // Masajes frenectomía
       if (baby.frenectomyEnabled && baby.frenectomyDate) {
-        const today   = new Date().toISOString().slice(0, 10);
+        const today   = fechaLocal();
         const frenEnd = frenectomyEndDate(baby);
         if (frenEnd && today <= frenEnd) {
           const objetivo = baby.frenectomyMassagesPerDay > 0
@@ -1428,6 +1451,70 @@ function checkNotifications() {
             }
           }
         }
+      }
+
+      const hoy       = fechaLocal();
+      const ahoraMin  = new Date().getHours() * 60 + new Date().getMinutes();
+
+      // Vitamina D y probiótico: un único aviso al día, cuando pasa la hora
+      // configurada y todavía no se ha registrado la toma.
+      const diarios = [
+        { clave: 'vitd', tabla: 'vitamind',   activo: baby.vitaminDEnabled,  hora: baby.vitaminDReminderHour,  etiqueta: baby.vitaminDMedName  || 'la vitamina D' },
+        { clave: 'prob', tabla: 'probiotics', activo: baby.probioticEnabled, hora: baby.probioticReminderHour, etiqueta: baby.probioticMedName || 'el probiótico' },
+      ];
+      for (const { clave, tabla, activo, hora, etiqueta } of diarios) {
+        if (!activo || hora == null || ahoraMin < hora * 60) continue;
+        const yaDado = db.prepare(`SELECT 1 FROM ${tabla} WHERE baby_id = ? AND json_extract(data, '$.date') = ?`)
+          .get(babyId, hoy);
+        if (yaDado) continue;
+        const key = `${clave}:${babyId}`;
+        const ultimo = ultimoAviso(key);
+        if (ultimo && fechaLocal(new Date(ultimo)) === hoy) continue;
+        sendPushToAccount(account_id, {
+          title: `${name}: toca ${etiqueta}`,
+          body: `Estaba previsto a las ${String(hora).padStart(2, '0')}:00 y aún no está apuntado`,
+          tag: `${clave}-${babyId}`,
+        });
+        anotarAviso(key);
+      }
+
+      // Medicación programada: se avisa de la dosis pendiente cuando pasa su
+      // hora con margen, y se insiste cada hora hasta que se registra.
+      const MARGEN_MIN = 15;
+      const INSISTE_MIN = 60;
+      const planes = db.prepare(`SELECT data FROM medplans WHERE baby_id = ?`).all(babyId)
+        .map((r) => JSON.parse(r.data));
+
+      for (const plan of planes) {
+        if (!plan?.times?.length) continue;
+        if (plan.startDate > hoy || hoy > plan.endDate) continue;
+
+        // Las dosis de hoy se cuentan por fecha local, no por la del ISO (UTC).
+        const dadas = db.prepare(`SELECT data FROM medications WHERE baby_id = ? AND json_extract(data, '$.planId') = ?`)
+          .all(babyId, plan.id)
+          .filter((r) => fechaLocal(new Date(JSON.parse(r.data).timestamp)) === hoy)
+          .length;
+
+        const horas = [...plan.times].sort();
+        if (dadas >= horas.length) continue;
+
+        const prevista = horas[dadas];
+        const previstaMin = Number(prevista.slice(0, 2)) * 60 + Number(prevista.slice(3, 5));
+        if (ahoraMin < previstaMin + MARGEN_MIN) continue;
+
+        const key = `medplan:${plan.id}`;
+        const ultimo = ultimoAviso(key);
+        if (ultimo && now - new Date(ultimo).getTime() < INSISTE_MIN * 60 * 1000) continue;
+
+        const dosis = plan.doseMl != null ? ` · ${String(plan.doseMl).replace('.', ',')} ml` : '';
+        sendPushToAccount(account_id, {
+          title: `${name}: toca ${plan.name}`,
+          body: horas.length > 1
+            ? `Dosis ${dadas + 1} de ${horas.length}, prevista a las ${prevista}${dosis}`
+            : `Estaba prevista a las ${prevista}${dosis}`,
+          tag: `medplan-${plan.id}`,
+        });
+        anotarAviso(key);
       }
     }
   }

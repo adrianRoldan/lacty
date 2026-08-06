@@ -8,7 +8,7 @@
  * el timeline. Cuando se elija una definitiva, la otra se borra.
  */
 import { useState, useEffect } from 'react';
-import type { BabyConfig, Feeding, Rest, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent, DiaperChange, MedicationLog, Walk, Bath, CareEntry } from '../types';
+import type { BabyConfig, Feeding, Rest, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, CareEntry } from '../types';
 import { getCurrentDaysOfLife, formatBabyAge, formatMinutes, formatTime, gapMinutes, isSameDay, todayIso, startDayHint } from '../utils/dateUtils';
 import {
   getTodayFeedings,
@@ -24,6 +24,7 @@ import {
 import { getEffectiveReference, getSleepReference } from '../data/referenceTable';
 import { etiquetarSuenos, contarPorTipo } from '../utils/sleepUtils';
 import { massagesPerDay, frenectomyEndDate, getRecommendedMassageTimes } from '../utils/careUtils';
+import { pautaVigente, dosisDelDia, dosisPendiente } from '../utils/medicationUtils';
 import { useElapsedTime } from '../hooks/useElapsedMinutes';
 import { useConfirm } from './ConfirmDialog';
 import { MedicineIcon, StrollerIcon } from './CareIcons';
@@ -63,6 +64,10 @@ interface Props {
   onDeleteDiaper: (id: string) => void;
   medications: MedicationLog[];
   onEditMedication: (m: MedicationLog) => void;
+  /** Pautas de medicación programadas: salen como chip mientras estén vigentes. */
+  medPlans: MedicationPlan[];
+  onGiveMedicationDose: (plan: MedicationPlan) => void;
+  onUndoMedicationDose: (planId: string) => void;
   baths: Bath[];
   onEditBath: (b: Bath) => void;
   walks: Walk[];
@@ -111,6 +116,7 @@ export default function TodayRail({
   massageLogs, onAddMassage, onRemoveMassage,
   diapers, onEditDiaper, onDeleteDiaper,
   medications, onEditMedication,
+  medPlans, onGiveMedicationDose, onUndoMedicationDose,
   baths, onEditBath,
   walks, onEditWalk, onDeleteWalk, onStopWalk,
 }: Props) {
@@ -197,6 +203,23 @@ export default function TodayRail({
           onUndo: count > 0 ? () => onRemoveMassage(lastMassage.id) : undefined,
         });
       }
+    }
+
+    // Medicación programada: un chip por pauta vigente, con las dosis del día.
+    for (const plan of medPlans) {
+      if (!pautaVigente(plan, today)) continue;
+      const dadas = dosisDelDia(medications, plan.id, today);
+      const total = plan.times.length;
+      chips.push({
+        key: `medplan-${plan.id}`,
+        icon: '💊',
+        label: plan.name,
+        done: dadas >= total,
+        urgent: dosisPendiente(plan, dadas, nowMin) >= 0,
+        count: { current: dadas, total },
+        onAdd: () => onGiveMedicationDose(plan),
+        onUndo: dadas > 0 ? () => onUndoMedicationDose(plan.id) : undefined,
+      });
     }
 
     return chips;
