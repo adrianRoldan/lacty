@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { MedicationLog, MedicationPlan } from '../types';
 import { generateId } from '../utils/feedingUtils';
 import { toLocalDatetimeInputValue, todayIso } from '../utils/dateUtils';
-import { horasPorDefecto, isoMasDias } from '../utils/medicationUtils';
+import { horasPorDefecto, isoMasDias, pautaParaNombre, resumenPauta, dosisDelDia } from '../utils/medicationUtils';
 import { useConfirm } from './ConfirmDialog';
 
 interface Props {
@@ -11,6 +11,9 @@ interface Props {
   onCancel: () => void;
   onDelete?: (id: string) => void;
   existing?: MedicationLog | null;
+  /** Pautas ya programadas, para no duplicarlas y colgar de ellas esta dosis. */
+  medPlans?: MedicationPlan[];
+  medications?: MedicationLog[];
 }
 
 const DURACIONES = [
@@ -23,7 +26,7 @@ const DURACIONES = [
 // Los más habituales en lactantes. Cualquier otro se escribe a mano.
 const COMUNES = ['Apiretal', 'Dalsy', 'Paracetamol', 'Ibuprofeno', 'Suero fisiológico'];
 
-export default function MedicationForm({ onSave, onCancel, onDelete, existing }: Props) {
+export default function MedicationForm({ onSave, onCancel, onDelete, existing, medPlans = [], medications = [] }: Props) {
   const confirm = useConfirm();
 
   const [timestamp, setTimestamp] = useState(
@@ -47,6 +50,14 @@ export default function MedicationForm({ onSave, onCancel, onDelete, existing }:
 
   const nombreFinal = (usaOtro ? otro : name).trim();
 
+  // Si ya hay una pauta en pie para este medicamento, esta administración se
+  // cuelga de ella: así el chip de «Hoy» avanza y el aviso deja de insistir,
+  // se apunte desde el chip o desde aquí.
+  const pautaExistente = existing?.planId
+    ? medPlans.find((p) => p.id === existing.planId)
+    : pautaParaNombre(medPlans, nombreFinal, hoy);
+  const yaProgramado = pautaExistente != null;
+
   function cambiarVeces(veces: number) {
     setHoras((prev) => {
       const base = horasPorDefecto(veces);
@@ -65,12 +76,15 @@ export default function MedicationForm({ onSave, onCancel, onDelete, existing }:
       setError('Indica qué medicamento le has dado.');
       return;
     }
-    const doseMl = dose.trim() ? Number(dose.replace(',', '.')) : undefined;
+    // Sin dosis escrita se hereda la de la pauta, que es la que toca cada vez.
+    const doseMl = dose.trim()
+      ? Number(dose.replace(',', '.'))
+      : pautaExistente?.doseMl;
     if (doseMl != null && (Number.isNaN(doseMl) || doseMl <= 0)) {
       setError('La dosis debe ser un número mayor que cero.');
       return;
     }
-    if (programar) {
+    if (programar && !yaProgramado) {
       if (horas.some((h) => !h)) {
         setError('Indica todas las horas de administración.');
         return;
@@ -81,7 +95,10 @@ export default function MedicationForm({ onSave, onCancel, onDelete, existing }:
       }
     }
 
-    const planId = programar ? generateId() : undefined;
+    // Pauta nueva solo si se ha programado y no había ya una para lo mismo.
+    const pautaNueva = programar && !yaProgramado;
+    const planId = pautaNueva ? generateId() : pautaExistente?.id;
+
     const log: MedicationLog = {
       id: existing?.id ?? generateId(),
       timestamp: new Date(timestamp).toISOString(),
@@ -91,12 +108,12 @@ export default function MedicationForm({ onSave, onCancel, onDelete, existing }:
       ...(planId ? { planId } : {}),
     };
 
-    if (!planId) {
+    if (!pautaNueva) {
       onSave(log);
       return;
     }
     onSave(log, {
-      id: planId,
+      id: planId!,
       name: nombreFinal,
       ...(doseMl != null ? { doseMl } : {}),
       times: [...horas].sort(),
@@ -200,8 +217,37 @@ export default function MedicationForm({ onSave, onCancel, onDelete, existing }:
           </div>
         </div>
 
+        {/* Ya hay una pauta para este medicamento: esta dosis se cuelga de ella */}
+        {yaProgramado && pautaExistente && (
+          <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4">
+            <div className="flex items-start gap-3">
+              <span className="text-lg shrink-0 leading-none mt-0.5" aria-hidden="true">💊</span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-violet-900">
+                  Ya tienes {pautaExistente.name} programado
+                </p>
+                <p className="text-xs text-violet-800 mt-1 leading-relaxed">
+                  {resumenPauta(pautaExistente)}
+                  {pautaExistente.doseMl != null && ` · ${String(pautaExistente.doseMl).replace('.', ',')} ml`}
+                  {' · hasta el '}
+                  {new Date(pautaExistente.endDate + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}.
+                </p>
+                <p className="text-xs text-violet-700 mt-2 leading-relaxed">
+                  {existing
+                    ? 'Este registro cuenta como una de sus dosis.'
+                    : (() => {
+                        const dadas = dosisDelDia(medications, pautaExistente.id, hoy);
+                        const total = pautaExistente.times.length;
+                        return `Esta administración contará como la dosis ${Math.min(dadas + 1, total)} de ${total} de hoy, así que no hace falta volver a programarla.`;
+                      })()}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Pauta programada — solo al crear, no al editar un registro pasado */}
-        {!existing && (
+        {!existing && !yaProgramado && (
           <div className="bg-white rounded-2xl p-4 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">

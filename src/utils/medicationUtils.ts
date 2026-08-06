@@ -16,6 +16,28 @@ export function horasPorDefecto(veces: number): string[] {
   }
 }
 
+/** Compara nombres de medicamento ignorando mayúsculas, tildes y espacios. */
+function normalizar(nombre: string): string {
+  return nombre.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+/**
+ * Pauta ya programada para ese medicamento que siga en pie (vigente o por
+ * empezar). Sirve para no crear dos pautas del mismo y para colgar de ella las
+ * dosis que se apunten desde «+ Añadir» en vez de desde el chip de «Hoy».
+ */
+export function pautaParaNombre(
+  planes: MedicationPlan[],
+  nombre: string,
+  hoyIso: string
+): MedicationPlan | undefined {
+  const buscado = normalizar(nombre);
+  if (!buscado) return undefined;
+  return planes
+    .filter((p) => normalizar(p.name) === buscado && hoyIso <= p.endDate)
+    .sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
+}
+
 /** ¿La pauta está vigente en la fecha indicada? */
 export function pautaVigente(plan: MedicationPlan, diaIso: string): boolean {
   return plan.startDate <= diaIso && diaIso <= plan.endDate;

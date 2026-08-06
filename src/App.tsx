@@ -1188,6 +1188,8 @@ export default function App() {
         {(screen === 'nuevo-medicamento' || screen === 'editar-medicamento') && (
           <MedicationForm
             existing={editingMedication}
+            medPlans={medPlans}
+            medications={medications}
             onSave={handleSaveMedication}
             onDelete={handleDeleteMedication}
             onCancel={() => { setEditingMedication(null); closeForm(); }}
