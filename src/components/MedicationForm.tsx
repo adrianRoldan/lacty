@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { MedicationLog, MedicationPlan } from '../types';
 import { generateId } from '../utils/feedingUtils';
 import { toLocalDatetimeInputValue, todayIso } from '../utils/dateUtils';
-import { horasPorDefecto, isoMasDias, pautaParaNombre, resumenPauta, dosisDelDia } from '../utils/medicationUtils';
+import { horasPorDefecto, isoMasDias, pautaParaNombre, pautaVigente, resumenPauta, dosisDelDia } from '../utils/medicationUtils';
 import { useConfirm } from './ConfirmDialog';
 
 interface Props {
@@ -24,7 +24,7 @@ const DURACIONES = [
 ];
 
 // Los más habituales en lactantes. Cualquier otro se escribe a mano.
-const COMUNES = ['Apiretal', 'Dalsy', 'Paracetamol', 'Ibuprofeno', 'Suero fisiológico'];
+const COMUNES = ['Apiretal', 'Dalsy', 'Paracetamol', 'Ibuprofeno', 'Omeprazol', 'Suero fisiológico'];
 
 export default function MedicationForm({ onSave, onCancel, onDelete, existing, medPlans = [], medications = [] }: Props) {
   const confirm = useConfirm();
@@ -58,6 +58,36 @@ export default function MedicationForm({ onSave, onCancel, onDelete, existing, m
     : pautaParaNombre(medPlans, nombreFinal, hoy);
   const yaProgramado = pautaExistente != null;
 
+  // Pautas en marcha hoy: se ofrecen arriba para apuntar la dosis de un toque.
+  const pautasDeHoy = existing
+    ? []
+    : medPlans.filter((p) => pautaVigente(p, hoy)).sort((a, b) => a.name.localeCompare(b.name));
+
+  function elegirMedicamento(nombre: string, doseMl?: number) {
+    if (COMUNES.includes(nombre)) {
+      setUsaOtro(false);
+      setName(nombre);
+    } else {
+      setUsaOtro(true);
+      setOtro(nombre);
+    }
+    if (doseMl != null) setDose(String(doseMl).replace('.', ','));
+    setError('');
+  }
+
+  /** Programar cuando ya hay pauta para lo mismo pide confirmación explícita. */
+  async function alternarProgramar() {
+    if (programar) { setProgramar(false); return; }
+    if (yaProgramado && pautaExistente) {
+      const ok = await confirm(
+        `Ya hay una pauta activa de ${pautaExistente.name} (${resumenPauta(pautaExistente)}). ` +
+        '¿Quieres crear otra de todos modos? Recibirás avisos de las dos.'
+      );
+      if (!ok) return;
+    }
+    setProgramar(true);
+  }
+
   function cambiarVeces(veces: number) {
     setHoras((prev) => {
       const base = horasPorDefecto(veces);
@@ -84,7 +114,7 @@ export default function MedicationForm({ onSave, onCancel, onDelete, existing, m
       setError('La dosis debe ser un número mayor que cero.');
       return;
     }
-    if (programar && !yaProgramado) {
+    if (programar) {
       if (horas.some((h) => !h)) {
         setError('Indica todas las horas de administración.');
         return;
@@ -95,8 +125,10 @@ export default function MedicationForm({ onSave, onCancel, onDelete, existing, m
       }
     }
 
-    // Pauta nueva solo si se ha programado y no había ya una para lo mismo.
-    const pautaNueva = programar && !yaProgramado;
+    // Si se ha programado, es una pauta nueva: cuando ya había otra igual, el
+    // usuario lo ha confirmado en `alternarProgramar`. Si no, la dosis se cuelga
+    // de la pauta que ya existía.
+    const pautaNueva = programar;
     const planId = pautaNueva ? generateId() : pautaExistente?.id;
 
     const log: MedicationLog = {
@@ -141,6 +173,54 @@ export default function MedicationForm({ onSave, onCancel, onDelete, existing, m
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Pautas en marcha: el atajo para apuntar una dosis de las de siempre */}
+        {pautasDeHoy.length > 0 && (
+          <div className="bg-white rounded-2xl p-4 shadow-sm">
+            <p className="text-sm font-medium text-gray-600">Programados</p>
+            <p className="text-xs text-gray-400 mt-0.5 mb-3">
+              Toca el que le acabas de dar y solo tendrás que guardar.
+            </p>
+            <div className="space-y-2">
+              {pautasDeHoy.map((plan) => {
+                const elegido = pautaExistente?.id === plan.id;
+                const dadas = dosisDelDia(medications, plan.id, hoy);
+                const total = plan.times.length;
+                const completo = dadas >= total;
+                return (
+                  <button
+                    key={plan.id}
+                    type="button"
+                    onClick={() => elegirMedicamento(plan.name, plan.doseMl)}
+                    className={`w-full flex items-center gap-3 rounded-xl px-3 py-3 text-left touch-manipulation transition-colors ${
+                      elegido
+                        ? 'bg-violet-100 ring-2 ring-violet-300'
+                        : 'bg-gray-50 active:bg-gray-100'
+                    }`}
+                  >
+                    <span className="text-lg shrink-0" aria-hidden="true">💊</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-gray-900 truncate">
+                        {plan.name}
+                        {plan.doseMl != null && (
+                          <span className="text-gray-400 font-normal"> · {String(plan.doseMl).replace('.', ',')} ml</span>
+                        )}
+                      </span>
+                      <span className="block text-xs text-gray-500 truncate">{resumenPauta(plan)}</span>
+                    </span>
+                    <span
+                      className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${
+                        completo ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'
+                      }`}
+                    >
+                      {completo ? '✓ ' : ''}{dadas}/{total} hoy
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Hora */}
         <div className="bg-white rounded-2xl p-4 shadow-sm">
           <label className="block text-sm font-medium text-gray-600 mb-2">Hora de administración</label>
@@ -218,7 +298,7 @@ export default function MedicationForm({ onSave, onCancel, onDelete, existing, m
         </div>
 
         {/* Ya hay una pauta para este medicamento: esta dosis se cuelga de ella */}
-        {yaProgramado && pautaExistente && (
+        {yaProgramado && pautaExistente && !programar && (
           <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4">
             <div className="flex items-start gap-3">
               <span className="text-lg shrink-0 leading-none mt-0.5" aria-hidden="true">💊</span>
@@ -247,7 +327,7 @@ export default function MedicationForm({ onSave, onCancel, onDelete, existing, m
         )}
 
         {/* Pauta programada — solo al crear, no al editar un registro pasado */}
-        {!existing && !yaProgramado && (
+        {!existing && (
           <div className="bg-white rounded-2xl p-4 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -258,7 +338,7 @@ export default function MedicationForm({ onSave, onCancel, onDelete, existing, m
               </div>
               <button
                 type="button"
-                onClick={() => setProgramar((v) => !v)}
+                onClick={alternarProgramar}
                 aria-label={programar ? 'No programar' : 'Programar'}
                 className={`relative w-12 h-6 rounded-full transition-colors touch-manipulation shrink-0 ${programar ? 'bg-sage-600' : 'bg-gray-200'}`}
               >
@@ -268,6 +348,13 @@ export default function MedicationForm({ onSave, onCancel, onDelete, existing, m
 
             {programar && (
               <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
+                {yaProgramado && pautaExistente && (
+                  <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-2.5 leading-relaxed">
+                    Vas a crear una segunda pauta de {pautaExistente.name}: recibirás avisos de las
+                    dos. Si solo querías cambiarla, borra la anterior en Mi bebé → Cuidados.
+                  </p>
+                )}
+
                 {/* Veces al día */}
                 <div>
                   <p className="text-sm font-medium text-gray-600 mb-2">Veces al día</p>
