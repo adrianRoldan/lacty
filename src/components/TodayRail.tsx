@@ -442,7 +442,10 @@ function Rail({
       </div>
 
       {timeline.map((item, i) => {
-        const franja = franjaDe(item.sortKey);
+        // Lo que empezó ayer y sigue hoy (el sueño nocturno, un paseo largo)
+        // se separa bajo su propia cabecera en vez de mezclarse con la noche
+        // de hoy, que aún no ha llegado.
+        const franja = isSameDay(item.sortKey, today) ? franjaDe(item.sortKey) : 'Ayer';
         const cabecera = franja !== franjaAnterior ? franja : null;
         franjaAnterior = franja;
 
