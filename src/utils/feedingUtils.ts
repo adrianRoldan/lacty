@@ -297,31 +297,38 @@ export function buildTimeline(
   const day = dayFilter ?? todayIso();
 
   /**
-   * ¿Este registro pisa el día aunque empezara antes? Vale para lo que dura:
-   * el sueño de la noche que termina por la mañana, un paseo que cruza la
-   * medianoche o una toma sin terminar. Sin esto, «Hoy» sumaba los minutos de
-   * ese sueño en el total pero no enseñaba el registro por ningún lado.
+   * Empezó antes del día pero terminó dentro: el sueño de la noche que acaba
+   * por la mañana, o un paseo que cruza la medianoche. Sin esto, «Hoy» sumaba
+   * los minutos de ese sueño en el total pero no enseñaba el registro.
+   *
+   * Exige hora de fin *de verdad*: en las tomas de pecho no hay `endTime` (se
+   * guardan los minutos), así que dar por «abierto» lo que no lo tiene colaba
+   * en «Hoy» todas las tomas del historial.
    *
    * Solo en la vista de hoy (`!dayFilter`): en el historial y en la exportación
    * cada registro pertenece al día en que empezó, y duplicarlo confundiría.
    */
-  const sigueEnElDia = (inicio: string, fin?: string) =>
-    !dayFilter && !isSameDay(inicio, day) && (fin == null || isSameDay(fin, day));
+  const terminaEnElDia = (inicio: string, fin?: string) =>
+    !dayFilter && fin != null && isSameDay(fin, day) && !isSameDay(inicio, day);
 
   const items: TimelineItem[] = [
     ...feedings
       .filter((f) => isSameDay(f.timestamp, day)
         || (!dayFilter && isFeedingInProgress(f))
-        || sigueEnElDia(f.timestamp, f.endTime))
+        || terminaEnElDia(f.timestamp, f.endTime))
       .map((f) => ({ type: 'feeding' as const, data: f, sortKey: f.timestamp })),
     ...rests
-      .filter((r) => isSameDay(r.startTime, day) || sigueEnElDia(r.startTime, r.endTime))
+      .filter((r) => isSameDay(r.startTime, day)
+        || (!dayFilter && r.endTime == null)
+        || terminaEnElDia(r.startTime, r.endTime))
       .map((r) => ({ type: 'rest' as const, data: r, sortKey: r.startTime })),
     ...diapers
       .filter((d) => isSameDay(d.timestamp, day))
       .map((d) => ({ type: 'diaper' as const, data: d, sortKey: d.timestamp })),
     ...walks
-      .filter((w) => isSameDay(w.startTime, day) || sigueEnElDia(w.startTime, w.endTime))
+      .filter((w) => isSameDay(w.startTime, day)
+        || (!dayFilter && w.endTime == null)
+        || terminaEnElDia(w.startTime, w.endTime))
       .map((w) => ({ type: 'walk' as const, data: w, sortKey: w.startTime })),
     ...buildCareItems(careLogs ?? {}).filter((c) => isSameDay(c.sortKey, day)),
   ];
