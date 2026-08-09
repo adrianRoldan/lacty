@@ -32,6 +32,8 @@ interface Props {
   calendarEvents: CalendarEvent[];
   readOnly?: boolean;
   onOpenAgenda: () => void;
+  /** Abre la exportación de registros, para el pediatra o para una IA. */
+  onOpenExport: () => void;
   /**
    * Aviso de la nueva línea de tiempo. Solo llega mientras no se haya ofrecido:
    * al probarla o al cerrarlo, deja de aparecer para siempre.
@@ -93,7 +95,7 @@ interface CareChip {
 export default function DailySummary({
   config, feedings, rests, currentWeightKg, vitaminDLogs,
   calendarEvents, readOnly,
-  onOpenAgenda, avisoLineaDeTiempo,
+  onOpenAgenda, onOpenExport, avisoLineaDeTiempo,
   onAdd, onAbrirAñadir,
   onEditFeeding, onEditRest,
   onDeleteFeeding, onDeleteRest,
@@ -396,6 +398,24 @@ export default function DailySummary({
             );
           })}
         </div>
+      )}
+
+      {/* Compartir: aparece al final del día, que es cuando surge la idea de
+          enseñárselo a alguien. */}
+      {timeline.length > 0 && (
+        <button
+          onClick={onOpenExport}
+          className="w-full mt-4 flex items-center gap-3 bg-white rounded-2xl shadow-sm px-4 py-3 text-left active:bg-gray-50 touch-manipulation"
+        >
+          <span className="text-xl shrink-0" aria-hidden="true">📤</span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium text-gray-900">Compartir estos registros</span>
+            <span className="block text-xs text-gray-500">
+              Para el pediatra o para analizar los patrones con una IA
+            </span>
+          </span>
+          <span className="text-gray-300 shrink-0">›</span>
+        </button>
       )}
 
     </div>

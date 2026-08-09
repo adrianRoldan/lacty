@@ -973,6 +973,7 @@ export default function App() {
     calendarEvents,
     readOnly: isViewer,
     onOpenAgenda: () => navigate('visitas'),
+    onOpenExport: () => setScreen('exportar'),
     onAbrirAñadir: () => setAñadirAbierto(true),
     onAdd: (tipo: TipoRegistro) => {
       switch (tipo) {
@@ -1081,6 +1082,7 @@ export default function App() {
               <SidebarButton label="Referencia" icon={ChartIcon} active={activeTab === 'referencia'} onClick={() => navigate('referencia')} />
               <SidebarButton label={config?.name ?? 'Mi bebé'} icon={BabyIcon} active={activeTab === 'config'} onClick={() => navigate('config')} />
               <SidebarButton label="Familia" icon={FamilyIcon} active={activeTab === 'familia'} onClick={() => navigate('familia')} />
+              <SidebarButton label="Exportar" icon={ExportIcon} active={screen === 'exportar'} onClick={() => setScreen('exportar')} />
             </>)}
           </nav>
 
@@ -1626,6 +1628,7 @@ export default function App() {
               <SidebarButton label="Referencia" icon={ChartIcon} active={activeTab === 'referencia'} onClick={() => navigate('referencia')} />
               <SidebarButton label={config?.name ?? 'Mi bebé'} icon={BabyIcon} active={activeTab === 'config'} onClick={() => navigate('config')} />
               <SidebarButton label="Familia" icon={FamilyIcon} active={activeTab === 'familia'} onClick={() => navigate('familia')} />
+              <SidebarButton label="Exportar" icon={ExportIcon} active={screen === 'exportar'} onClick={() => { setDrawerOpen(false); setScreen('exportar'); }} />
             </nav>
             <div className="px-3 py-3 border-t border-gray-100">
               <AccountMenu
@@ -1917,6 +1920,16 @@ function navIconProps(active: boolean) {
     stroke: 'currentColor', strokeWidth: active ? 2.2 : 2,
     strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
   };
+}
+
+function ExportIcon({ active }: { active: boolean }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" {...navIconProps(active)} fill="none">
+      <path d="M12 15V4" />
+      <path d="M8.5 7.5 12 4l3.5 3.5" />
+      <path d="M5 14v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5" />
+    </svg>
+  );
 }
 
 function MenuIcon({ active }: { active: boolean }) {
