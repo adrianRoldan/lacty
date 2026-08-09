@@ -7,6 +7,10 @@
    el CSS una hora pero el HTML no, así que sin ese cambio de URL hay visitas
    que reciben el HTML nuevo con el CSS viejo y la página se ve rota.
 
+   `build:landing` regenera además el FAQPage del JSON-LD a partir de las
+   preguntas visibles, para que el marcado que lee Google no se desincronice
+   del texto de la página. No hace falta tocarlo a mano.
+
    Así la landing no depende del CDN de Tailwind, que bloquea el render
    y penaliza las Core Web Vitals (y por tanto el posicionamiento). */
 @import "tailwindcss";

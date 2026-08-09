@@ -9,10 +9,11 @@
     "start": "concurrently \"node server.js\" \"npm run dev -- --host\"",
     "serve": "npm run build && node server.js",
     "build": "tsc -b && vite build",
-    "build:landing": "tailwindcss -i landing/tailwind.css -o landing/styles.css --minify",
+    "build:landing": "node scripts/sync-faq-jsonld.mjs && tailwindcss -i landing/tailwind.css -o landing/styles.css --minify",
     "lint": "eslint .",
     "preview": "vite preview",
-    "create-user": "node scripts/create-user.mjs"
+    "create-user": "node scripts/create-user.mjs",
+    "check:landing": "node scripts/sync-faq-jsonld.mjs --check"
   },
   "dependencies": {
     "@tiptap/extension-link": "^3.29.0",
