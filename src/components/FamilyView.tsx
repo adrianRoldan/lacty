@@ -218,7 +218,7 @@ function AccountSection() {
       <div className="pt-3 border-t border-gray-100">
         <p className="text-sm font-medium text-gray-900">Invitar a la familia</p>
         <p className="text-xs text-gray-500 mt-0.5 mb-2">
-          Comparte este código para que tu pareja u otro cuidador se una a esta cuenta y vea los mismos datos.
+          Comparte este código para que otra persona se una a esta cuenta y vea los mismos datos.
         </p>
         <button
           onClick={copyCode}

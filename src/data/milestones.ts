@@ -71,7 +71,7 @@ export const MILESTONES: MilestoneGroup[] = [
       { id: 'm4-3', text: 'Se lleva objetos a la boca para explorarlos', category: 'cognitive' },
       { id: 'm4-4', text: 'Responde a su nombre girando la cabeza', category: 'language' },
       { id: 'm4-5', text: 'Balbucea cadenas de consonantes ("ba-ba", "ma-ma")', category: 'language' },
-      { id: 'm4-6', text: 'Muestra alegría al ver a sus cuidadores', category: 'social' },
+      { id: 'm4-6', text: 'Muestra alegría al ver a quienes le cuidan', category: 'social' },
       { id: 'm4-7', text: 'Intenta alcanzar objetos con una mano', category: 'motor' },
       { id: 'm4-8', text: 'Distingue colores y observa objetos pequeños', category: 'sensory' },
     ],
