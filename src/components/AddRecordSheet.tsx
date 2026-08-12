@@ -48,6 +48,7 @@ const MEDIDAS: Opcion[] = [
 ];
 
 const ARRASTRE_PARA_CERRAR = 90; // px
+const SALIDA_MS = 200;           // debe coincidir con la transición de salida
 
 export default function AddRecordSheet({ onSelect, onClose, cuidados = [], onRegistrarCuidado }: Props) {
   // Arrastrar la cabecera hacia abajo cierra la hoja. La cabecera lleva
@@ -55,7 +56,19 @@ export default function AddRecordSheet({ onSelect, onClose, cuidados = [], onReg
   // de Android acababa siendo un «tirar para recargar» y se perdía la pantalla.
   const [arrastre, setArrastre] = useState(0);
   const [soltando, setSoltando] = useState(false);
+  const [cerrando, setCerrando] = useState(false);
   const inicioY = useRef(0);
+
+  /**
+   * Baja la hoja y desmonta al terminar. Todas las salidas pasan por aquí —el
+   * aspa, la flecha, tocar fuera, arrastrar y elegir una opción—, porque si el
+   * padre desmonta al instante no da tiempo a ver la animación.
+   */
+  function cerrarConSalida(despues?: () => void) {
+    if (cerrando) return;
+    setCerrando(true);
+    setTimeout(() => { onClose(); despues?.(); }, SALIDA_MS);
+  }
 
   function alEmpezar(e: React.TouchEvent) {
     inicioY.current = e.touches[0].clientY;
@@ -70,9 +83,7 @@ export default function AddRecordSheet({ onSelect, onClose, cuidados = [], onReg
   function alSoltar() {
     setSoltando(true);
     if (arrastre > ARRASTRE_PARA_CERRAR) {
-      // Se acompaña la salida antes de desmontar, para que no desaparezca de golpe.
-      setArrastre(window.innerHeight);
-      setTimeout(onClose, 160);
+      cerrarConSalida();
     } else {
       setArrastre(0);
     }
@@ -87,14 +98,23 @@ export default function AddRecordSheet({ onSelect, onClose, cuidados = [], onReg
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:items-center sm:p-6">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div
+        onClick={() => cerrarConSalida()}
+        className={`absolute inset-0 bg-black/40 transition-opacity duration-200 ${
+          cerrando ? 'opacity-0' : 'animate-[backdropIn_0.2s_ease-out]'
+        }`}
+      />
       {/* Columna con cabecera y pie fijos: con los cuidados la hoja se alarga y
           el botón de cerrar quedaba fuera de la vista hasta hacer scroll. */}
       <div
         className={`relative bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-xl max-h-[85vh] flex flex-col ${
-          arrastre === 0 && !soltando ? 'animate-[fadeSlideUp_0.18s_ease-out]' : ''
-        } ${soltando ? 'transition-transform duration-150 ease-out' : ''}`}
-        style={arrastre > 0 ? { transform: `translateY(${arrastre}px)` } : undefined}
+          arrastre === 0 && !soltando && !cerrando ? 'animate-[sheetIn_0.24s_cubic-bezier(0.32,0.72,0,1)]' : ''
+        } ${soltando || cerrando ? 'transition-transform duration-200 ease-in' : ''}`}
+        style={
+          cerrando ? { transform: 'translateY(100%)' }
+          : arrastre > 0 ? { transform: `translateY(${arrastre}px)` }
+          : undefined
+        }
       >
         {/* Asa: en móvil indica que es una hoja que se puede cerrar, y es la
             zona por la que se arrastra hacia abajo para hacerlo. */}
@@ -108,7 +128,7 @@ export default function AddRecordSheet({ onSelect, onClose, cuidados = [], onReg
             <p className="text-xs text-gray-400 mt-0.5">Podrás ajustar la hora si ya ha pasado</p>
           </div>
           <button
-            onClick={onClose}
+            onClick={() => cerrarConSalida()}
             aria-label="Cerrar"
             className="text-gray-400 text-xl w-9 h-9 flex items-center justify-center shrink-0 touch-manipulation"
           >
@@ -117,7 +137,7 @@ export default function AddRecordSheet({ onSelect, onClose, cuidados = [], onReg
         </div>
 
         <div className="px-5 pb-5 overflow-y-auto overscroll-contain flex-1">
-          <Grupo opciones={DIA_A_DIA} onSelect={onSelect} />
+          <Grupo opciones={DIA_A_DIA} onSelect={(t) => cerrarConSalida(() => onSelect(t))} />
 
           {cuidados.length > 0 && onRegistrarCuidado && (
             <>
@@ -126,14 +146,14 @@ export default function AddRecordSheet({ onSelect, onClose, cuidados = [], onReg
               </p>
               <div className="space-y-1.5">
                 {cuidados.map((c) => (
-                  <BotonCuidado key={c.key} cuidado={c} onSelect={onRegistrarCuidado} />
+                  <BotonCuidado key={c.key} cuidado={c} onSelect={(x) => cerrarConSalida(() => onRegistrarCuidado(x))} />
                 ))}
               </div>
             </>
           )}
 
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mt-5 mb-2">Medidas</p>
-          <Grupo opciones={MEDIDAS} onSelect={onSelect} />
+          <Grupo opciones={MEDIDAS} onSelect={(t) => cerrarConSalida(() => onSelect(t))} />
         </div>
 
         {/* Cerrar desde abajo, siempre a mano y en la zona del pulgar. El hueco
@@ -141,7 +161,7 @@ export default function AddRecordSheet({ onSelect, onClose, cuidados = [], onReg
             su propio padding vertical. */}
         <div className="shrink-0 border-t border-gray-100 pb-safe">
           <button
-            onClick={onClose}
+            onClick={() => cerrarConSalida()}
             aria-label="Cerrar"
             className="w-full py-3.5 flex items-center justify-center text-gray-400 active:bg-gray-50 touch-manipulation"
           >
