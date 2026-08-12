@@ -124,7 +124,7 @@ export default function AddRecordSheet({ onSelect, onClose, cuidados = [], onReg
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mt-5 mb-2">
                 Cuidados de hoy
               </p>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {cuidados.map((c) => (
                   <BotonCuidado key={c.key} cuidado={c} onSelect={onRegistrarCuidado} />
                 ))}
@@ -159,6 +159,9 @@ export default function AddRecordSheet({ onSelect, onClose, cuidados = [], onReg
 /**
  * Cuidado del día. A diferencia del resto, no abre formulario: apunta la
  * administración con la hora actual, igual que el chip de «Hoy».
+ *
+ * Va en una sola línea, sin la caja de color del icono: son cuatro o cinco y
+ * con el formato de los demás botones ocupaban media pantalla.
  */
 function BotonCuidado({ cuidado, onSelect }: { cuidado: CuidadoHoy; onSelect: (c: CuidadoHoy) => void }) {
   const { hecho, urgente, hechas, total } = cuidado;
@@ -166,23 +169,17 @@ function BotonCuidado({ cuidado, onSelect }: { cuidado: CuidadoHoy; onSelect: (c
     <button
       onClick={() => onSelect(cuidado)}
       disabled={hecho}
-      className={`w-full flex items-center gap-3 rounded-2xl px-3 py-3 text-left touch-manipulation transition-colors ${
+      className={`w-full flex items-center gap-2 rounded-xl px-3 py-2 text-left touch-manipulation transition-colors ${
         hecho ? 'bg-gray-50 opacity-60 cursor-default' : 'bg-gray-50 active:bg-gray-100'
       }`}
     >
-      <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl ${
-        hecho ? 'bg-green-100' : urgente ? 'bg-amber-100' : 'bg-violet-100'
-      }`}>
-        {cuidado.icono}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-gray-800 truncate">{cuidado.etiqueta}</span>
-        <span className="block text-xs text-gray-500 truncate">{cuidado.detalle}</span>
-      </span>
-      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${
+      <span className="text-base shrink-0 leading-none" aria-hidden="true">{cuidado.icono}</span>
+      <span className="text-sm font-semibold text-gray-800 shrink-0">{cuidado.etiqueta}</span>
+      <span className="text-xs text-gray-400 truncate">{cuidado.detalle}</span>
+      <span className={`ml-auto text-[11px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${
         hecho ? 'bg-green-100 text-green-700' : urgente ? 'bg-amber-100 text-amber-800' : 'bg-gray-200 text-gray-600'
       }`}>
-        {hecho ? '✓ hecho' : total > 1 ? `${hechas}/${total}` : 'pendiente'}
+        {hecho ? '✓' : total > 1 ? `${hechas}/${total}` : 'pendiente'}
       </span>
     </button>
   );
