@@ -94,7 +94,7 @@ export default function DayInsights({ feedings, rests, reference, sleepRef, toda
 
           {sleepRef && (
             <ProgressRow
-              label="Sueño"
+              label="Sueño hoy"
               value={totalRestToday}
               refMin={sleepRef.sleepHoursMin * 60}
               refMax={sleepRef.sleepHoursMax * 60}
@@ -125,13 +125,13 @@ export default function DayInsights({ feedings, rests, reference, sleepRef, toda
               <AverageRow icon="💧" label="ml por toma (total)" value={`${avgMl} ml`} />
             )}
             {avgRest !== null && (
-              <AverageRow icon="🌙" label="Duración sueño" value={formatMinutes(avgRest)} />
+              <AverageRow icon="🌙" label="Duración sueño medio" value={formatMinutes(avgRest)} />
             )}
             {avgAwakeWindow !== null && (
-              <AverageRow icon="⏳" label="Ventana de sueño" value={formatMinutes(avgAwakeWindow)} />
+              <AverageRow icon="⏳" label="Ventana de sueño medio" value={formatMinutes(avgAwakeWindow)} />
             )}
             {totalRestToday > 0 && (
-              <AverageRow icon="🌙" label="Sueño hoy" value={formatMinutes(totalRestToday)} />
+              <AverageRow icon="🌙" label="Dormido hoy" value={formatMinutes(totalRestToday)} />
             )}
             {siestasHoy > 0 && (
               <AverageRow icon="💤" label="Siestas hoy" value={String(siestasHoy)} />

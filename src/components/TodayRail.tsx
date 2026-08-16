@@ -706,7 +706,7 @@ function FilaSueno({ rest, today, etiqueta, readOnly, onEdit, onDelete, onStop }
       esBarra
       enCurso={enCurso}
       avisoDia={startDayHint(rest.startTime, today)}
-      icono={<span className="text-base">🌙</span>}
+      icono={<span className="text-base">{etiqueta?.startsWith('Siesta') ? '💤' : '🌙'}</span>}
       titulo={etiqueta ?? 'Sueño'}
       chips={duracion != null
         ? <Chip tono="sueno">{formatMinutes(duracion)}</Chip>
