@@ -134,7 +134,7 @@ export default function DayInsights({ feedings, rests, reference, sleepRef, toda
               <AverageRow icon="🌙" label="Sueño hoy" value={formatMinutes(totalRestToday)} />
             )}
             {siestasHoy > 0 && (
-              <AverageRow icon="🛏" label="Siestas hoy" value={String(siestasHoy)} />
+              <AverageRow icon="💤" label="Siestas hoy" value={String(siestasHoy)} />
             )}
             {nocturnosHoy > 0 && (
               <AverageRow icon="🌙" label="Sueños nocturnos hoy" value={String(nocturnosHoy)} />

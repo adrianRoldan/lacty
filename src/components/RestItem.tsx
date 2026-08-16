@@ -20,6 +20,7 @@ export default function RestItem({ rest, onEdit, onDelete, onStop, etiqueta, lis
   const duration = getRestDurationMinutes(rest);
   const elapsed = useElapsedTime(rest.startTime);
   const dayHint = listDay ? startDayHint(rest.startTime, listDay) : null;
+  const icono = etiqueta?.startsWith('Siesta') ? '💤' : '🌙';
 
   async function handleDelete(e: React.MouseEvent) {
     e.stopPropagation();
@@ -37,7 +38,7 @@ export default function RestItem({ rest, onEdit, onDelete, onStop, etiqueta, lis
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-bold text-gray-900 whitespace-nowrap">
-              🌙{' '}
+              {icono}{' '}
               {dayHint && (
                 <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-1.5 py-0.5 rounded-full mr-1 align-middle">
                   {dayHint}
