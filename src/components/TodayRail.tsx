@@ -252,8 +252,8 @@ export default function TodayRail({
       {/* ── 2. Barra de estado compacta ────────────────────────────────── */}
       <div className="bg-white rounded-2xl shadow-sm mb-3 overflow-hidden">
         <div className={`grid divide-x divide-gray-100 ${todayDiapers.length > 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
-          <MiniStat value={String(todayFeedings.length)} label="tomas" />
-          <MiniStat value={formatMinutes(totalRestMin)} label="sueño" color="text-taupe-600" />
+          <MiniStat value={String(todayFeedings.length)} label="tomas" icono="🤱" />
+          <MiniStat value={formatMinutes(totalRestMin)} label="sueño" color="text-taupe-600" icono="💤" />
           {todayDiapers.length > 0 && (
             <MiniStat value={`${wetCount}·${dirtyCount}`} label="💧·💩" color="text-sky-600" />
           )}
@@ -932,11 +932,11 @@ function CareChipsRow({ chips, readOnly }: { chips: CareChip[]; readOnly?: boole
   );
 }
 
-function MiniStat({ value, label, color }: { value: string; label: string; color?: string }) {
+function MiniStat({ value, label, color, icono }: { value: string; label: string; color?: string; icono?: string }) {
   return (
     <div className="py-2.5 px-1 text-center">
       <p className={`text-lg font-bold leading-tight ${color ?? 'text-gray-900'}`}>{value}</p>
-      <p className="text-xs text-gray-400 mt-0.5">{label}</p>
+      <p className="text-xs text-gray-400 mt-0.5">{icono && <span className="mr-0.5">{icono}</span>}{label}</p>
     </div>
   );
 }
