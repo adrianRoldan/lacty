@@ -316,7 +316,7 @@ export default function AdminView() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-sm font-medium text-gray-800">{u.username}</span>
                               <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${u.role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'}`}>
-                                {u.role}
+                                {u.role === 'admin' ? 'admin' : 'usuario'}
                               </span>
                               <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
                                 u.familyRole === 'administrador' ? 'bg-mustard-100 text-mustard-700' :
