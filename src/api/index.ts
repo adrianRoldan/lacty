@@ -34,7 +34,7 @@ export interface AuthUser {
   email?: string | null;
   accountId: string;
   role: 'admin' | 'user';
-  familyRole: 'owner' | 'editor' | 'viewer';
+  familyRole: 'administrador' | 'cuidador' | 'invitado';
   /** Diseño del timeline de «Hoy» que ha elegido este usuario. */
   timelineDesign: 'clasico' | 'rail';
   /** Si ya se le ofreció probar la línea de tiempo (el aviso sale una vez). */
@@ -83,7 +83,7 @@ export async function checkAuth(): Promise<AuthUser | null> {
       email: data.email ?? null,
       accountId: data.accountId,
       role: data.role ?? 'user',
-      familyRole: data.familyRole ?? 'editor',
+      familyRole: data.familyRole ?? 'cuidador',
       timelineDesign: data.timelineDesign === 'rail' ? 'rail' : 'clasico',
       timelinePromptSeen: !!data.timelinePromptSeen,
       impersonating: data.impersonating ?? false,
@@ -134,7 +134,7 @@ export async function login(username: string, password: string): Promise<AuthUse
     throw new Error(err.error ?? 'Error al iniciar sesión');
   }
   const data = await res.json();
-  return { username: data.username, accountId: data.accountId, role: data.role ?? 'user', familyRole: data.familyRole ?? 'editor', timelineDesign: data.timelineDesign === 'rail' ? 'rail' : 'clasico', timelinePromptSeen: !!data.timelinePromptSeen };
+  return { username: data.username, accountId: data.accountId, role: data.role ?? 'user', familyRole: data.familyRole ?? 'cuidador', timelineDesign: data.timelineDesign === 'rail' ? 'rail' : 'clasico', timelinePromptSeen: !!data.timelinePromptSeen };
 }
 
 export async function signup(opts: { username: string; email: string; password: string; babyName?: string; inviteCode?: string }): Promise<AuthUser> {
@@ -149,10 +149,10 @@ export async function signup(opts: { username: string; email: string; password: 
     throw new Error(err.error ?? 'Error al crear la cuenta');
   }
   const data = await res.json();
-  return { username: data.username, accountId: data.accountId, role: data.role ?? 'user', familyRole: data.familyRole ?? 'editor', timelineDesign: data.timelineDesign === 'rail' ? 'rail' : 'clasico', timelinePromptSeen: !!data.timelinePromptSeen };
+  return { username: data.username, accountId: data.accountId, role: data.role ?? 'user', familyRole: data.familyRole ?? 'cuidador', timelineDesign: data.timelineDesign === 'rail' ? 'rail' : 'clasico', timelinePromptSeen: !!data.timelinePromptSeen };
 }
 
-export interface AccountMember { id: string; username: string; isAdmin: boolean; isMe: boolean; familyRole: 'owner' | 'editor' | 'viewer'; }
+export interface AccountMember { id: string; username: string; isAdmin: boolean; isMe: boolean; familyRole: 'administrador' | 'cuidador' | 'invitado'; }
 export interface AccountInfo {
   id: string;
   name: string | null;
@@ -183,7 +183,7 @@ export async function leaveAccount(): Promise<void> {
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Error');
 }
 
-export async function setMemberFamilyRole(userId: string, familyRole: 'editor' | 'viewer'): Promise<void> {
+export async function setMemberFamilyRole(userId: string, familyRole: 'cuidador' | 'invitado'): Promise<void> {
   const res = await fetch(`${BASE}/account/members/${userId}/role`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', 'X-Client-Id': CLIENT_ID },

@@ -3,7 +3,7 @@ import * as api from '../api';
 
 interface Props {
   /** `joined` indica que se ha entrado con un código de invitación. */
-  onLogin: (username: string, role: 'admin' | 'user', familyRole: 'owner' | 'editor' | 'viewer', joined?: boolean) => void;
+  onLogin: (username: string, role: 'admin' | 'user', familyRole: 'administrador' | 'cuidador' | 'invitado', joined?: boolean) => void;
 }
 
 type Mode = 'login' | 'signup';
@@ -28,7 +28,7 @@ export default function LoginScreen({ onLogin }: Props) {
     try {
       if (mode === 'login') {
         const user = await api.login(username.trim(), password);
-        onLogin(user.username, user.role ?? 'user', user.familyRole ?? 'editor');
+        onLogin(user.username, user.role ?? 'user', user.familyRole ?? 'cuidador');
       } else {
         const user = await api.signup({
           username: username.trim(),
@@ -37,7 +37,7 @@ export default function LoginScreen({ onLogin }: Props) {
           babyName: joinExisting ? undefined : babyName.trim() || undefined,
           inviteCode: joinExisting ? inviteCode.trim() : undefined,
         });
-        onLogin(user.username, user.role ?? 'user', user.familyRole ?? 'editor', joinExisting);
+        onLogin(user.username, user.role ?? 'user', user.familyRole ?? 'cuidador', joinExisting);
       }
     } catch (err: any) {
       setError(err.message ?? 'Error');

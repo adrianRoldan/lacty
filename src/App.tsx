@@ -102,7 +102,7 @@ export default function App() {
   const [editingBath, setEditingBath] = useState<Bath | null>(null);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<'admin' | 'user'>('user');
-  const [familyRole, setFamilyRole] = useState<'owner' | 'editor' | 'viewer'>('editor');
+  const [familyRole, setFamilyRole] = useState<'administrador' | 'cuidador' | 'invitado'>('cuidador');
   const [impersonating, setImpersonating] = useState(false);
   const [originalUsername, setOriginalUsername] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -122,7 +122,7 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('hoy');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isAdmin = userRole === 'admin';
-  const isViewer = familyRole === 'viewer';
+  const isViewer = familyRole === 'invitado';
   const [editingFeeding, setEditingFeeding] = useState<Feeding | null>(null);
   const [editingRest, setEditingRest] = useState<Rest | null>(null);
   const [editingWeight, setEditingWeight] = useState<WeightEntry | null>(null);
@@ -238,7 +238,7 @@ export default function App() {
     api.checkAuth().then((auth) => {
       setCurrentUser(auth?.username ?? null);
       setUserRole(auth?.role ?? 'user');
-      setFamilyRole(auth?.familyRole ?? 'editor');
+      setFamilyRole(auth?.familyRole ?? 'cuidador');
       setImpersonating(auth?.impersonating ?? false);
       setOriginalUsername(auth?.originalUsername ?? null);
       hydrateTimelineDesign({

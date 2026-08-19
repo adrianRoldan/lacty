@@ -25,7 +25,7 @@ export default function AdminView() {
   const [editEmail, setEditEmail] = useState('');
   const [editPassword, setEditPassword] = useState('');
   const [targetAccountId, setTargetAccountId] = useState('');
-  const [familyRoleVal, setFamilyRoleVal] = useState('editor');
+  const [familyRoleVal, setFamilyRoleVal] = useState('cuidador');
 
   // Create user form
   const [newUsername, setNewUsername] = useState('');
@@ -319,8 +319,8 @@ export default function AdminView() {
                                 {u.role}
                               </span>
                               <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
-                                u.familyRole === 'owner' ? 'bg-mustard-100 text-mustard-700' :
-                                u.familyRole === 'viewer' ? 'bg-blue-50 text-blue-600' :
+                                u.familyRole === 'administrador' ? 'bg-mustard-100 text-mustard-700' :
+                                u.familyRole === 'invitado' ? 'bg-blue-50 text-blue-600' :
                                 'bg-gray-100 text-gray-500'
                               }`}>
                                 {u.familyRole}
@@ -439,12 +439,12 @@ export default function AdminView() {
                 <div>
                   <p className="text-sm font-medium text-gray-700 mb-3">Rol en la familia</p>
                   <div className="space-y-2 mb-4">
-                    {(['owner', 'editor', 'viewer'] as const).map(r => (
+                    {(['administrador', 'cuidador', 'invitado'] as const).map(r => (
                       <label key={r} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${familyRoleVal === r ? 'border-sage-500 bg-sage-50' : 'border-gray-200'}`}>
                         <input type="radio" name="familyRole" value={r} checked={familyRoleVal === r} onChange={() => setFamilyRoleVal(r)} className="accent-sage-600" />
                         <div>
-                          <p className="text-sm font-medium text-gray-800">{r === 'owner' ? 'Owner' : r === 'editor' ? 'Editor' : 'Viewer'}</p>
-                          <p className="text-xs text-gray-400">{r === 'owner' ? 'Acceso total, puede gestionar la familia' : r === 'editor' ? 'Puede añadir y editar registros' : 'Solo lectura'}</p>
+                          <p className="text-sm font-medium text-gray-800">{r === 'administrador' ? 'Administrador' : r === 'cuidador' ? 'Cuidador' : 'Invitado'}</p>
+                          <p className="text-xs text-gray-400">{r === 'administrador' ? 'Acceso total, puede gestionar la familia' : r === 'cuidador' ? 'Puede añadir y editar registros' : 'Solo lectura'}</p>
                         </div>
                       </label>
                     ))}

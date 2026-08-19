@@ -147,7 +147,7 @@ function ensureColumn(table, column, type = 'TEXT') {
 }
 ensureColumn('users', 'account_id');
 ensureColumn('users', 'role', "TEXT NOT NULL DEFAULT 'user'");
-ensureColumn('users', 'family_role', "TEXT NOT NULL DEFAULT 'editor'");
+ensureColumn('users', 'family_role', "TEXT NOT NULL DEFAULT 'cuidador'");
 ensureColumn('users', 'last_login_at');
 ensureColumn('users', 'email');
 // Preferencia personal: qué diseño del timeline de «Hoy» ve cada usuario, y si
@@ -444,7 +444,7 @@ app.get('/api/auth/me', (req, res) => {
     email: user?.email ?? null,
     accountId: req.session.accountId,
     role: user?.role ?? 'user',
-    familyRole: user?.family_role ?? 'editor',
+    familyRole: user?.family_role ?? 'cuidador',
     timelineDesign: user?.timeline_design ?? 'clasico',
     timelinePromptSeen: !!user?.timeline_prompt_seen,
     impersonating: !!req.session.originalUserId,
@@ -510,21 +510,25 @@ app.post('/api/auth/signup', authLimiter, async (req, res) => {
   const hash = bcrypt.hashSync(String(password), 12);
   let accountId;
 
+  let familyRole;
+
   if (inviteCode) {
     // Unirse a una cuenta existente
     const acc = db.prepare(`SELECT id FROM accounts WHERE invite_code = ?`).get(String(inviteCode).trim().toUpperCase());
     if (!acc) return res.status(404).json({ error: 'Código de invitación no válido' });
     accountId = acc.id;
-    db.prepare(`INSERT INTO users (id, account_id, username, email, password_hash) VALUES (?, ?, ?, ?, ?)`)
-      .run(userId, accountId, username, normalizedEmail, hash);
+    familyRole = 'cuidador';
+    db.prepare(`INSERT INTO users (id, account_id, username, email, password_hash, family_role) VALUES (?, ?, ?, ?, ?, ?)`)
+      .run(userId, accountId, username, normalizedEmail, hash, familyRole);
   } else {
-    // Crear cuenta nueva + primer bebé
+    // Crear cuenta nueva + primer bebé: quien la crea es administrador de la familia
     accountId = newId();
     const babyId = newId();
+    familyRole = 'administrador';
     const tx = db.transaction(() => {
       db.prepare(`INSERT INTO accounts (id, invite_code) VALUES (?, ?)`).run(accountId, newInvite());
-      db.prepare(`INSERT INTO users (id, account_id, username, email, password_hash) VALUES (?, ?, ?, ?, ?)`)
-        .run(userId, accountId, username, normalizedEmail, hash);
+      db.prepare(`INSERT INTO users (id, account_id, username, email, password_hash, family_role) VALUES (?, ?, ?, ?, ?, ?)`)
+        .run(userId, accountId, username, normalizedEmail, hash, familyRole);
       const babyData = { id: babyId, name: babyName || undefined, daysOfLifeAtSetup: 1, setupDate: new Date().toISOString().slice(0, 10) };
       db.prepare(`INSERT INTO babies (id, account_id, data) VALUES (?, ?, ?)`)
         .run(babyId, accountId, JSON.stringify(babyData));
@@ -537,7 +541,8 @@ app.post('/api/auth/signup', authLimiter, async (req, res) => {
   req.session.username = username;
   req.session.accountId = accountId;
   req.session.role = 'user';
-  res.status(201).json({ ok: true, username, accountId, role: 'user' });
+  req.session.familyRole = familyRole;
+  res.status(201).json({ ok: true, username, accountId, role: 'user', familyRole });
 });
 
 app.post('/api/auth/login', authLimiter, async (req, res) => {
@@ -555,8 +560,8 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
   req.session.username = user.username;
   req.session.accountId = user.account_id;
   req.session.role = user.role ?? 'user';
-  req.session.familyRole = user.family_role ?? 'editor';
-  res.json({ ok: true, username: user.username, accountId: user.account_id, role: user.role ?? 'user' });
+  req.session.familyRole = user.family_role ?? 'cuidador';
+  res.json({ ok: true, username: user.username, accountId: user.account_id, role: user.role ?? 'user', familyRole: user.family_role ?? 'cuidador' });
 });
 
 app.post('/api/auth/logout', (req, res) => {
@@ -573,7 +578,7 @@ app.use('/api', (req, res, next) => {
   if (req.method !== 'GET') {
     if (req.path === '/auth/logout' || req.path === '/account/leave') return next();
     const user = db.prepare(`SELECT family_role FROM users WHERE id = ?`).get(req.session.userId);
-    if ((user?.family_role ?? 'editor') === 'viewer') {
+    if ((user?.family_role ?? 'cuidador') === 'invitado') {
       return res.status(403).json({ error: 'Tu cuenta es de solo lectura' });
     }
   }
@@ -610,7 +615,7 @@ app.get('/api/admin/users', requireAdmin, (_req, res) => {
     username: u.username,
     email: u.email ?? null,
     role: u.role ?? 'user',
-    familyRole: u.family_role ?? 'editor',
+    familyRole: u.family_role ?? 'cuidador',
     accountId: u.account_id,
     accountName: u.account_name ?? null,
     inviteCode: u.invite_code,
@@ -815,7 +820,7 @@ app.put('/api/admin/users/:id/password', requireAdmin, async (req, res) => {
 
 app.put('/api/admin/users/:id/family-role', requireAdmin, (req, res) => {
   const { familyRole } = req.body ?? {};
-  if (!['owner', 'editor', 'viewer'].includes(familyRole)) return res.status(400).json({ error: 'Rol no válido' });
+  if (!['administrador', 'cuidador', 'invitado'].includes(familyRole)) return res.status(400).json({ error: 'Rol no válido' });
   const updated = db.prepare(`UPDATE users SET family_role = ? WHERE id = ?`).run(familyRole, req.params.id);
   if (updated.changes === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
   res.json({ ok: true });
@@ -860,7 +865,7 @@ app.post('/api/admin/users/:id/impersonate', requireAdmin, (req, res) => {
   req.session.username = target.username;
   req.session.accountId = target.account_id;
   req.session.role = target.role ?? 'user';
-  req.session.familyRole = target.family_role ?? 'editor';
+  req.session.familyRole = target.family_role ?? 'cuidador';
   res.json({ ok: true, username: target.username });
 });
 
@@ -870,7 +875,7 @@ app.post('/api/admin/impersonate/exit', (req, res) => {
   req.session.username = req.session.originalUsername;
   req.session.accountId = req.session.originalAccountId;
   req.session.role = 'admin';
-  req.session.familyRole = 'owner';
+  req.session.familyRole = 'administrador';
   delete req.session.originalUserId;
   delete req.session.originalUsername;
   delete req.session.originalAccountId;
@@ -1070,7 +1075,7 @@ app.get('/api/account', (req, res) => {
       username: m.username,
       isAdmin: m.id === adminId,
       isMe: m.id === req.session.userId,
-      familyRole: m.id === adminId ? 'owner' : (m.family_role ?? 'editor'),
+      familyRole: m.id === adminId ? 'administrador' : (m.family_role ?? 'cuidador'),
     })),
   });
 });
@@ -1106,9 +1111,9 @@ app.put('/api/account/members/:userId/role', (req, res) => {
   const rows = db.prepare(`SELECT id FROM users WHERE account_id = ? ORDER BY created_at`).all(req.accountId);
   const adminId = rows[0]?.id;
   if (req.session.userId !== adminId) return res.status(403).json({ error: 'Solo el administrador de la familia puede cambiar roles' });
-  if (req.params.userId === adminId) return res.status(400).json({ error: 'El propietario no puede cambiar su propio rol' });
+  if (req.params.userId === adminId) return res.status(400).json({ error: 'El administrador no puede cambiar su propio rol' });
   const { familyRole } = req.body ?? {};
-  if (!['editor', 'viewer'].includes(familyRole)) return res.status(400).json({ error: 'Rol no válido' });
+  if (!['cuidador', 'invitado'].includes(familyRole)) return res.status(400).json({ error: 'Rol no válido' });
   db.prepare(`UPDATE users SET family_role = ? WHERE id = ? AND account_id = ?`).run(familyRole, req.params.userId, req.accountId);
   res.json({ ok: true });
 });

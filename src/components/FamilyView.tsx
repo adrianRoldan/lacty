@@ -138,7 +138,7 @@ function AccountSection() {
   }
 
   async function toggleFamilyRole(userId: string, current: string) {
-    const newRole = current === 'viewer' ? 'editor' : 'viewer';
+    const newRole = current === 'invitado' ? 'cuidador' : 'invitado';
     try { await api.setMemberFamilyRole(userId, newRole); reload(); } catch (e: any) { alert(e.message); }
   }
 
@@ -181,25 +181,25 @@ function AccountSection() {
                     {m.isMe && <span className="text-xs text-gray-400">(tú)</span>}
                   </div>
                   <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                    m.familyRole === 'owner' ? 'bg-amber-50 text-amber-600'
-                    : m.familyRole === 'viewer' ? 'bg-gray-100 text-gray-500'
+                    m.familyRole === 'administrador' ? 'bg-amber-50 text-amber-600'
+                    : m.familyRole === 'invitado' ? 'bg-gray-100 text-gray-500'
                     : 'bg-sage-50 text-sage-600'
                   }`}>
-                    {m.familyRole === 'owner' ? 'propietario' : m.familyRole === 'viewer' ? 'solo lectura' : 'editor'}
+                    {m.familyRole === 'administrador' ? 'administrador' : m.familyRole === 'invitado' ? 'invitado (solo lectura)' : 'cuidador'}
                   </span>
                 </div>
               </div>
-              {info.isAdmin && !m.isMe && m.familyRole !== 'owner' && (
+              {info.isAdmin && !m.isMe && m.familyRole !== 'administrador' && (
                 <div className="flex items-center gap-1 shrink-0 ml-2">
                   <button
                     onClick={() => toggleFamilyRole(m.id, m.familyRole)}
                     className={`text-xs px-2 py-1 rounded-lg touch-manipulation ${
-                      m.familyRole === 'viewer'
+                      m.familyRole === 'invitado'
                         ? 'text-sage-600 bg-sage-50 active:bg-sage-100'
                         : 'text-gray-500 bg-gray-100 active:bg-gray-200'
                     }`}
                   >
-                    {m.familyRole === 'viewer' ? 'Dar edición' : 'Solo lectura'}
+                    {m.familyRole === 'invitado' ? 'Dar edición' : 'Solo lectura'}
                   </button>
                   <button
                     onClick={() => expel(m.id, m.username)}
