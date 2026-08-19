@@ -148,6 +148,12 @@ function ensureColumn(table, column, type = 'TEXT') {
 ensureColumn('users', 'account_id');
 ensureColumn('users', 'role', "TEXT NOT NULL DEFAULT 'user'");
 ensureColumn('users', 'family_role', "TEXT NOT NULL DEFAULT 'cuidador'");
+// Migración de los valores antiguos de family_role (owner/editor/viewer) a los
+// nuevos nombres en español. Idempotente: tras la primera ejecución no queda
+// ninguna fila con los valores viejos.
+db.prepare(`UPDATE users SET family_role = 'administrador' WHERE family_role = 'owner'`).run();
+db.prepare(`UPDATE users SET family_role = 'cuidador' WHERE family_role = 'editor'`).run();
+db.prepare(`UPDATE users SET family_role = 'invitado' WHERE family_role = 'viewer'`).run();
 ensureColumn('users', 'last_login_at');
 ensureColumn('users', 'email');
 // Preferencia personal: qué diseño del timeline de «Hoy» ve cada usuario, y si
