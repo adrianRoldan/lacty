@@ -253,7 +253,7 @@ export default function AdminView() {
               {(['all', 'admin', 'user'] as const).map(r => (
                 <button key={r} onClick={() => setRoleFilter(r)}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold touch-manipulation transition-colors ${roleFilter === r ? 'bg-sage-600 text-white' : 'bg-white text-gray-500 shadow-sm'}`}>
-                  {r === 'all' ? 'Todos' : r === 'admin' ? '🛡️ Admins' : '👤 Usuarios'}
+                  {r === 'all' ? 'Todos' : r === 'admin' ? '🛡️ Admins' : '👤 Cuidadores'}
                 </button>
               ))}
             </div>
@@ -316,7 +316,7 @@ export default function AdminView() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-sm font-medium text-gray-800">{u.username}</span>
                               <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${u.role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'}`}>
-                                {u.role === 'admin' ? 'admin' : 'usuario'}
+                                {u.role === 'admin' ? 'admin' : 'cuidador'}
                               </span>
                               <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
                                 u.familyRole === 'administrador' ? 'bg-mustard-100 text-mustard-700' :
