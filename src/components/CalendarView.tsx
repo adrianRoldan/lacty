@@ -7,8 +7,8 @@ interface Props {
   events: CalendarEvent[];
   consultations: Consultation[];
   readOnly?: boolean;
-  onCreate: (e: CalendarEvent) => void;
-  onUpdate: (e: CalendarEvent) => void;
+  onCreate: (e: CalendarEvent) => Promise<void>;
+  onUpdate: (e: CalendarEvent) => Promise<void>;
   onDelete: (id: string) => void;
 }
 
@@ -184,7 +184,7 @@ export default function CalendarView({ events, consultations, readOnly, onCreate
           event={editing}
           isNew={creating}
           consultations={consultations}
-          onSave={(e) => { creating ? onCreate(e) : onUpdate(e); setEditing(null); }}
+          onSave={async (e) => { creating ? await onCreate(e) : await onUpdate(e); setEditing(null); }}
           onDelete={() => { onDelete(editing.id); setEditing(null); }}
           onCancel={() => setEditing(null)}
         />
@@ -214,7 +214,7 @@ function EventForm({ event, isNew, consultations, onSave, onDelete, onCancel }: 
   event: CalendarEvent;
   isNew: boolean;
   consultations: Consultation[];
-  onSave: (e: CalendarEvent) => void;
+  onSave: (e: CalendarEvent) => Promise<void>;
   onDelete: () => void;
   onCancel: () => void;
 }) {
@@ -225,21 +225,30 @@ function EventForm({ event, isNew, consultations, onSave, onDelete, onCancel }: 
   const [category, setCategory] = useState<EventCategory>(event.category);
   const [description, setDescription] = useState(event.description ?? '');
   const [notes, setNotes] = useState(event.notes ?? '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   // Dudas pendientes vinculadas a esta categoría (si coincide con una de consultas)
   const relatedDudas = consultations.filter(
     (c) => !c.resolved && c.category === category
   );
 
-  function save() {
+  async function save() {
     if (!title.trim()) return;
-    onSave({
-      ...event,
-      date, title: title.trim(), category,
-      time: time || undefined,
-      description: description.trim() || undefined,
-      notes: notes.trim() || undefined,
-    });
+    setSaving(true);
+    try {
+      await onSave({
+        ...event,
+        date, title: title.trim(), category,
+        time: time || undefined,
+        description: description.trim() || undefined,
+        notes: notes.trim() || undefined,
+      });
+    } catch {
+      setError('No se pudo guardar. Comprueba tu conexión e inténtalo de nuevo.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -326,6 +335,8 @@ function EventForm({ event, isNew, consultations, onSave, onDelete, onCancel }: 
             </div>
           )}
 
+          {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+
           {/* Acciones */}
           <div className="flex gap-2 pt-1">
             {!isNew && (
@@ -337,10 +348,10 @@ function EventForm({ event, isNew, consultations, onSave, onDelete, onCancel }: 
               </button>
             )}
             <button
-              onClick={save} disabled={!title.trim()}
+              onClick={save} disabled={!title.trim() || saving}
               className="flex-1 bg-sage-600 text-white font-semibold py-3 rounded-xl active:bg-sage-700 disabled:opacity-40 touch-manipulation"
             >
-              {isNew ? 'Crear' : 'Guardar'}
+              {saving ? 'Guardando…' : isNew ? 'Crear' : 'Guardar'}
             </button>
           </div>
         </div>

@@ -43,8 +43,15 @@ import AdminView, { ActivityDashboard, PushBroadcastView, BabiesAdminView } from
 import GuiasAdminView from './components/GuiasAdminView';
 import ThemeSelector from './components/ThemeSelector';
 import { Toaster, toast } from './toast';
+import { OfflineBanner } from './offline';
 import { useTimelineDesign } from './timelineDesign';
+import { onceInFlight } from './utils/onceInFlight';
 const ChartsView = lazy(() => import('./components/ChartsView'));
+
+// Aviso reutilizado por las acciones de un toque (sin formulario propio) cuando fallan.
+function onOfflineAction() {
+  toast('No se pudo guardar. Revisa tu conexión.');
+}
 
 type Tab = 'hoy' | 'graficas' | 'historial' | 'hitos' | 'vacunas' | 'referencia' | 'visitas' | 'consultas' | 'config' | 'familia' | 'admin-users' | 'admin-babies' | 'admin-activity' | 'admin-push' | 'admin-guias' | 'admin-settings';
 type Screen =
@@ -481,14 +488,14 @@ export default function App() {
     closeForm();
   }
 
-  async function handleDeleteFeeding(id: string) {
+  const handleDeleteFeeding = onceInFlight(async (id: string) => {
     await api.deleteFeeding(id);
     setFeedings((prev) => prev.filter((f) => f.id !== id));
     toast('Toma eliminada');
-  }
+  }, onOfflineAction);
 
   // Inicia una toma de pecho en curso al instante (sin formulario).
-  async function handleQuickBreast() {
+  const handleQuickBreast = onceInFlight(async () => {
     await finalizeInProgress();
     const feeding: Feeding = {
       id: generateId(),
@@ -499,11 +506,11 @@ export default function App() {
     const created = await api.createFeeding(feeding);
     setFeedings((prev) => [...prev, created]);
     toast('Toma de pecho iniciada');
-  }
+  }, onOfflineAction);
 
   // Inicia un biberón al instante: sin mililitros y con leche materna, que es
   // lo habitual. Los ml se piden al finalizarlo, cuando ya se saben.
-  async function handleQuickBottle() {
+  const handleQuickBottle = onceInFlight(async () => {
     await finalizeInProgress();
     const feeding: Feeding = {
       id: generateId(),
@@ -516,7 +523,7 @@ export default function App() {
     const created = await api.createFeeding(feeding);
     setFeedings((prev) => [...prev, created]);
     toast('Biberón iniciado');
-  }
+  }, onOfflineAction);
 
   // Cantidades sugeridas en el diálogo de fin de biberón, tomadas de la
   // referencia por edad y peso del propio bebé.
@@ -533,7 +540,7 @@ export default function App() {
 
   // Finaliza una toma de pecho en curso. Asigna los minutos al pecho contrario
   // al de la última toma completada (alternancia automática).
-  async function handleStopFeeding(feeding: Feeding) {
+  const handleStopFeeding = onceInFlight(async (feeding: Feeding) => {
     const breastIP = feeding.hasBreast && feeding.breastMinLeft == null && feeding.breastMinRight == null;
     const bottleIP = feeding.hasBottle && feeding.bottleMl == null;
     const suppIP   = feeding.hasSupplement && feeding.supplementMl == null;
@@ -574,18 +581,18 @@ export default function App() {
       setFeedings((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
       toast('Jeringa-dedo finalizada');
     }
-  }
+  }, onOfflineAction);
 
   // Finaliza un sueño en curso poniendo la hora de fin a ahora.
-  async function handleStopRest(rest: Rest) {
+  const handleStopRest = onceInFlight(async (rest: Rest) => {
     if (rest.endTime != null) return;
     const updated = await api.updateRest({ ...rest, endTime: new Date().toISOString() });
     setRests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
     toast('Sueño finalizado');
-  }
+  }, onOfflineAction);
 
   // Inicia un sueño en curso al instante (sin formulario).
-  async function handleQuickRest() {
+  const handleQuickRest = onceInFlight(async () => {
     await finalizeInProgress();
     const rest: Rest = {
       id: generateId(),
@@ -594,7 +601,7 @@ export default function App() {
     const created = await api.createRest(rest);
     setRests((prev) => [...prev, created]);
     toast('Sueño iniciado');
-  }
+  }, onOfflineAction);
 
   async function handleSaveRest(rest: Rest) {
     if (editingRest) {
@@ -610,11 +617,11 @@ export default function App() {
     closeForm();
   }
 
-  async function handleDeleteRest(id: string) {
+  const handleDeleteRest = onceInFlight(async (id: string) => {
     await api.deleteRest(id);
     setRests((prev) => prev.filter((r) => r.id !== id));
     toast('Sueño eliminado');
-  }
+  }, onOfflineAction);
 
   async function handleSaveWeight(entry: WeightEntry) {
     if (editingWeight) {
@@ -629,11 +636,11 @@ export default function App() {
     closeForm();
   }
 
-  async function handleDeleteWeight(id: string) {
+  const handleDeleteWeight = onceInFlight(async (id: string) => {
     await api.deleteWeight(id);
     setWeights((prev) => prev.filter((w) => w.id !== id));
     toast('Peso eliminado');
-  }
+  }, onOfflineAction);
 
   async function handleSaveHeight(entry: HeightEntry) {
     if (editingHeight) {
@@ -648,11 +655,11 @@ export default function App() {
     closeForm();
   }
 
-  async function handleDeleteHeight(id: string) {
+  const handleDeleteHeight = onceInFlight(async (id: string) => {
     await api.deleteHeight(id);
     setHeights((prev) => prev.filter((h) => h.id !== id));
     toast('Altura eliminada');
-  }
+  }, onOfflineAction);
 
   async function handleSaveHeadCirc(entry: HeadCircEntry) {
     if (editingHeadCirc) {
@@ -667,11 +674,11 @@ export default function App() {
     closeForm();
   }
 
-  async function handleDeleteHeadCirc(id: string) {
+  const handleDeleteHeadCirc = onceInFlight(async (id: string) => {
     await api.deleteHeadCirc(id);
     setHeadCircs((prev) => prev.filter((h) => h.id !== id));
     toast('Perímetro eliminado');
-  }
+  }, onOfflineAction);
 
   async function handleUpdateConfig(partial: Partial<Omit<BabyConfig, 'id'>>) {
     const updated = await api.updateBaby({ ...config!, ...partial });
@@ -697,45 +704,45 @@ export default function App() {
     }
   }
 
-  async function handleGiveVitaminD(date: string) {
+  const handleGiveVitaminD = onceInFlight(async (date: string) => {
     const log = await api.giveVitaminD(date);
     setVitaminDLogs((prev) => [...prev.filter((l) => l.date !== date), log]);
     toast('Vitamina D3 suministrada');
-  }
+  }, onOfflineAction);
 
-  async function handleRemoveVitaminD(date: string) {
+  const handleRemoveVitaminD = onceInFlight(async (date: string) => {
     await api.removeVitaminD(date);
     setVitaminDLogs((prev) => prev.filter((l) => l.date !== date));
     toast('Vitamina D3 desmarcada');
-  }
+  }, onOfflineAction);
 
-  async function handleGiveProbiotic(date: string) {
+  const handleGiveProbiotic = onceInFlight(async (date: string) => {
     const log = await api.giveProbiotic(date);
     setProbioticLogs((prev) => [...prev.filter((l) => l.date !== date), log]);
     toast('Probiótico suministrado');
-  }
+  }, onOfflineAction);
 
-  async function handleRemoveProbiotic(date: string) {
+  const handleRemoveProbiotic = onceInFlight(async (date: string) => {
     await api.removeProbiotic(date);
     setProbioticLogs((prev) => prev.filter((l) => l.date !== date));
     toast('Probiótico desmarcado');
-  }
+  }, onOfflineAction);
 
-  async function handleAddMassage(date: string) {
+  const handleAddMassage = onceInFlight(async (date: string) => {
     const todayCount = massageLogs.filter((m) => m.date === date).length;
     if (todayCount >= 5) return;
     const log = await api.createMassageLog(date);
     setMassageLogs((prev) => [...prev, log]);
     toast('Masaje registrado');
-  }
+  }, onOfflineAction);
 
-  async function handleRemoveMassage(id: string) {
+  const handleRemoveMassage = onceInFlight(async (id: string) => {
     await api.deleteMassageLog(id);
     setMassageLogs((prev) => prev.filter((m) => m.id !== id));
     toast('Masaje eliminado');
-  }
+  }, onOfflineAction);
 
-  async function handleToggleMilestone(milestoneId: string) {
+  const handleToggleMilestone = onceInFlight(async (milestoneId: string) => {
     const existing = milestoneLogs.find((l) => l.id === milestoneId);
     if (existing) {
       await api.deleteMilestone(milestoneId);
@@ -745,18 +752,18 @@ export default function App() {
       const saved = await api.saveMilestone(log);
       setMilestoneLogs((prev) => [...prev, saved]);
     }
-  }
+  }, onOfflineAction);
 
-  async function handleToggleVaccine(vaccineId: string, date: string) {
+  const handleToggleVaccine = onceInFlight(async (vaccineId: string, date: string) => {
     const log: VaccineLog = { id: vaccineId, date };
     const saved = await api.saveVaccine(log);
     setVaccineLogs((prev) => [...prev.filter(l => l.id !== vaccineId), saved]);
-  }
+  }, onOfflineAction);
 
-  async function handleDeleteVaccine(vaccineId: string) {
+  const handleDeleteVaccine = onceInFlight(async (vaccineId: string) => {
     await api.deleteVaccine(vaccineId);
     setVaccineLogs((prev) => prev.filter(l => l.id !== vaccineId));
-  }
+  }, onOfflineAction);
 
   async function handleCreateConsultation(c: Consultation) {
     const created = await api.createConsultation(c);
@@ -769,11 +776,11 @@ export default function App() {
     setConsultations((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
   }
 
-  async function handleDeleteConsultation(id: string) {
+  const handleDeleteConsultation = onceInFlight(async (id: string) => {
     await api.deleteConsultation(id);
     setConsultations((prev) => prev.filter((x) => x.id !== id));
     toast('Duda eliminada');
-  }
+  }, onOfflineAction);
 
   async function handleCreateEvent(e: CalendarEvent) {
     const created = await api.createCalendarEvent(e);
@@ -787,11 +794,11 @@ export default function App() {
     toast('Evento actualizado');
   }
 
-  async function handleDeleteEvent(id: string) {
+  const handleDeleteEvent = onceInFlight(async (id: string) => {
     await api.deleteCalendarEvent(id);
     setCalendarEvents((prev) => prev.filter((x) => x.id !== id));
     toast('Evento eliminado');
-  }
+  }, onOfflineAction);
 
   async function handleSaveDiaper(entry: DiaperChange) {
     if (editingDiaper) {
@@ -806,11 +813,11 @@ export default function App() {
     closeForm();
   }
 
-  async function handleDeleteDiaper(id: string) {
+  const handleDeleteDiaper = onceInFlight(async (id: string) => {
     await api.deleteDiaper(id);
     setDiapers((prev) => prev.filter((d) => d.id !== id));
     toast('Pañal eliminado');
-  }
+  }, onOfflineAction);
 
   // ── Medicamentos ───────────────────────────────────────────────────────────
 
@@ -832,7 +839,7 @@ export default function App() {
   }
 
   /** Apunta una dosis de una pauta con la hora actual, desde el chip de «Hoy». */
-  async function handleGiveMedicationDose(plan: MedicationPlan) {
+  const handleGiveMedicationDose = onceInFlight(async (plan: MedicationPlan) => {
     const created = await api.createMedication({
       id: generateId(),
       timestamp: new Date().toISOString(),
@@ -842,10 +849,10 @@ export default function App() {
     });
     setMedications((prev) => [...prev, created]);
     toast(`${plan.name} registrado`);
-  }
+  }, onOfflineAction);
 
   /** Deshace la última dosis de la pauta apuntada hoy. */
-  async function handleUndoMedicationDose(planId: string) {
+  const handleUndoMedicationDose = onceInFlight(async (planId: string) => {
     const hoy = todayIso();
     const ultima = medications
       .filter((m) => m.planId === planId && localDateOf(m.timestamp) === hoy)
@@ -854,7 +861,7 @@ export default function App() {
     await api.deleteMedication(ultima.id);
     setMedications((prev) => prev.filter((m) => m.id !== ultima.id));
     toast('Dosis deshecha');
-  }
+  }, onOfflineAction);
 
   /** Apunta un cuidado del día desde la hoja de «Añadir un registro». */
   function registrarCuidado(c: CuidadoHoy) {
@@ -867,30 +874,30 @@ export default function App() {
     }
   }
 
-  async function handleDeleteMedicationPlan(id: string) {
+  const handleDeleteMedicationPlan = onceInFlight(async (id: string) => {
     await api.deleteMedicationPlan(id);
     setMedPlans((prev) => prev.filter((p) => p.id !== id));
     toast('Pauta eliminada');
-  }
+  }, onOfflineAction);
 
-  async function handleDeleteMedication(id: string) {
+  const handleDeleteMedication = onceInFlight(async (id: string) => {
     await api.deleteMedication(id);
     setMedications((prev) => prev.filter((m) => m.id !== id));
     toast('Medicamento eliminado');
     setEditingMedication(null);
     closeForm();
-  }
+  }, onOfflineAction);
 
   // ── Baños ──────────────────────────────────────────────────────────────────
 
   // El baño es puntual: el botón flotante lo registra con la hora actual y los
   // detalles (piel, notas) se añaden luego editándolo desde el timeline.
-  async function handleQuickBath() {
+  const handleQuickBath = onceInFlight(async () => {
     const bath: Bath = { id: generateId(), timestamp: new Date().toISOString() };
     const created = await api.createBath(bath);
     setBaths((prev) => [...prev, created]);
     toast('Baño registrado');
-  }
+  }, onOfflineAction);
 
   async function handleSaveBath(entry: Bath) {
     if (editingBath) {
@@ -905,13 +912,13 @@ export default function App() {
     closeForm();
   }
 
-  async function handleDeleteBath(id: string) {
+  const handleDeleteBath = onceInFlight(async (id: string) => {
     await api.deleteBath(id);
     setBaths((prev) => prev.filter((b) => b.id !== id));
     toast('Baño eliminado');
     setEditingBath(null);
     closeForm();
-  }
+  }, onOfflineAction);
 
   // ── Paseos ─────────────────────────────────────────────────────────────────
 
@@ -928,27 +935,27 @@ export default function App() {
     closeForm();
   }
 
-  async function handleDeleteWalk(id: string) {
+  const handleDeleteWalk = onceInFlight(async (id: string) => {
     await api.deleteWalk(id);
     setWalks((prev) => prev.filter((w) => w.id !== id));
     toast('Paseo eliminado');
-  }
+  }, onOfflineAction);
 
   // Inicia un paseo al instante. A diferencia de las tomas y los sueños, no
   // cierra lo que haya en curso: el bebé puede dormir o mamar durante el paseo.
-  async function handleQuickWalk() {
+  const handleQuickWalk = onceInFlight(async () => {
     const walk: Walk = { id: generateId(), startTime: new Date().toISOString() };
     const created = await api.createWalk(walk);
     setWalks((prev) => [...prev, created]);
     toast('Paseo iniciado');
-  }
+  }, onOfflineAction);
 
-  async function handleStopWalk(walk: Walk) {
+  const handleStopWalk = onceInFlight(async (walk: Walk) => {
     if (walk.endTime != null) return;
     const updated = await api.updateWalk({ ...walk, endTime: new Date().toISOString() });
     setWalks((prev) => prev.map((w) => (w.id === updated.id ? updated : w)));
     toast('Paseo finalizado');
-  }
+  }, onOfflineAction);
 
   function navigate(tab: Tab) {
     setActiveTab(tab);
@@ -1660,6 +1667,7 @@ export default function App() {
 
       </div>
       <Toaster />
+      <OfflineBanner />
     </div>
     </>
   );

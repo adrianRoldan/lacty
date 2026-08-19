@@ -1,6 +1,21 @@
 import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath } from '../types';
+import { markOnline, markOffline } from '../offline';
 
 const BASE = '/api';
+
+// Envoltorio de fetch con timeout: con mala conexión (no "sin conexión", sino
+// lenta/intermitente) una petición sin límite puede quedarse colgada mucho
+// tiempo sin fallar nunca. Alimenta también el aviso global de conectividad.
+async function apiFetch(url: string, opts?: RequestInit): Promise<Response> {
+  try {
+    const res = await fetch(url, { ...opts, signal: AbortSignal.timeout(10000) });
+    markOnline();
+    return res;
+  } catch (e) {
+    markOffline();
+    throw e;
+  }
+}
 
 // Identificador único de esta pestaña/dispositivo. Se envía en cada mutación
 // para que el servidor lo reenvíe por SSE y este cliente pueda ignorar sus propios eventos.
@@ -75,7 +90,7 @@ export interface AdminUserInfo {
 
 export async function checkAuth(): Promise<AuthUser | null> {
   try {
-    const res = await fetch(`${BASE}/auth/me`, { credentials: 'include' });
+    const res = await apiFetch(`${BASE}/auth/me`, { credentials: 'include' });
     if (!res.ok) return null;
     const data = await res.json();
     return {
@@ -99,7 +114,7 @@ export async function updatePreferences(prefs: {
   timelineDesign?: 'clasico' | 'rail';
   timelinePromptSeen?: boolean;
 }): Promise<void> {
-  const res = await fetch(`${BASE}/auth/preferences`, {
+  const res = await apiFetch(`${BASE}/auth/preferences`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -109,7 +124,7 @@ export async function updatePreferences(prefs: {
 }
 
 export async function updateProfile(username: string, email: string, password?: string): Promise<{ username: string; email: string }> {
-  const res = await fetch(`${BASE}/auth/profile`, {
+  const res = await apiFetch(`${BASE}/auth/profile`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -123,7 +138,7 @@ export async function updateProfile(username: string, email: string, password?: 
 }
 
 export async function login(username: string, password: string): Promise<AuthUser> {
-  const res = await fetch(`${BASE}/auth/login`, {
+  const res = await apiFetch(`${BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -138,7 +153,7 @@ export async function login(username: string, password: string): Promise<AuthUse
 }
 
 export async function signup(opts: { username: string; email: string; password: string; babyName?: string; inviteCode?: string }): Promise<AuthUser> {
-  const res = await fetch(`${BASE}/auth/signup`, {
+  const res = await apiFetch(`${BASE}/auth/signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -162,11 +177,11 @@ export interface AccountInfo {
 }
 
 export async function getAccount(): Promise<AccountInfo> {
-  return json(await fetch(`${BASE}/account`, { headers: { 'X-Client-Id': CLIENT_ID } }));
+  return json(await apiFetch(`${BASE}/account`, { headers: { 'X-Client-Id': CLIENT_ID } }));
 }
 
 export async function updateAccountName(name: string): Promise<void> {
-  await fetch(`${BASE}/account`, {
+  await apiFetch(`${BASE}/account`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', 'X-Client-Id': CLIENT_ID },
     body: JSON.stringify({ name }),
@@ -174,17 +189,17 @@ export async function updateAccountName(name: string): Promise<void> {
 }
 
 export async function removeMember(userId: string): Promise<void> {
-  const res = await fetch(`${BASE}/account/members/${userId}`, { method: 'DELETE', headers: { 'X-Client-Id': CLIENT_ID } });
+  const res = await apiFetch(`${BASE}/account/members/${userId}`, { method: 'DELETE', headers: { 'X-Client-Id': CLIENT_ID } });
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Error');
 }
 
 export async function leaveAccount(): Promise<void> {
-  const res = await fetch(`${BASE}/account/leave`, { method: 'POST', headers: { 'X-Client-Id': CLIENT_ID } });
+  const res = await apiFetch(`${BASE}/account/leave`, { method: 'POST', headers: { 'X-Client-Id': CLIENT_ID } });
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Error');
 }
 
 export async function setMemberFamilyRole(userId: string, familyRole: 'cuidador' | 'invitado'): Promise<void> {
-  const res = await fetch(`${BASE}/account/members/${userId}/role`, {
+  const res = await apiFetch(`${BASE}/account/members/${userId}/role`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', 'X-Client-Id': CLIENT_ID },
     body: JSON.stringify({ familyRole }),
@@ -193,7 +208,7 @@ export async function setMemberFamilyRole(userId: string, familyRole: 'cuidador'
 }
 
 export async function logout(): Promise<void> {
-  await fetch(`${BASE}/auth/logout`, { method: 'POST', credentials: 'include' });
+  await apiFetch(`${BASE}/auth/logout`, { method: 'POST', credentials: 'include' });
 }
 
 // ── Realtime (SSE) ──────────────────────────────────────────────────────────────
@@ -202,7 +217,7 @@ export type ChangeEvent = { resource: string; originId?: string };
 export type Revs = Record<string, number>;
 
 export async function getVersions(): Promise<Revs> {
-  return json(await fetch(`${BASE}/version`));
+  return json(await apiFetch(`${BASE}/version`));
 }
 
 /**
@@ -225,11 +240,11 @@ export function subscribeToChanges(onChange: (resource: string) => void): () => 
 // ── Bebés (la config de cada bebé vive en su propio registro) ───────────────────
 
 export async function getBabies(): Promise<BabyConfig[]> {
-  return json(await fetch(`${BASE}/babies`, { headers: { 'X-Client-Id': CLIENT_ID } }));
+  return json(await apiFetch(`${BASE}/babies`, { headers: { 'X-Client-Id': CLIENT_ID } }));
 }
 
 export async function createBaby(baby: Omit<BabyConfig, 'id'>): Promise<BabyConfig> {
-  return json(await fetch(`${BASE}/babies`, {
+  return json(await apiFetch(`${BASE}/babies`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Client-Id': CLIENT_ID },
     body: JSON.stringify(baby),
@@ -237,7 +252,7 @@ export async function createBaby(baby: Omit<BabyConfig, 'id'>): Promise<BabyConf
 }
 
 export async function updateBaby(baby: BabyConfig): Promise<BabyConfig> {
-  return json(await fetch(`${BASE}/babies/${baby.id}`, {
+  return json(await apiFetch(`${BASE}/babies/${baby.id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', 'X-Client-Id': CLIENT_ID },
     body: JSON.stringify(baby),
@@ -245,17 +260,17 @@ export async function updateBaby(baby: BabyConfig): Promise<BabyConfig> {
 }
 
 export async function deleteBaby(id: string): Promise<void> {
-  await fetch(`${BASE}/babies/${id}`, { method: 'DELETE', headers: { 'X-Client-Id': CLIENT_ID } });
+  await apiFetch(`${BASE}/babies/${id}`, { method: 'DELETE', headers: { 'X-Client-Id': CLIENT_ID } });
 }
 
 // ── Feedings ──────────────────────────────────────────────────────────────────
 
 export async function getFeedings(): Promise<Feeding[]> {
-  return json(await fetch(`${BASE}/feedings`, { headers: babyHeaders() }));
+  return json(await apiFetch(`${BASE}/feedings`, { headers: babyHeaders() }));
 }
 
 export async function createFeeding(feeding: Feeding): Promise<Feeding> {
-  return json(await fetch(`${BASE}/feedings`, {
+  return json(await apiFetch(`${BASE}/feedings`, {
     method: 'POST',
     headers: mutHeaders(),
     body: JSON.stringify(feeding),
@@ -263,7 +278,7 @@ export async function createFeeding(feeding: Feeding): Promise<Feeding> {
 }
 
 export async function updateFeeding(feeding: Feeding): Promise<Feeding> {
-  return json(await fetch(`${BASE}/feedings/${feeding.id}`, {
+  return json(await apiFetch(`${BASE}/feedings/${feeding.id}`, {
     method: 'PUT',
     headers: mutHeaders(),
     body: JSON.stringify(feeding),
@@ -271,17 +286,17 @@ export async function updateFeeding(feeding: Feeding): Promise<Feeding> {
 }
 
 export async function deleteFeeding(id: string): Promise<void> {
-  await fetch(`${BASE}/feedings/${id}`, { method: 'DELETE', headers: mutHeaders() });
+  await apiFetch(`${BASE}/feedings/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 // ── Rests ─────────────────────────────────────────────────────────────────────
 
 export async function getRests(): Promise<Rest[]> {
-  return json(await fetch(`${BASE}/rests`, { headers: babyHeaders() }));
+  return json(await apiFetch(`${BASE}/rests`, { headers: babyHeaders() }));
 }
 
 export async function createRest(rest: Rest): Promise<Rest> {
-  return json(await fetch(`${BASE}/rests`, {
+  return json(await apiFetch(`${BASE}/rests`, {
     method: 'POST',
     headers: mutHeaders(),
     body: JSON.stringify(rest),
@@ -289,7 +304,7 @@ export async function createRest(rest: Rest): Promise<Rest> {
 }
 
 export async function updateRest(rest: Rest): Promise<Rest> {
-  return json(await fetch(`${BASE}/rests/${rest.id}`, {
+  return json(await apiFetch(`${BASE}/rests/${rest.id}`, {
     method: 'PUT',
     headers: mutHeaders(),
     body: JSON.stringify(rest),
@@ -297,17 +312,17 @@ export async function updateRest(rest: Rest): Promise<Rest> {
 }
 
 export async function deleteRest(id: string): Promise<void> {
-  await fetch(`${BASE}/rests/${id}`, { method: 'DELETE', headers: mutHeaders() });
+  await apiFetch(`${BASE}/rests/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 // ── Weights ───────────────────────────────────────────────────────────────────
 
 export async function getWeights(): Promise<WeightEntry[]> {
-  return json(await fetch(`${BASE}/weights`, { headers: babyHeaders() }));
+  return json(await apiFetch(`${BASE}/weights`, { headers: babyHeaders() }));
 }
 
 export async function createWeight(entry: WeightEntry): Promise<WeightEntry> {
-  return json(await fetch(`${BASE}/weights`, {
+  return json(await apiFetch(`${BASE}/weights`, {
     method: 'POST',
     headers: mutHeaders(),
     body: JSON.stringify(entry),
@@ -315,7 +330,7 @@ export async function createWeight(entry: WeightEntry): Promise<WeightEntry> {
 }
 
 export async function updateWeight(entry: WeightEntry): Promise<WeightEntry> {
-  return json(await fetch(`${BASE}/weights/${entry.id}`, {
+  return json(await apiFetch(`${BASE}/weights/${entry.id}`, {
     method: 'PUT',
     headers: mutHeaders(),
     body: JSON.stringify(entry),
@@ -323,17 +338,17 @@ export async function updateWeight(entry: WeightEntry): Promise<WeightEntry> {
 }
 
 export async function deleteWeight(id: string): Promise<void> {
-  await fetch(`${BASE}/weights/${id}`, { method: 'DELETE', headers: mutHeaders() });
+  await apiFetch(`${BASE}/weights/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 // ── Heights ───────────────────────────────────────────────────────────────────
 
 export async function getHeights(): Promise<HeightEntry[]> {
-  return json(await fetch(`${BASE}/heights`, { headers: babyHeaders() }));
+  return json(await apiFetch(`${BASE}/heights`, { headers: babyHeaders() }));
 }
 
 export async function createHeight(entry: HeightEntry): Promise<HeightEntry> {
-  return json(await fetch(`${BASE}/heights`, {
+  return json(await apiFetch(`${BASE}/heights`, {
     method: 'POST',
     headers: mutHeaders(),
     body: JSON.stringify(entry),
@@ -341,7 +356,7 @@ export async function createHeight(entry: HeightEntry): Promise<HeightEntry> {
 }
 
 export async function updateHeight(entry: HeightEntry): Promise<HeightEntry> {
-  return json(await fetch(`${BASE}/heights/${entry.id}`, {
+  return json(await apiFetch(`${BASE}/heights/${entry.id}`, {
     method: 'PUT',
     headers: mutHeaders(),
     body: JSON.stringify(entry),
@@ -349,17 +364,17 @@ export async function updateHeight(entry: HeightEntry): Promise<HeightEntry> {
 }
 
 export async function deleteHeight(id: string): Promise<void> {
-  await fetch(`${BASE}/heights/${id}`, { method: 'DELETE', headers: mutHeaders() });
+  await apiFetch(`${BASE}/heights/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 // ── Perímetro craneal ─────────────────────────────────────────────────────────
 
 export async function getHeadCircs(): Promise<HeadCircEntry[]> {
-  return json(await fetch(`${BASE}/headcircs`, { headers: babyHeaders() }));
+  return json(await apiFetch(`${BASE}/headcircs`, { headers: babyHeaders() }));
 }
 
 export async function createHeadCirc(entry: HeadCircEntry): Promise<HeadCircEntry> {
-  return json(await fetch(`${BASE}/headcircs`, {
+  return json(await apiFetch(`${BASE}/headcircs`, {
     method: 'POST',
     headers: mutHeaders(),
     body: JSON.stringify(entry),
@@ -367,7 +382,7 @@ export async function createHeadCirc(entry: HeadCircEntry): Promise<HeadCircEntr
 }
 
 export async function updateHeadCirc(entry: HeadCircEntry): Promise<HeadCircEntry> {
-  return json(await fetch(`${BASE}/headcircs/${entry.id}`, {
+  return json(await apiFetch(`${BASE}/headcircs/${entry.id}`, {
     method: 'PUT',
     headers: mutHeaders(),
     body: JSON.stringify(entry),
@@ -375,18 +390,18 @@ export async function updateHeadCirc(entry: HeadCircEntry): Promise<HeadCircEntr
 }
 
 export async function deleteHeadCirc(id: string): Promise<void> {
-  await fetch(`${BASE}/headcircs/${id}`, { method: 'DELETE', headers: mutHeaders() });
+  await apiFetch(`${BASE}/headcircs/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 // ── Vitamina D3 ───────────────────────────────────────────────────────────────
 
 export async function getVitaminDLogs(): Promise<VitaminDLog[]> {
-  return json(await fetch(`${BASE}/vitamind`, { headers: babyHeaders() }));
+  return json(await apiFetch(`${BASE}/vitamind`, { headers: babyHeaders() }));
 }
 
 export async function giveVitaminD(date: string): Promise<VitaminDLog> {
   const log: VitaminDLog = { id: date, date, givenAt: new Date().toISOString() };
-  return json(await fetch(`${BASE}/vitamind`, {
+  return json(await apiFetch(`${BASE}/vitamind`, {
     method: 'POST',
     headers: mutHeaders(),
     body: JSON.stringify(log),
@@ -394,18 +409,18 @@ export async function giveVitaminD(date: string): Promise<VitaminDLog> {
 }
 
 export async function removeVitaminD(date: string): Promise<void> {
-  await fetch(`${BASE}/vitamind/${date}`, { method: 'DELETE', headers: mutHeaders() });
+  await apiFetch(`${BASE}/vitamind/${date}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 // ── Probiótico ────────────────────────────────────────────────────────────────
 
 export async function getProbioticLogs(): Promise<ProbioticLog[]> {
-  return json(await fetch(`${BASE}/probiotics`, { headers: babyHeaders() }));
+  return json(await apiFetch(`${BASE}/probiotics`, { headers: babyHeaders() }));
 }
 
 export async function giveProbiotic(date: string): Promise<ProbioticLog> {
   const log: ProbioticLog = { id: date, date, givenAt: new Date().toISOString() };
-  return json(await fetch(`${BASE}/probiotics`, {
+  return json(await apiFetch(`${BASE}/probiotics`, {
     method: 'POST',
     headers: mutHeaders(),
     body: JSON.stringify(log),
@@ -413,13 +428,13 @@ export async function giveProbiotic(date: string): Promise<ProbioticLog> {
 }
 
 export async function removeProbiotic(date: string): Promise<void> {
-  await fetch(`${BASE}/probiotics/${date}`, { method: 'DELETE', headers: mutHeaders() });
+  await apiFetch(`${BASE}/probiotics/${date}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 // ── Masajes frenectomía ───────────────────────────────────────────────────────
 
 export async function getMassageLogs(): Promise<MassageLog[]> {
-  return json(await fetch(`${BASE}/massages`, { headers: babyHeaders() }));
+  return json(await apiFetch(`${BASE}/massages`, { headers: babyHeaders() }));
 }
 
 export async function createMassageLog(date: string): Promise<MassageLog> {
@@ -428,7 +443,7 @@ export async function createMassageLog(date: string): Promise<MassageLog> {
     date,
     performedAt: new Date().toISOString(),
   };
-  return json(await fetch(`${BASE}/massages`, {
+  return json(await apiFetch(`${BASE}/massages`, {
     method: 'POST',
     headers: mutHeaders(),
     body: JSON.stringify(log),
@@ -436,17 +451,17 @@ export async function createMassageLog(date: string): Promise<MassageLog> {
 }
 
 export async function deleteMassageLog(id: string): Promise<void> {
-  await fetch(`${BASE}/massages/${id}`, { method: 'DELETE', headers: mutHeaders() });
+  await apiFetch(`${BASE}/massages/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 // ── Hitos del desarrollo ─────────────────────────────────────────────────────
 
 export async function getMilestones(): Promise<MilestoneLog[]> {
-  return json(await fetch(`${BASE}/milestones`, { headers: babyHeaders() }));
+  return json(await apiFetch(`${BASE}/milestones`, { headers: babyHeaders() }));
 }
 
 export async function saveMilestone(log: MilestoneLog): Promise<MilestoneLog> {
-  return json(await fetch(`${BASE}/milestones`, {
+  return json(await apiFetch(`${BASE}/milestones`, {
     method: 'POST',
     headers: mutHeaders(),
     body: JSON.stringify(log),
@@ -454,17 +469,17 @@ export async function saveMilestone(log: MilestoneLog): Promise<MilestoneLog> {
 }
 
 export async function deleteMilestone(id: string): Promise<void> {
-  await fetch(`${BASE}/milestones/${id}`, { method: 'DELETE', headers: mutHeaders() });
+  await apiFetch(`${BASE}/milestones/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 // ── Vacunas ──────────────────────────────────────────────────────────────────
 
 export async function getVaccines(): Promise<VaccineLog[]> {
-  return json(await fetch(`${BASE}/vaccines`, { headers: babyHeaders() }));
+  return json(await apiFetch(`${BASE}/vaccines`, { headers: babyHeaders() }));
 }
 
 export async function saveVaccine(log: VaccineLog): Promise<VaccineLog> {
-  return json(await fetch(`${BASE}/vaccines`, {
+  return json(await apiFetch(`${BASE}/vaccines`, {
     method: 'POST',
     headers: mutHeaders(),
     body: JSON.stringify(log),
@@ -472,17 +487,17 @@ export async function saveVaccine(log: VaccineLog): Promise<VaccineLog> {
 }
 
 export async function deleteVaccine(id: string): Promise<void> {
-  await fetch(`${BASE}/vaccines/${id}`, { method: 'DELETE', headers: mutHeaders() });
+  await apiFetch(`${BASE}/vaccines/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 // ── Consultas ─────────────────────────────────────────────────────────────────
 
 export async function getConsultations(): Promise<Consultation[]> {
-  return json(await fetch(`${BASE}/consultations`, { headers: babyHeaders() }));
+  return json(await apiFetch(`${BASE}/consultations`, { headers: babyHeaders() }));
 }
 
 export async function createConsultation(c: Consultation): Promise<Consultation> {
-  return json(await fetch(`${BASE}/consultations`, {
+  return json(await apiFetch(`${BASE}/consultations`, {
     method: 'POST',
     headers: mutHeaders(),
     body: JSON.stringify(c),
@@ -490,7 +505,7 @@ export async function createConsultation(c: Consultation): Promise<Consultation>
 }
 
 export async function updateConsultation(c: Consultation): Promise<Consultation> {
-  return json(await fetch(`${BASE}/consultations/${c.id}`, {
+  return json(await apiFetch(`${BASE}/consultations/${c.id}`, {
     method: 'PUT',
     headers: mutHeaders(),
     body: JSON.stringify(c),
@@ -498,17 +513,17 @@ export async function updateConsultation(c: Consultation): Promise<Consultation>
 }
 
 export async function deleteConsultation(id: string): Promise<void> {
-  await fetch(`${BASE}/consultations/${id}`, { method: 'DELETE', headers: mutHeaders() });
+  await apiFetch(`${BASE}/consultations/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 // ── Calendario / Agenda ─────────────────────────────────────────────────────────
 
 export async function getCalendarEvents(): Promise<CalendarEvent[]> {
-  return json(await fetch(`${BASE}/calendar`, { headers: babyHeaders() }));
+  return json(await apiFetch(`${BASE}/calendar`, { headers: babyHeaders() }));
 }
 
 export async function createCalendarEvent(e: CalendarEvent): Promise<CalendarEvent> {
-  return json(await fetch(`${BASE}/calendar`, {
+  return json(await apiFetch(`${BASE}/calendar`, {
     method: 'POST',
     headers: mutHeaders(),
     body: JSON.stringify(e),
@@ -516,7 +531,7 @@ export async function createCalendarEvent(e: CalendarEvent): Promise<CalendarEve
 }
 
 export async function updateCalendarEvent(e: CalendarEvent): Promise<CalendarEvent> {
-  return json(await fetch(`${BASE}/calendar/${e.id}`, {
+  return json(await apiFetch(`${BASE}/calendar/${e.id}`, {
     method: 'PUT',
     headers: mutHeaders(),
     body: JSON.stringify(e),
@@ -524,7 +539,7 @@ export async function updateCalendarEvent(e: CalendarEvent): Promise<CalendarEve
 }
 
 export async function deleteCalendarEvent(id: string): Promise<void> {
-  await fetch(`${BASE}/calendar/${id}`, { method: 'DELETE', headers: mutHeaders() });
+  await apiFetch(`${BASE}/calendar/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
@@ -551,11 +566,11 @@ export interface ArticuloForm {
 }
 
 export async function getArticulos(): Promise<Articulo[]> {
-  return json(await fetch(`${BASE}/admin/articulos`, { credentials: 'include' }));
+  return json(await apiFetch(`${BASE}/admin/articulos`, { credentials: 'include' }));
 }
 
 async function guardarArticulo(url: string, metodo: 'POST' | 'PUT', datos: ArticuloForm): Promise<Articulo> {
-  const res = await fetch(url, {
+  const res = await apiFetch(url, {
     method: metodo,
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -575,7 +590,7 @@ export const actualizarArticulo = (id: string, datos: ArticuloForm) =>
   guardarArticulo(`${BASE}/admin/articulos/${id}`, 'PUT', datos);
 
 export async function borrarArticulo(id: string): Promise<void> {
-  const res = await fetch(`${BASE}/admin/articulos/${id}`, { method: 'DELETE', credentials: 'include' });
+  const res = await apiFetch(`${BASE}/admin/articulos/${id}`, { method: 'DELETE', credentials: 'include' });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error ?? 'Error al eliminar');
@@ -583,11 +598,11 @@ export async function borrarArticulo(id: string): Promise<void> {
 }
 
 export async function getAdminUsers(): Promise<AdminUserInfo[]> {
-  return json(await fetch(`${BASE}/admin/users`, { credentials: 'include' }));
+  return json(await apiFetch(`${BASE}/admin/users`, { credentials: 'include' }));
 }
 
 export async function setUserRole(userId: string, role: string): Promise<void> {
-  await fetch(`${BASE}/admin/users/${userId}/role`, {
+  await apiFetch(`${BASE}/admin/users/${userId}/role`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -596,7 +611,7 @@ export async function setUserRole(userId: string, role: string): Promise<void> {
 }
 
 export async function deleteUser(userId: string): Promise<void> {
-  const res = await fetch(`${BASE}/admin/users/${userId}`, {
+  const res = await apiFetch(`${BASE}/admin/users/${userId}`, {
     method: 'DELETE',
     credentials: 'include',
   });
@@ -607,7 +622,7 @@ export async function deleteUser(userId: string): Promise<void> {
 }
 
 export async function createAdminUser(opts: { username: string; email: string; password: string; accountId?: string }): Promise<{ id: string; accountId: string }> {
-  const res = await fetch(`${BASE}/admin/users`, {
+  const res = await apiFetch(`${BASE}/admin/users`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -621,7 +636,7 @@ export async function createAdminUser(opts: { username: string; email: string; p
 }
 
 export async function updateAdminUser(userId: string, username: string, email: string): Promise<void> {
-  const res = await fetch(`${BASE}/admin/users/${userId}`, {
+  const res = await apiFetch(`${BASE}/admin/users/${userId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -634,7 +649,7 @@ export async function updateAdminUser(userId: string, username: string, email: s
 }
 
 export async function resetAdminPassword(userId: string, password: string): Promise<void> {
-  const res = await fetch(`${BASE}/admin/users/${userId}/password`, {
+  const res = await apiFetch(`${BASE}/admin/users/${userId}/password`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -647,7 +662,7 @@ export async function resetAdminPassword(userId: string, password: string): Prom
 }
 
 export async function setUserFamilyRole(userId: string, familyRole: string): Promise<void> {
-  const res = await fetch(`${BASE}/admin/users/${userId}/family-role`, {
+  const res = await apiFetch(`${BASE}/admin/users/${userId}/family-role`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -660,7 +675,7 @@ export async function setUserFamilyRole(userId: string, familyRole: string): Pro
 }
 
 export async function moveUserToAccount(userId: string, accountId: string): Promise<void> {
-  const res = await fetch(`${BASE}/admin/users/${userId}/account`, {
+  const res = await apiFetch(`${BASE}/admin/users/${userId}/account`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -673,7 +688,7 @@ export async function moveUserToAccount(userId: string, accountId: string): Prom
 }
 
 export async function impersonateUser(userId: string): Promise<void> {
-  const res = await fetch(`${BASE}/admin/users/${userId}/impersonate`, {
+  const res = await apiFetch(`${BASE}/admin/users/${userId}/impersonate`, {
     method: 'POST',
     credentials: 'include',
   });
@@ -684,7 +699,7 @@ export async function impersonateUser(userId: string): Promise<void> {
 }
 
 export async function exitImpersonation(): Promise<void> {
-  await fetch(`${BASE}/admin/impersonate/exit`, {
+  await apiFetch(`${BASE}/admin/impersonate/exit`, {
     method: 'POST',
     credentials: 'include',
   });
@@ -703,11 +718,11 @@ export interface AdminBabyInfo {
 }
 
 export async function getAdminBabies(): Promise<AdminBabyInfo[]> {
-  return json(await fetch(`${BASE}/admin/babies`, { credentials: 'include' }));
+  return json(await apiFetch(`${BASE}/admin/babies`, { credentials: 'include' }));
 }
 
 export async function updateAdminBaby(id: string, data: { name?: string; birthDate?: string; sex?: string }): Promise<void> {
-  const res = await fetch(`${BASE}/admin/babies/${id}`, {
+  const res = await apiFetch(`${BASE}/admin/babies/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -720,7 +735,7 @@ export async function updateAdminBaby(id: string, data: { name?: string; birthDa
 }
 
 export async function deleteAdminBaby(id: string): Promise<void> {
-  const res = await fetch(`${BASE}/admin/babies/${id}`, {
+  const res = await apiFetch(`${BASE}/admin/babies/${id}`, {
     method: 'DELETE',
     credentials: 'include',
   });
@@ -731,7 +746,7 @@ export async function deleteAdminBaby(id: string): Promise<void> {
 }
 
 export async function getAdminStats(): Promise<AdminStats> {
-  return json(await fetch(`${BASE}/admin/stats`, { credentials: 'include' }));
+  return json(await apiFetch(`${BASE}/admin/stats`, { credentials: 'include' }));
 }
 
 export interface PushSubscriptionInfo {
@@ -746,11 +761,11 @@ export interface PushSubscriptionInfo {
 }
 
 export async function getPushSubscriptions(): Promise<PushSubscriptionInfo[]> {
-  return json(await fetch(`${BASE}/admin/push/subscriptions`, { credentials: 'include' }));
+  return json(await apiFetch(`${BASE}/admin/push/subscriptions`, { credentials: 'include' }));
 }
 
 export async function adminDeletePushSubscription(id: string): Promise<void> {
-  const res = await fetch(`${BASE}/admin/push/subscriptions/${id}`, {
+  const res = await apiFetch(`${BASE}/admin/push/subscriptions/${id}`, {
     method: 'DELETE',
     credentials: 'include',
   });
@@ -761,7 +776,7 @@ export async function adminDeletePushSubscription(id: string): Promise<void> {
 }
 
 export async function sendPushBroadcast(opts: { title: string; body: string; url?: string; accountId?: string }): Promise<{ sent: number; failed: number }> {
-  const res = await fetch(`${BASE}/admin/push/broadcast`, {
+  const res = await apiFetch(`${BASE}/admin/push/broadcast`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -775,7 +790,7 @@ export async function sendPushBroadcast(opts: { title: string; body: string; url
 }
 
 export async function regenerateInviteCode(accountId: string): Promise<string> {
-  const res = await fetch(`${BASE}/admin/accounts/${accountId}/invite-code`, {
+  const res = await apiFetch(`${BASE}/admin/accounts/${accountId}/invite-code`, {
     method: 'PUT',
     credentials: 'include',
   });
@@ -790,13 +805,13 @@ export async function regenerateInviteCode(accountId: string): Promise<string> {
 // ── Push notifications ─────────────────────────────────────────────────────────
 
 export async function getPushVapidKey(): Promise<string> {
-  const res = await fetch(`${BASE}/push/vapid-key`);
+  const res = await apiFetch(`${BASE}/push/vapid-key`);
   const data = await res.json();
   return data.publicKey;
 }
 
 export async function savePushSubscription(subscription: PushSubscription): Promise<void> {
-  await fetch(`${BASE}/push/subscribe`, {
+  await apiFetch(`${BASE}/push/subscribe`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -805,7 +820,7 @@ export async function savePushSubscription(subscription: PushSubscription): Prom
 }
 
 export async function deletePushSubscription(endpoint: string): Promise<void> {
-  await fetch(`${BASE}/push/subscribe`, {
+  await apiFetch(`${BASE}/push/subscribe`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -816,11 +831,11 @@ export async function deletePushSubscription(endpoint: string): Promise<void> {
 // ── Pañales ───────────────────────────────────────────────────────────────────
 
 export async function getDiapers(): Promise<DiaperChange[]> {
-  return json(await fetch(`${BASE}/diapers`, { headers: babyHeaders() }));
+  return json(await apiFetch(`${BASE}/diapers`, { headers: babyHeaders() }));
 }
 
 export async function createDiaper(d: DiaperChange): Promise<DiaperChange> {
-  return json(await fetch(`${BASE}/diapers`, {
+  return json(await apiFetch(`${BASE}/diapers`, {
     method: 'POST',
     headers: mutHeaders(),
     body: JSON.stringify(d),
@@ -828,7 +843,7 @@ export async function createDiaper(d: DiaperChange): Promise<DiaperChange> {
 }
 
 export async function updateDiaper(d: DiaperChange): Promise<DiaperChange> {
-  return json(await fetch(`${BASE}/diapers/${d.id}`, {
+  return json(await apiFetch(`${BASE}/diapers/${d.id}`, {
     method: 'PUT',
     headers: mutHeaders(),
     body: JSON.stringify(d),
@@ -836,17 +851,17 @@ export async function updateDiaper(d: DiaperChange): Promise<DiaperChange> {
 }
 
 export async function deleteDiaper(id: string): Promise<void> {
-  await fetch(`${BASE}/diapers/${id}`, { method: 'DELETE', headers: mutHeaders() });
+  await apiFetch(`${BASE}/diapers/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 // ── Medicamentos ──────────────────────────────────────────────────────────────
 
 export async function getMedications(): Promise<MedicationLog[]> {
-  return json(await fetch(`${BASE}/medications`, { headers: babyHeaders() }));
+  return json(await apiFetch(`${BASE}/medications`, { headers: babyHeaders() }));
 }
 
 export async function createMedication(m: MedicationLog): Promise<MedicationLog> {
-  return json(await fetch(`${BASE}/medications`, {
+  return json(await apiFetch(`${BASE}/medications`, {
     method: 'POST',
     headers: mutHeaders(),
     body: JSON.stringify(m),
@@ -854,7 +869,7 @@ export async function createMedication(m: MedicationLog): Promise<MedicationLog>
 }
 
 export async function updateMedication(m: MedicationLog): Promise<MedicationLog> {
-  return json(await fetch(`${BASE}/medications/${m.id}`, {
+  return json(await apiFetch(`${BASE}/medications/${m.id}`, {
     method: 'PUT',
     headers: mutHeaders(),
     body: JSON.stringify(m),
@@ -862,17 +877,17 @@ export async function updateMedication(m: MedicationLog): Promise<MedicationLog>
 }
 
 export async function deleteMedication(id: string): Promise<void> {
-  await fetch(`${BASE}/medications/${id}`, { method: 'DELETE', headers: mutHeaders() });
+  await apiFetch(`${BASE}/medications/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 // ── Pautas de medicación ──────────────────────────────────────────────────────
 
 export async function getMedicationPlans(): Promise<MedicationPlan[]> {
-  return json(await fetch(`${BASE}/medplans`, { headers: babyHeaders() }));
+  return json(await apiFetch(`${BASE}/medplans`, { headers: babyHeaders() }));
 }
 
 export async function createMedicationPlan(p: MedicationPlan): Promise<MedicationPlan> {
-  return json(await fetch(`${BASE}/medplans`, {
+  return json(await apiFetch(`${BASE}/medplans`, {
     method: 'POST',
     headers: mutHeaders(),
     body: JSON.stringify(p),
@@ -880,7 +895,7 @@ export async function createMedicationPlan(p: MedicationPlan): Promise<Medicatio
 }
 
 export async function updateMedicationPlan(p: MedicationPlan): Promise<MedicationPlan> {
-  return json(await fetch(`${BASE}/medplans/${p.id}`, {
+  return json(await apiFetch(`${BASE}/medplans/${p.id}`, {
     method: 'PUT',
     headers: mutHeaders(),
     body: JSON.stringify(p),
@@ -888,17 +903,17 @@ export async function updateMedicationPlan(p: MedicationPlan): Promise<Medicatio
 }
 
 export async function deleteMedicationPlan(id: string): Promise<void> {
-  await fetch(`${BASE}/medplans/${id}`, { method: 'DELETE', headers: mutHeaders() });
+  await apiFetch(`${BASE}/medplans/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 // ── Paseos ────────────────────────────────────────────────────────────────────
 
 export async function getWalks(): Promise<Walk[]> {
-  return json(await fetch(`${BASE}/walks`, { headers: babyHeaders() }));
+  return json(await apiFetch(`${BASE}/walks`, { headers: babyHeaders() }));
 }
 
 export async function createWalk(w: Walk): Promise<Walk> {
-  return json(await fetch(`${BASE}/walks`, {
+  return json(await apiFetch(`${BASE}/walks`, {
     method: 'POST',
     headers: mutHeaders(),
     body: JSON.stringify(w),
@@ -906,7 +921,7 @@ export async function createWalk(w: Walk): Promise<Walk> {
 }
 
 export async function updateWalk(w: Walk): Promise<Walk> {
-  return json(await fetch(`${BASE}/walks/${w.id}`, {
+  return json(await apiFetch(`${BASE}/walks/${w.id}`, {
     method: 'PUT',
     headers: mutHeaders(),
     body: JSON.stringify(w),
@@ -914,17 +929,17 @@ export async function updateWalk(w: Walk): Promise<Walk> {
 }
 
 export async function deleteWalk(id: string): Promise<void> {
-  await fetch(`${BASE}/walks/${id}`, { method: 'DELETE', headers: mutHeaders() });
+  await apiFetch(`${BASE}/walks/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 // ── Baños ─────────────────────────────────────────────────────────────────────
 
 export async function getBaths(): Promise<Bath[]> {
-  return json(await fetch(`${BASE}/baths`, { headers: babyHeaders() }));
+  return json(await apiFetch(`${BASE}/baths`, { headers: babyHeaders() }));
 }
 
 export async function createBath(b: Bath): Promise<Bath> {
-  return json(await fetch(`${BASE}/baths`, {
+  return json(await apiFetch(`${BASE}/baths`, {
     method: 'POST',
     headers: mutHeaders(),
     body: JSON.stringify(b),
@@ -932,7 +947,7 @@ export async function createBath(b: Bath): Promise<Bath> {
 }
 
 export async function updateBath(b: Bath): Promise<Bath> {
-  return json(await fetch(`${BASE}/baths/${b.id}`, {
+  return json(await apiFetch(`${BASE}/baths/${b.id}`, {
     method: 'PUT',
     headers: mutHeaders(),
     body: JSON.stringify(b),
@@ -940,7 +955,7 @@ export async function updateBath(b: Bath): Promise<Bath> {
 }
 
 export async function deleteBath(id: string): Promise<void> {
-  await fetch(`${BASE}/baths/${id}`, { method: 'DELETE', headers: mutHeaders() });
+  await apiFetch(`${BASE}/baths/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 export interface NotificationPrefs {
@@ -950,12 +965,12 @@ export interface NotificationPrefs {
 }
 
 export async function getNotificationPrefs(babyId: string): Promise<NotificationPrefs> {
-  const res = await fetch(`${BASE}/push/prefs/${babyId}`, { credentials: 'include' });
+  const res = await apiFetch(`${BASE}/push/prefs/${babyId}`, { credentials: 'include' });
   return res.json();
 }
 
 export async function updateNotificationPrefs(babyId: string, prefs: NotificationPrefs): Promise<void> {
-  await fetch(`${BASE}/push/prefs/${babyId}`, {
+  await apiFetch(`${BASE}/push/prefs/${babyId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',

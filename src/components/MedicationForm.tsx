@@ -7,7 +7,7 @@ import { useConfirm } from './ConfirmDialog';
 
 interface Props {
   /** `plan` solo llega al programar la administración: crea la pauta y sus avisos. */
-  onSave: (m: MedicationLog, plan?: MedicationPlan) => void;
+  onSave: (m: MedicationLog, plan?: MedicationPlan) => Promise<void>;
   onCancel: () => void;
   onDelete?: (id: string) => void;
   existing?: MedicationLog | null;
@@ -29,6 +29,9 @@ const COMUNES = ['Apiretal', 'Dalsy', 'Paracetamol', 'Ibuprofeno', 'Omeprazol', 
 export default function MedicationForm({ onSave, onCancel, onDelete, existing, medPlans = [], medications = [] }: Props) {
   const confirm = useConfirm();
 
+  const [logId] = useState(() => existing?.id ?? generateId());
+  const [newPlanId] = useState(() => generateId());
+  const [saving, setSaving] = useState(false);
   const [timestamp, setTimestamp] = useState(
     toLocalDatetimeInputValue(existing ? new Date(existing.timestamp) : new Date())
   );
@@ -100,7 +103,7 @@ export default function MedicationForm({ onSave, onCancel, onDelete, existing, m
     setHoras((prev) => prev.map((h, j) => (j === i ? valor : h)));
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!nombreFinal) {
       setError('Indica qué medicamento le has dado.');
@@ -129,10 +132,10 @@ export default function MedicationForm({ onSave, onCancel, onDelete, existing, m
     // usuario lo ha confirmado en `alternarProgramar`. Si no, la dosis se cuelga
     // de la pauta que ya existía.
     const pautaNueva = programar;
-    const planId = pautaNueva ? generateId() : pautaExistente?.id;
+    const planId = pautaNueva ? newPlanId : pautaExistente?.id;
 
     const log: MedicationLog = {
-      id: existing?.id ?? generateId(),
+      id: logId,
       timestamp: new Date(timestamp).toISOString(),
       name: nombreFinal,
       ...(doseMl != null ? { doseMl } : {}),
@@ -140,18 +143,25 @@ export default function MedicationForm({ onSave, onCancel, onDelete, existing, m
       ...(planId ? { planId } : {}),
     };
 
-    if (!pautaNueva) {
-      onSave(log);
-      return;
+    setSaving(true);
+    try {
+      if (!pautaNueva) {
+        await onSave(log);
+      } else {
+        await onSave(log, {
+          id: planId!,
+          name: nombreFinal,
+          ...(doseMl != null ? { doseMl } : {}),
+          times: [...horas].sort(),
+          startDate: hoy,
+          endDate: hasta,
+        });
+      }
+    } catch {
+      setError('No se pudo guardar. Comprueba tu conexión e inténtalo de nuevo.');
+    } finally {
+      setSaving(false);
     }
-    onSave(log, {
-      id: planId!,
-      name: nombreFinal,
-      ...(doseMl != null ? { doseMl } : {}),
-      times: [...horas].sort(),
-      startDate: hoy,
-      endDate: hasta,
-    });
   }
 
   async function handleDelete() {
@@ -450,9 +460,10 @@ export default function MedicationForm({ onSave, onCancel, onDelete, existing, m
 
         <button
           type="submit"
-          className="w-full bg-sage-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-sage-700 touch-manipulation"
+          disabled={saving}
+          className="w-full bg-sage-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-sage-700 touch-manipulation disabled:opacity-60"
         >
-          {existing ? 'Guardar cambios' : 'Guardar medicamento'}
+          {saving ? 'Guardando…' : existing ? 'Guardar cambios' : 'Guardar medicamento'}
         </button>
 
         {existing && onDelete && (

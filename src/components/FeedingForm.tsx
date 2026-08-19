@@ -5,7 +5,7 @@ import { toLocalDatetimeInputValue } from '../utils/dateUtils';
 import { BreastIcon } from './FeedingItem';
 
 interface Props {
-  onSave: (feeding: Feeding) => void;
+  onSave: (feeding: Feeding) => Promise<void>;
   onCancel: () => void;
   existing?: Feeding | null;
 }
@@ -13,6 +13,10 @@ interface Props {
 type NumField = number | '';
 
 export default function FeedingForm({ onSave, onCancel, existing }: Props) {
+  // Estable durante toda la vida del formulario: si hay que reintentar un guardado
+  // fallido, se reenvía el mismo id en vez de crear un registro nuevo cada vez.
+  const [id] = useState(() => existing?.id ?? generateId());
+  const [saving, setSaving] = useState(false);
   const [timestamp, setTimestamp] = useState(
     existing
       ? toLocalDatetimeInputValue(new Date(existing.timestamp))
@@ -48,7 +52,7 @@ export default function FeedingForm({ onSave, onCancel, existing }: Props) {
     return Math.max(0, Math.round((Date.now() - start) / 60000));
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!hasBreast && !hasBottle && !hasSupplement) {
       setError('Indica al menos pecho, biberón o jeringa-dedo.');
@@ -64,7 +68,7 @@ export default function FeedingForm({ onSave, onCancel, existing }: Props) {
       : (endTimeManual && endTime ? new Date(endTime).toISOString() : undefined);
 
     const feeding: Feeding = {
-      id: existing?.id ?? generateId(),
+      id,
       timestamp: new Date(timestamp).toISOString(),
       ...(computedEndTime ? { endTime: computedEndTime } : {}),
       hasBreast,
@@ -78,7 +82,14 @@ export default function FeedingForm({ onSave, onCancel, existing }: Props) {
       ...(notes.trim() ? { notes: notes.trim() } : {}),
     };
 
-    onSave(feeding);
+    setSaving(true);
+    try {
+      await onSave(feeding);
+    } catch {
+      setError('No se pudo guardar. Comprueba tu conexión e inténtalo de nuevo.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -264,9 +275,10 @@ export default function FeedingForm({ onSave, onCancel, existing }: Props) {
 
         <button
           type="submit"
-          className="w-full bg-sage-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-sage-700 touch-manipulation"
+          disabled={saving}
+          className="w-full bg-sage-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-sage-700 touch-manipulation disabled:opacity-60"
         >
-          {existing ? 'Guardar cambios' : 'Guardar toma'}
+          {saving ? 'Guardando…' : existing ? 'Guardar cambios' : 'Guardar toma'}
         </button>
       </form>
     </div>

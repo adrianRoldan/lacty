@@ -6,7 +6,7 @@ import { useConfirm } from './ConfirmDialog';
 import { StrollerIcon } from './CareIcons';
 
 interface Props {
-  onSave: (walk: Walk) => void;
+  onSave: (walk: Walk) => Promise<void>;
   onCancel: () => void;
   onDelete?: (id: string) => void;
   existing?: Walk | null;
@@ -15,6 +15,8 @@ interface Props {
 export default function WalkForm({ onSave, onCancel, onDelete, existing }: Props) {
   const confirm = useConfirm();
 
+  const [id] = useState(() => existing?.id ?? generateId());
+  const [saving, setSaving] = useState(false);
   const [startTime, setStartTime] = useState(
     toLocalDatetimeInputValue(existing ? new Date(existing.startTime) : new Date())
   );
@@ -25,7 +27,7 @@ export default function WalkForm({ onSave, onCancel, onDelete, existing }: Props
   const [notes, setNotes] = useState(existing?.notes ?? '');
   const [error, setError] = useState('');
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const start = new Date(startTime);
     if (hasEnd && new Date(endTime) <= start) {
@@ -33,12 +35,19 @@ export default function WalkForm({ onSave, onCancel, onDelete, existing }: Props
       return;
     }
     setError('');
-    onSave({
-      id: existing?.id ?? generateId(),
-      startTime: start.toISOString(),
-      ...(hasEnd ? { endTime: new Date(endTime).toISOString() } : {}),
-      ...(notes.trim() ? { notes: notes.trim() } : {}),
-    });
+    setSaving(true);
+    try {
+      await onSave({
+        id,
+        startTime: start.toISOString(),
+        ...(hasEnd ? { endTime: new Date(endTime).toISOString() } : {}),
+        ...(notes.trim() ? { notes: notes.trim() } : {}),
+      });
+    } catch {
+      setError('No se pudo guardar. Comprueba tu conexión e inténtalo de nuevo.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleDelete() {
@@ -119,9 +128,10 @@ export default function WalkForm({ onSave, onCancel, onDelete, existing }: Props
 
         <button
           type="submit"
-          className="w-full bg-coral-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-coral-700 touch-manipulation"
+          disabled={saving}
+          className="w-full bg-coral-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-coral-700 touch-manipulation disabled:opacity-60"
         >
-          {existing ? 'Guardar cambios' : 'Guardar paseo'}
+          {saving ? 'Guardando…' : existing ? 'Guardar cambios' : 'Guardar paseo'}
         </button>
 
         {existing && onDelete && (

@@ -3,31 +3,40 @@ import type { HeadCircEntry } from '../types';
 import { generateId } from '../utils/feedingUtils';
 
 interface Props {
-  onSave: (entry: HeadCircEntry) => void;
+  onSave: (entry: HeadCircEntry) => Promise<void>;
   onCancel: () => void;
   existing?: HeadCircEntry | null;
 }
 
 export default function HeadCircForm({ onSave, onCancel, existing }: Props) {
+  const [id] = useState(() => existing?.id ?? generateId());
+  const [saving, setSaving] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
   const [date, setDate] = useState(existing?.date ?? today);
   const [headCm, setHeadCm] = useState<number | ''>(existing?.headCm ?? '');
   const [notes, setNotes] = useState(existing?.notes ?? '');
   const [error, setError] = useState('');
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (headCm === '' || headCm <= 0) {
       setError('Introduce un perímetro válido.');
       return;
     }
     setError('');
-    onSave({
-      id: existing?.id ?? generateId(),
-      date,
-      headCm: Number(headCm),
-      ...(notes.trim() ? { notes: notes.trim() } : {}),
-    });
+    setSaving(true);
+    try {
+      await onSave({
+        id,
+        date,
+        headCm: Number(headCm),
+        ...(notes.trim() ? { notes: notes.trim() } : {}),
+      });
+    } catch {
+      setError('No se pudo guardar. Comprueba tu conexión e inténtalo de nuevo.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -88,9 +97,10 @@ export default function HeadCircForm({ onSave, onCancel, existing }: Props) {
 
         <button
           type="submit"
-          className="w-full bg-sage-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-sage-700 touch-manipulation"
+          disabled={saving}
+          className="w-full bg-sage-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-sage-700 touch-manipulation disabled:opacity-60"
         >
-          {existing ? 'Guardar cambios' : 'Guardar'}
+          {saving ? 'Guardando…' : existing ? 'Guardar cambios' : 'Guardar'}
         </button>
       </form>
     </div>

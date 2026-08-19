@@ -5,7 +5,7 @@ import { toLocalDatetimeInputValue } from '../utils/dateUtils';
 import { useConfirm } from './ConfirmDialog';
 
 interface Props {
-  onSave: (b: Bath) => void;
+  onSave: (b: Bath) => Promise<void>;
   onCancel: () => void;
   onDelete?: (id: string) => void;
   existing?: Bath | null;
@@ -24,20 +24,30 @@ const PIEL: { valor: BathSkin; etiqueta: string }[] = [
 export default function BathForm({ onSave, onCancel, onDelete, existing }: Props) {
   const confirm = useConfirm();
 
+  const [id] = useState(() => existing?.id ?? generateId());
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const [timestamp, setTimestamp] = useState(
     toLocalDatetimeInputValue(existing ? new Date(existing.timestamp) : new Date())
   );
   const [skin, setSkin] = useState<BathSkin | undefined>(existing?.skin);
   const [notes, setNotes] = useState(existing?.notes ?? '');
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    onSave({
-      id: existing?.id ?? generateId(),
-      timestamp: new Date(timestamp).toISOString(),
-      ...(skin ? { skin } : {}),
-      ...(notes.trim() ? { notes: notes.trim() } : {}),
-    });
+    setSaving(true);
+    try {
+      await onSave({
+        id,
+        timestamp: new Date(timestamp).toISOString(),
+        ...(skin ? { skin } : {}),
+        ...(notes.trim() ? { notes: notes.trim() } : {}),
+      });
+    } catch {
+      setError('No se pudo guardar. Comprueba tu conexión e inténtalo de nuevo.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleDelete() {
@@ -103,11 +113,14 @@ export default function BathForm({ onSave, onCancel, onDelete, existing }: Props
           />
         </div>
 
+        {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+
         <button
           type="submit"
-          className="w-full bg-sage-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-sage-700 touch-manipulation"
+          disabled={saving}
+          className="w-full bg-sage-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-sage-700 touch-manipulation disabled:opacity-60"
         >
-          {existing ? 'Guardar cambios' : 'Guardar baño'}
+          {saving ? 'Guardando…' : existing ? 'Guardar cambios' : 'Guardar baño'}
         </button>
 
         {existing && onDelete && (

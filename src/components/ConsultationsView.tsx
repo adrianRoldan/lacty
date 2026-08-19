@@ -6,7 +6,7 @@ import { useConfirm } from './ConfirmDialog';
 interface Props {
   consultations: Consultation[];
   readOnly?: boolean;
-  onCreate: (c: Consultation) => void;
+  onCreate: (c: Consultation) => Promise<void>;
   onUpdate: (c: Consultation) => void;
   onDelete: (id: string) => void;
 }
@@ -26,18 +26,29 @@ export default function ConsultationsView({ consultations, readOnly, onCreate, o
   const [filter, setFilter] = useState<ConsultationCategory | 'all'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showResolved, setShowResolved] = useState(false);
+  const [newId, setNewId] = useState(() => generateId());
+  const [adding, setAdding] = useState(false);
 
-  function handleAdd() {
+  async function handleAdd() {
     const trimmed = text.trim();
-    if (!trimmed) return;
-    onCreate({
-      id: generateId(),
-      text: trimmed,
-      category: newCat,
-      resolved: false,
-      createdAt: new Date().toISOString(),
-    });
-    setText('');
+    if (!trimmed || adding) return;
+    setAdding(true);
+    try {
+      await onCreate({
+        id: newId,
+        text: trimmed,
+        category: newCat,
+        resolved: false,
+        createdAt: new Date().toISOString(),
+      });
+      setText('');
+      setNewId(generateId());
+    } catch {
+      // El texto se queda en el campo para reintentar; el id se reutiliza, así
+      // que un reintento no duplica el registro aunque el primero también llegara.
+    } finally {
+      setAdding(false);
+    }
   }
 
   function toggleResolved(c: Consultation) {
@@ -82,10 +93,10 @@ export default function ConsultationsView({ consultations, readOnly, onCreate, o
           </div>
           <button
             onClick={handleAdd}
-            disabled={!text.trim()}
+            disabled={!text.trim() || adding}
             className="shrink-0 bg-sage-600 text-white text-sm font-semibold px-4 py-2 rounded-xl active:bg-sage-700 disabled:opacity-40 touch-manipulation"
           >
-            Añadir
+            {adding ? 'Añadiendo…' : 'Añadir'}
           </button>
         </div>
       </div>}

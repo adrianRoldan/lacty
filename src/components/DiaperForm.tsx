@@ -4,7 +4,7 @@ import { generateId } from '../utils/feedingUtils';
 import { toLocalDatetimeInputValue } from '../utils/dateUtils';
 
 interface Props {
-  onSave: (d: DiaperChange) => void;
+  onSave: (d: DiaperChange) => Promise<void>;
   onCancel: () => void;
   existing?: DiaperChange | null;
 }
@@ -33,6 +33,9 @@ const AMOUNTS: { value: PoopAmount; label: string }[] = [
 ];
 
 export default function DiaperForm({ onSave, onCancel, existing }: Props) {
+  const [id] = useState(() => existing?.id ?? generateId());
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const [timestamp, setTimestamp] = useState(
     existing
       ? toLocalDatetimeInputValue(new Date(existing.timestamp))
@@ -47,10 +50,10 @@ export default function DiaperForm({ onSave, onCancel, existing }: Props) {
   const hasPoopDetails = content === 'dirty' || content === 'both';
   const selectedColor = POOP_COLORS.find((c) => c.value === poopColor);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const entry: DiaperChange = {
-      id: existing?.id ?? generateId(),
+      id,
       timestamp: new Date(timestamp).toISOString(),
       content,
       ...(hasPoopDetails && poopColor ? { poopColor } : {}),
@@ -58,7 +61,14 @@ export default function DiaperForm({ onSave, onCancel, existing }: Props) {
       ...(hasPoopDetails && poopAmount ? { poopAmount } : {}),
       ...(notes.trim() ? { notes: notes.trim() } : {}),
     };
-    onSave(entry);
+    setSaving(true);
+    try {
+      await onSave(entry);
+    } catch {
+      setError('No se pudo guardar. Comprueba tu conexión e inténtalo de nuevo.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -201,11 +211,14 @@ export default function DiaperForm({ onSave, onCancel, existing }: Props) {
           />
         </div>
 
+        {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+
         <button
           type="submit"
-          className="w-full bg-sage-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-sage-700 touch-manipulation"
+          disabled={saving}
+          className="w-full bg-sage-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-sage-700 touch-manipulation disabled:opacity-60"
         >
-          {existing ? 'Guardar cambios' : 'Guardar cambio de pañal'}
+          {saving ? 'Guardando…' : existing ? 'Guardar cambios' : 'Guardar cambio de pañal'}
         </button>
       </form>
     </div>

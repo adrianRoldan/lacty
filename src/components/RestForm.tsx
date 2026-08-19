@@ -4,12 +4,14 @@ import { generateId } from '../utils/feedingUtils';
 import { toLocalDatetimeInputValue } from '../utils/dateUtils';
 
 interface Props {
-  onSave: (rest: Rest) => void;
+  onSave: (rest: Rest) => Promise<void>;
   onCancel: () => void;
   existing?: Rest | null;
 }
 
 export default function RestForm({ onSave, onCancel, existing }: Props) {
+  const [id] = useState(() => existing?.id ?? generateId());
+  const [saving, setSaving] = useState(false);
   const [startTime, setStartTime] = useState(
     existing
       ? toLocalDatetimeInputValue(new Date(existing.startTime))
@@ -24,7 +26,7 @@ export default function RestForm({ onSave, onCancel, existing }: Props) {
   const [notes, setNotes] = useState(existing?.notes ?? '');
   const [error, setError] = useState('');
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const start = new Date(startTime);
     if (hasEnd) {
@@ -37,13 +39,20 @@ export default function RestForm({ onSave, onCancel, existing }: Props) {
     setError('');
 
     const rest: Rest = {
-      id: existing?.id ?? generateId(),
+      id,
       startTime: start.toISOString(),
       ...(hasEnd ? { endTime: new Date(endTime).toISOString() } : {}),
       ...(notes.trim() ? { notes: notes.trim() } : {}),
     };
 
-    onSave(rest);
+    setSaving(true);
+    try {
+      await onSave(rest);
+    } catch {
+      setError('No se pudo guardar. Comprueba tu conexión e inténtalo de nuevo.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -117,9 +126,10 @@ export default function RestForm({ onSave, onCancel, existing }: Props) {
 
         <button
           type="submit"
-          className="w-full bg-taupe-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-taupe-700 touch-manipulation"
+          disabled={saving}
+          className="w-full bg-taupe-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-taupe-700 touch-manipulation disabled:opacity-60"
         >
-          {existing ? 'Guardar cambios' : 'Guardar sueño'}
+          {saving ? 'Guardando…' : existing ? 'Guardar cambios' : 'Guardar sueño'}
         </button>
       </form>
     </div>

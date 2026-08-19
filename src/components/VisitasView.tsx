@@ -7,11 +7,11 @@ interface Props {
   events: CalendarEvent[];
   consultations: Consultation[];
   readOnly?: boolean;
-  onCreateEvent: (e: CalendarEvent) => void;
-  onUpdateEvent: (e: CalendarEvent) => void;
+  onCreateEvent: (e: CalendarEvent) => Promise<void>;
+  onUpdateEvent: (e: CalendarEvent) => Promise<void>;
   onDeleteEvent: (id: string) => void;
-  onCreateConsultation: (c: Consultation) => void;
-  onUpdateConsultation: (c: Consultation) => void;
+  onCreateConsultation: (c: Consultation) => Promise<void>;
+  onUpdateConsultation: (c: Consultation) => Promise<void>;
   onDeleteConsultation: (id: string) => void;
 }
 
