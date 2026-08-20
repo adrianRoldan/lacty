@@ -1118,6 +1118,7 @@ export default function App() {
           onOpenSettings={() => setScreen('ajustes')}
           onLogout={handleLogout}
           onOpenDrawer={() => setDrawerOpen(true)}
+          onGoToBaby={() => navigate('config')}
         />
       )}
       {!showForm && isAdmin && (
@@ -1789,7 +1790,7 @@ function ExtraFab({ label, color, onClick, children }: {
   );
 }
 
-function BabyBar({ babies, activeId, onSwitch, currentUser, onOpenProfile, onOpenSettings, onLogout, onOpenDrawer }: {
+function BabyBar({ babies, activeId, onSwitch, currentUser, onOpenProfile, onOpenSettings, onLogout, onOpenDrawer, onGoToBaby }: {
   babies: BabyConfig[];
   activeId: string;
   onSwitch: (id: string) => void;
@@ -1798,6 +1799,7 @@ function BabyBar({ babies, activeId, onSwitch, currentUser, onOpenProfile, onOpe
   onOpenSettings: () => void;
   onLogout: () => void;
   onOpenDrawer: () => void;
+  onGoToBaby: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const active = babies.find((b) => b.id === activeId);
@@ -1827,7 +1829,7 @@ function BabyBar({ babies, activeId, onSwitch, currentUser, onOpenProfile, onOpe
         />
       </div>
       <button
-        onClick={() => multi && setOpen((o) => !o)}
+        onClick={() => (multi ? setOpen((o) => !o) : onGoToBaby())}
         className="w-full flex items-center justify-center gap-2 py-2.5 touch-manipulation"
       >
         <span className="text-lg">👶</span>
