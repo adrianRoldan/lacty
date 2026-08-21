@@ -1552,19 +1552,26 @@ export default function App() {
             </div>
           )}
           {/* FABs principales */}
-          {!restInProgress && config && (
-            <button
-              onClick={handleQuickRest}
-              aria-label="Iniciar sueño"
-              className="w-14 h-14 rounded-full bg-lagoon-600 text-white shadow-lg shadow-lagoon-600/30 flex items-center justify-center text-2xl active:scale-95 active:bg-lagoon-700 transition-transform touch-manipulation"
-            >
-              {esSuenoNocturno(new Date().toISOString(), config) ? '🌙' : (
-                // El emoji 💤 se dibuja en azul sin fondo propio: sobre el teal
-                // del botón queda casi ilegible. Un disco claro detrás le da contraste.
-                <span className="w-9 h-9 rounded-full bg-white/90 flex items-center justify-center text-xl">💤</span>
-              )}
-            </button>
-          )}
+          {!restInProgress && config && (() => {
+            const nocturno = esSuenoNocturno(new Date().toISOString(), config);
+            // El emoji 💤 se dibuja en azul sin fondo propio: sobre el teal de la
+            // luna quedaba casi ilegible. Para la siesta el botón usa el taupe
+            // (el mismo tono cálido que ya acompaña al sueño en las etiquetas),
+            // donde el zzz azul contrasta bien.
+            return (
+              <button
+                onClick={handleQuickRest}
+                aria-label="Iniciar sueño"
+                className={`w-14 h-14 rounded-full text-white shadow-lg flex items-center justify-center text-2xl active:scale-95 transition-transform touch-manipulation ${
+                  nocturno
+                    ? 'bg-lagoon-600 shadow-lagoon-600/30 active:bg-lagoon-700'
+                    : 'bg-taupe-600 shadow-taupe-600/30 active:bg-taupe-700'
+                }`}
+              >
+                {nocturno ? '🌙' : '💤'}
+              </button>
+            );
+          })()}
           {!breastInProgress && (
             <button
               onClick={handleQuickBreast}
