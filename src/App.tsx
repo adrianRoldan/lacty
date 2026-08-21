@@ -1558,7 +1558,11 @@ export default function App() {
               aria-label="Iniciar sueño"
               className="w-14 h-14 rounded-full bg-lagoon-600 text-white shadow-lg shadow-lagoon-600/30 flex items-center justify-center text-2xl active:scale-95 active:bg-lagoon-700 transition-transform touch-manipulation"
             >
-              {esSuenoNocturno(new Date().toISOString(), config) ? '🌙' : '💤'}
+              {esSuenoNocturno(new Date().toISOString(), config) ? '🌙' : (
+                // El emoji 💤 se dibuja en azul sin fondo propio: sobre el teal
+                // del botón queda casi ilegible. Un disco claro detrás le da contraste.
+                <span className="w-9 h-9 rounded-full bg-white/90 flex items-center justify-center text-xl">💤</span>
+              )}
             </button>
           )}
           {!breastInProgress && (
