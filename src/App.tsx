@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath } from './types';
 import { getCurrentDaysOfLife, getBirthDate, todayIso, localDateOf } from './utils/dateUtils';
 import { calcBreastEstimatedMl, generateId } from './utils/feedingUtils';
+import { esSuenoNocturno } from './utils/sleepUtils';
 import * as api from './api';
 import BabyConfigScreen from './components/BabyConfig';
 import BabyProfile from './components/BabyProfile';
@@ -1551,13 +1552,13 @@ export default function App() {
             </div>
           )}
           {/* FABs principales */}
-          {!restInProgress && (
+          {!restInProgress && config && (
             <button
               onClick={handleQuickRest}
               aria-label="Iniciar sueño"
               className="w-14 h-14 rounded-full bg-lagoon-600 text-white shadow-lg shadow-lagoon-600/30 flex items-center justify-center text-2xl active:scale-95 active:bg-lagoon-700 transition-transform touch-manipulation"
             >
-              🌙
+              {esSuenoNocturno(new Date().toISOString(), config) ? '🌙' : '💤'}
             </button>
           )}
           {!breastInProgress && (
