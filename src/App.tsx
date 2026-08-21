@@ -3,6 +3,7 @@ import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry
 import { getCurrentDaysOfLife, getBirthDate, todayIso, localDateOf } from './utils/dateUtils';
 import { calcBreastEstimatedMl, generateId } from './utils/feedingUtils';
 import { esSuenoNocturno } from './utils/sleepUtils';
+import { useTheme } from './theme';
 import * as api from './api';
 import BabyConfigScreen from './components/BabyConfig';
 import BabyProfile from './components/BabyProfile';
@@ -126,6 +127,7 @@ export default function App() {
     dismissPrompt: dismissTimelinePrompt,
     hydrate: hydrateTimelineDesign,
   } = useTimelineDesign();
+  const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<Tab>('hoy');
   const [screen, setScreen] = useState<Screen>('hoy');
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -1555,9 +1557,13 @@ export default function App() {
           {!restInProgress && config && (() => {
             const nocturno = esSuenoNocturno(new Date().toISOString(), config);
             // El emoji 💤 se dibuja en azul sin fondo propio: sobre el teal de la
-            // luna quedaba casi ilegible. Para la siesta el botón usa el taupe
-            // (el mismo tono cálido que ya acompaña al sueño en las etiquetas),
-            // donde el zzz azul contrasta bien.
+            // luna quedaba casi ilegible. Para la siesta el botón usa un taupe
+            // claro donde el zzz azul contrasta bien. taupe-200 no está pensado
+            // para esto: en modo oscuro se redefine como fondo oscuro de tarjeta,
+            // así que ahí se usa taupe-700 (el tono claro equivalente en oscuro).
+            const siestaBg = theme === 'dark'
+              ? 'bg-taupe-700 shadow-taupe-700/40 active:bg-taupe-600'
+              : 'bg-taupe-200 shadow-taupe-200/40 active:bg-taupe-600';
             return (
               <button
                 onClick={handleQuickRest}
@@ -1565,7 +1571,7 @@ export default function App() {
                 className={`w-14 h-14 rounded-full text-white shadow-lg flex items-center justify-center text-2xl active:scale-95 transition-transform touch-manipulation ${
                   nocturno
                     ? 'bg-lagoon-600 shadow-lagoon-600/30 active:bg-lagoon-700'
-                    : 'bg-taupe-600 shadow-taupe-600/30 active:bg-taupe-700'
+                    : siestaBg
                 }`}
               >
                 {nocturno ? '🌙' : '💤'}
