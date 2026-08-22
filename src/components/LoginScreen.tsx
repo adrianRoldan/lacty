@@ -52,8 +52,13 @@ export default function LoginScreen({ onLogin }: Props) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-svh p-6 bg-cream-50">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm p-8">
+    <div className="relative flex flex-col items-center justify-center min-h-svh p-6 overflow-hidden bg-linear-to-br from-sage-50 via-lagoon-100 to-cream-100">
+      {/* Manchas de color difuminadas de fondo, decorativas */}
+      <div className="absolute -top-24 -left-24 w-72 h-72 rounded-full bg-lagoon-200/50 blur-3xl" aria-hidden="true" />
+      <div className="absolute -bottom-32 -right-16 w-80 h-80 rounded-full bg-mustard-200/40 blur-3xl" aria-hidden="true" />
+      <div className="absolute top-1/3 -right-24 w-56 h-56 rounded-full bg-sage-200/40 blur-3xl" aria-hidden="true" />
+
+      <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-sm p-8">
         <div className="text-center mb-6">
           <div className="text-5xl mb-3">👶</div>
           <h1 className="text-2xl font-bold text-gray-900">Lacty</h1>
