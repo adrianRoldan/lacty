@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath } from './types';
+import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, Extraction } from './types';
 import { getCurrentDaysOfLife, getBirthDate, todayIso, localDateOf } from './utils/dateUtils';
 import { calcBreastEstimatedMl, generateId } from './utils/feedingUtils';
 import { esSuenoNocturno } from './utils/sleepUtils';
@@ -32,6 +32,7 @@ import ExportView from './components/ExportView';
 import MedicationForm from './components/MedicationForm';
 import WalkForm from './components/WalkForm';
 import BathForm from './components/BathForm';
+import ExtractionForm from './components/ExtractionForm';
 import { MedicineIcon, StrollerIcon, ScaleIcon } from './components/CareIcons';
 import { useAmount } from './components/AmountDialog';
 import { getEffectiveReference } from './data/referenceTable';
@@ -83,7 +84,9 @@ type Screen =
   | 'nuevo-paseo'
   | 'editar-paseo'
   | 'nuevo-bano'
-  | 'editar-bano';
+  | 'editar-bano'
+  | 'nueva-extraccion'
+  | 'editar-extraccion';
 
 export default function App() {
   const [config, setConfig] = useState<BabyConfig | null>(null);
@@ -109,6 +112,8 @@ export default function App() {
   const [editingWalk, setEditingWalk] = useState<Walk | null>(null);
   const [baths, setBaths] = useState<Bath[]>([]);
   const [editingBath, setEditingBath] = useState<Bath | null>(null);
+  const [extractions, setExtractions] = useState<Extraction[]>([]);
+  const [editingExtraction, setEditingExtraction] = useState<Extraction | null>(null);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<'admin' | 'user'>('user');
   const [familyRole, setFamilyRole] = useState<'administrador' | 'cuidador' | 'invitado'>('cuidador');
@@ -168,15 +173,15 @@ export default function App() {
 
   // Trae todos los datos del bebé activo (asume que api.setActiveBaby ya está fijado).
   async function loadBabyData() {
-    const [fds, rsts, wts, hts, hcs, vdLogs, prLogs, mLogs, msLogs, vacLogs, cons, cal, dps, meds, plans, wks, bths] = await Promise.all([
+    const [fds, rsts, wts, hts, hcs, vdLogs, prLogs, mLogs, msLogs, vacLogs, cons, cal, dps, meds, plans, wks, bths, exts] = await Promise.all([
       api.getFeedings(), api.getRests(), api.getWeights(), api.getHeights(), api.getHeadCircs(), api.getVitaminDLogs(),
       api.getProbioticLogs(), api.getMassageLogs(), api.getMilestones(), api.getVaccines(), api.getConsultations(), api.getCalendarEvents(),
-      api.getDiapers(), api.getMedications(), api.getMedicationPlans(), api.getWalks(), api.getBaths(),
+      api.getDiapers(), api.getMedications(), api.getMedicationPlans(), api.getWalks(), api.getBaths(), api.getExtractions(),
     ]);
     setFeedings(fds); setRests(rsts); setWeights(wts); setHeights(hts); setHeadCircs(hcs);
     setVitaminDLogs(vdLogs); setProbioticLogs(prLogs); setMassageLogs(mLogs);
     setMilestoneLogs(msLogs); setVaccineLogs(vacLogs); setConsultations(cons); setCalendarEvents(cal);
-    setDiapers(dps); setMedications(meds); setMedPlans(plans); setWalks(wks); setBaths(bths);
+    setDiapers(dps); setMedications(meds); setMedPlans(plans); setWalks(wks); setBaths(bths); setExtractions(exts);
   }
 
   // Carga los bebés de la cuenta, fija el activo (el último usado si existe) y sus datos.
@@ -923,6 +928,29 @@ export default function App() {
     closeForm();
   }, onOfflineAction);
 
+  // ── Extracciones ───────────────────────────────────────────────────────────
+
+  async function handleSaveExtraction(entry: Extraction) {
+    if (editingExtraction) {
+      const updated = await api.updateExtraction(entry);
+      setExtractions((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+    } else {
+      const created = await api.createExtraction(entry);
+      setExtractions((prev) => [...prev, created]);
+    }
+    toast(editingExtraction ? 'Extracción actualizada' : 'Extracción registrada');
+    setEditingExtraction(null);
+    closeForm();
+  }
+
+  const handleDeleteExtraction = onceInFlight(async (id: string) => {
+    await api.deleteExtraction(id);
+    setExtractions((prev) => prev.filter((e) => e.id !== id));
+    toast('Extracción eliminada');
+    setEditingExtraction(null);
+    closeForm();
+  }, onOfflineAction);
+
   // ── Paseos ─────────────────────────────────────────────────────────────────
 
   async function handleSaveWalk(entry: Walk) {
@@ -993,6 +1021,7 @@ export default function App() {
         case 'bano':        setEditingBath(null);       openForm('nuevo-bano'); break;
         case 'paseo':       setEditingWalk(null);       openForm('nuevo-paseo'); break;
         case 'medicamento': setEditingMedication(null); openForm('nuevo-medicamento'); break;
+        case 'extraccion':  setEditingExtraction(null); openForm('nueva-extraccion'); break;
         case 'peso':        setEditingWeight(null);     openForm('nuevo-peso'); break;
         case 'altura':      setEditingHeight(null);     openForm('nuevo-altura'); break;
         case 'perimetro':   setEditingHeadCirc(null);   openForm('nuevo-pc'); break;
@@ -1027,6 +1056,9 @@ export default function App() {
     onStopWalk: handleStopWalk,
     baths,
     onEditBath: (b: Bath) => { setEditingBath(b); openForm('editar-bano'); },
+    extractions,
+    onEditExtraction: (e: Extraction) => { setEditingExtraction(e); openForm('editar-extraccion'); },
+    onDeleteExtraction: handleDeleteExtraction,
   } : null;
 
   const showForm = [
@@ -1040,6 +1072,7 @@ export default function App() {
     'nuevo-medicamento', 'editar-medicamento',
     'nuevo-paseo', 'editar-paseo',
     'nuevo-bano', 'editar-bano',
+    'nueva-extraccion', 'editar-extraccion',
     'resumen-pediatra',
     'exportar',
     'admin',
@@ -1240,6 +1273,15 @@ export default function App() {
           />
         )}
 
+        {(screen === 'nueva-extraccion' || screen === 'editar-extraccion') && (
+          <ExtractionForm
+            existing={editingExtraction}
+            onSave={handleSaveExtraction}
+            onDelete={handleDeleteExtraction}
+            onCancel={() => { setEditingExtraction(null); closeForm(); }}
+          />
+        )}
+
         {/* Main tabs */}
         {screen === 'hoy' && propsHoy && (
           timelineDesign === 'rail'
@@ -1293,6 +1335,9 @@ export default function App() {
             onDeleteWalk={handleDeleteWalk}
             baths={baths}
             onEditBath={(b) => { setEditingBath(b); setScreen('editar-bano'); }}
+            extractions={extractions}
+            onEditExtraction={(e) => { setEditingExtraction(e); setScreen('editar-extraccion'); }}
+            onDeleteExtraction={handleDeleteExtraction}
           />
         )}
 
@@ -1433,7 +1478,7 @@ export default function App() {
           <ExportView
             datos={{
               config, feedings, rests, diapers, walks, medications,
-              vitaminDLogs, probioticLogs, massageLogs, weights, baths,
+              vitaminDLogs, probioticLogs, massageLogs, weights, baths, extractions,
             }}
             onBack={() => setScreen(activeTab)}
           />

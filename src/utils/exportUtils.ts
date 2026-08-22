@@ -1,6 +1,6 @@
 import type {
   BabyConfig, Feeding, Rest, DiaperChange, Walk, MedicationLog,
-  VitaminDLog, ProbioticLog, MassageLog, WeightEntry, TimelineItem, Bath,
+  VitaminDLog, ProbioticLog, MassageLog, WeightEntry, TimelineItem, Bath, Extraction,
 } from '../types';
 import { buildTimeline, getRestDurationMinutes, getWalkDurationMinutes, restMinutesOnDay, formatDose } from './feedingUtils';
 import { formatTime, formatMinutes, localDateOf, getCurrentDaysOfLife, getBirthDate, formatBabyAge } from './dateUtils';
@@ -24,6 +24,7 @@ export interface DatosExportacion {
   massageLogs: MassageLog[];
   weights: WeightEntry[];
   baths: Bath[];
+  extractions: Extraction[];
 }
 
 export interface OpcionesExportacion {
@@ -189,6 +190,16 @@ function describirPanal(d: DiaperChange): string {
   return `Pañal: ${CONTENIDO_PANAL[d.content] ?? d.content}${extra}`;
 }
 
+const LADO_EXTRACCION: Record<Extraction['side'], string> = { left: 'izquierdo', right: 'derecho', both: 'ambos' };
+
+function describirExtraccion(e: Extraction): string {
+  const partes = [`Extracción (${LADO_EXTRACCION[e.side]})`];
+  if (e.ml != null) partes.push(`${e.ml} ml`);
+  if (e.durationMin != null) partes.push(`${e.durationMin} min`);
+  if (e.purpose === 'extra') partes.push('extra (banco)');
+  return partes.join(' · ');
+}
+
 /** Una línea de texto por registro, ya con su hora. */
 function describirRegistro(item: TimelineItem, vigiliaPrevia: number | null, etiquetaSueno?: string): string {
   switch (item.type) {
@@ -213,6 +224,8 @@ function describirRegistro(item: TimelineItem, vigiliaPrevia: number | null, eti
       const fin = item.data.endTime ? ` → ${formatTime(item.data.endTime)}` : '';
       return `${formatTime(item.data.startTime)}${fin}  Paseo ${dur != null ? formatMinutes(dur) : '(en curso)'}`;
     }
+    case 'extraction':
+      return `${formatTime(item.data.timestamp)}  ${describirExtraccion(item.data)}`;
     case 'care':
       return `${formatTime(item.data.timestamp)}  ${item.data.label}`;
   }
@@ -280,6 +293,7 @@ export function construirTexto(datos: DatosExportacion, op: OpcionesExportacion)
       },
       datos.walks,
       dia,
+      datos.extractions,
     ).reverse(); // buildTimeline devuelve del más reciente al más antiguo
 
     if (eventos.length === 0) {
@@ -381,6 +395,7 @@ export function construirCsv(datos: DatosExportacion, op: OpcionesExportacion): 
       },
       datos.walks,
       dia,
+      datos.extractions,
     ).reverse();
 
     const dv = diaDeVida(datos.config, dia);
@@ -435,6 +450,16 @@ export function construirCsv(datos: DatosExportacion, op: OpcionesExportacion): 
           inicio = formatTime(c.timestamp);
           if (c.medication?.doseMl != null) ml = c.medication.doseMl;
           notas = c.medication?.notes ?? c.bath?.notes ?? '';
+          break;
+        }
+        case 'extraction': {
+          const e = ev.data;
+          tipo = 'extraccion';
+          detalle = describirExtraccion(e);
+          inicio = formatTime(e.timestamp);
+          duracion = e.durationMin ?? null;
+          ml = e.ml ?? null;
+          notas = e.notes ?? '';
           break;
         }
       }

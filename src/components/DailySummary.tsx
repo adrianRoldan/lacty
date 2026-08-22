@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { BabyConfig, Feeding, Rest, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, CareKind } from '../types';
+import type { BabyConfig, Feeding, Rest, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, Extraction, CareKind } from '../types';
 import { getCurrentDaysOfLife, formatBabyAge, formatMinutes, formatTime, gapMinutes, isSameDay, todayIso } from '../utils/dateUtils';
 import {
   getTodayFeedings,
@@ -10,6 +10,7 @@ import {
   getAwakeMinutes,
   getTodayDiapers,
   buildTimeline,
+  avgDailyFeeds,
 } from '../utils/feedingUtils';
 import { getEffectiveReference, getSleepReference } from '../data/referenceTable';
 import { etiquetarSuenos, contarPorTipo } from '../utils/sleepUtils';
@@ -18,6 +19,7 @@ import FeedingItem from './FeedingItem';
 import RestItem from './RestItem';
 import DiaperItem from './DiaperItem';
 import WalkItem from './WalkItem';
+import ExtractionItem from './ExtractionItem';
 import { MedicineIcon } from './CareIcons';
 import DayInsights from './DayInsights';
 import WeekComparison from './WeekComparison';
@@ -72,6 +74,9 @@ interface Props {
   onEditWalk: (w: Walk) => void;
   onDeleteWalk: (id: string) => void;
   onStopWalk: (w: Walk) => void;
+  extractions: Extraction[];
+  onEditExtraction: (e: Extraction) => void;
+  onDeleteExtraction: (id: string) => void;
 }
 
 function prevFeedingTimestamp(timeline: ReturnType<typeof buildTimeline>, index: number): string | null {
@@ -109,6 +114,7 @@ export default function DailySummary({
   medPlans, onGiveMedicationDose, onUndoMedicationDose,
   baths, onEditBath,
   walks, onEditWalk, onDeleteWalk, onStopWalk,
+  extractions, onEditExtraction, onDeleteExtraction,
 }: Props) {
   const daysOfLife = getCurrentDaysOfLife(config);
   const todayFeedings = getTodayFeedings(feedings);
@@ -124,6 +130,8 @@ export default function DailySummary({
   const todayDiapers = getTodayDiapers(diapers);
   const wetCount = todayDiapers.filter((d) => d.content === 'wet' || d.content === 'both').length;
   const dirtyCount = todayDiapers.filter((d) => d.content === 'dirty' || d.content === 'both').length;
+  const todayExtractions = extractions.filter((e) => isSameDay(e.timestamp, today));
+  const avgFeedsTarget = avgDailyFeeds(feedings);
   const timeline = buildTimeline(feedings, rests, diapers, {
     vitaminDLogs: vitaminDLogs,
     vitaminDLabel: config.vitaminDMedName,
@@ -132,7 +140,7 @@ export default function DailySummary({
     massageLogs: massageLogs,
     medications: medications,
     baths: baths,
-  }, walks);
+  }, walks, undefined, extractions);
   // Se numeran sobre todos los sueños, no solo los de hoy: la numeración
   // nocturna necesita ver la noche completa aunque cruce la medianoche.
   const etiquetasSueno = etiquetarSuenos(rests, config);
@@ -316,7 +324,7 @@ export default function DailySummary({
                 <p className="text-xs text-gray-400 mt-0.5">jeringa ml</p>
               </div>
             </div>
-            <DayInsights feedings={todayFeedings} rests={todayRests} reference={reference} sleepRef={sleepRef} todayRestMinutes={totalRestMin} siestasHoy={conteoHoy.siestas} nocturnosHoy={conteoHoy.nocturnos} />
+            <DayInsights feedings={todayFeedings} rests={todayRests} reference={reference} sleepRef={sleepRef} todayRestMinutes={totalRestMin} siestasHoy={conteoHoy.siestas} nocturnosHoy={conteoHoy.nocturnos} extractions={todayExtractions} avgFeedsTarget={avgFeedsTarget} />
             <WeekComparison feedings={feedings} rests={rests} />
           </div>
         )}
@@ -382,6 +390,8 @@ export default function DailySummary({
                   <DiaperItem diaper={item.data} onEdit={onEditDiaper} onDelete={onDeleteDiaper} readOnly={readOnly} />
                 ) : item.type === 'walk' ? (
                   <WalkItem walk={item.data} onEdit={onEditWalk} onDelete={onDeleteWalk} onStop={onStopWalk} listDay={today} readOnly={readOnly} />
+                ) : item.type === 'extraction' ? (
+                  <ExtractionItem extraction={item.data} onEdit={onEditExtraction} onDelete={onDeleteExtraction} readOnly={readOnly} />
                 ) : (
                   <CareLine
                     kind={item.data.kind}

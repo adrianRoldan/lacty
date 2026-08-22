@@ -153,6 +153,20 @@ export interface Bath {
   notes?: string;
 }
 
+export type ExtractionSide = 'left' | 'right' | 'both';
+
+export interface Extraction {
+  id: string;
+  timestamp: string;        // ISO — inicio de la extracción
+  side: ExtractionSide;
+  ml?: number;               // total obtenido
+  durationMin?: number;
+  /** ¿Sustituye una toma que el bebé se habría saltado, o es extra (banco)?
+   *  Solo las «replace» cuentan para el objetivo de frecuencia. */
+  purpose: 'replace' | 'extra';
+  notes?: string;
+}
+
 // Cuidados puntuales que se muestran como una línea sutil en el timeline
 // (vitamina D, probiótico, masaje, medicamentos y baño).
 export type CareKind = 'vitaminD' | 'probiotic' | 'massage' | 'medication' | 'bath';
@@ -173,6 +187,7 @@ export type TimelineItem =
   | { type: 'rest'; data: Rest; sortKey: string }
   | { type: 'diaper'; data: DiaperChange; sortKey: string }
   | { type: 'walk'; data: Walk; sortKey: string }
+  | { type: 'extraction'; data: Extraction; sortKey: string }
   | { type: 'care'; data: CareEntry; sortKey: string };
 
 export type EventCategory = 'pediatra' | 'matrona' | 'fisio' | 'vacuna' | 'analisis' | 'revision' | 'otro';

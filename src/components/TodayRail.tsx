@@ -8,7 +8,7 @@
  * el timeline. Cuando se elija una definitiva, la otra se borra.
  */
 import { useState, useEffect } from 'react';
-import type { BabyConfig, Feeding, Rest, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, CareEntry } from '../types';
+import type { BabyConfig, Feeding, Rest, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, CareEntry, Extraction } from '../types';
 import { getCurrentDaysOfLife, formatBabyAge, formatMinutes, formatTime, gapMinutes, isSameDay, todayIso, startDayHint } from '../utils/dateUtils';
 import {
   getTodayFeedings,
@@ -20,6 +20,7 @@ import {
   getTodayDiapers,
   getRestDurationMinutes,
   buildTimeline,
+  avgDailyFeeds,
 } from '../utils/feedingUtils';
 import { getEffectiveReference, getSleepReference } from '../data/referenceTable';
 import { etiquetarSuenos, contarPorTipo } from '../utils/sleepUtils';
@@ -75,6 +76,9 @@ interface Props {
   onEditWalk: (w: Walk) => void;
   onDeleteWalk: (id: string) => void;
   onStopWalk: (w: Walk) => void;
+  extractions: Extraction[];
+  onEditExtraction: (e: Extraction) => void;
+  onDeleteExtraction: (id: string) => void;
 }
 
 interface CareChip {
@@ -98,6 +102,7 @@ const ACENTO = {
   sueno:   { nodo: 'bg-lagoon-300',  chip: 'bg-lagoon-100 text-lagoon-700' },
   panal:   { nodo: 'bg-sky-500',     chip: 'bg-sky-100 text-sky-700' },
   paseo:   { nodo: 'bg-coral-300',   chip: 'bg-coral-100 text-coral-700' },
+  extraccion: { nodo: 'bg-cyan-600', chip: 'bg-cyan-100 text-cyan-700' },
   cuidado: { nodo: 'bg-gray-300',    chip: 'bg-gray-100 text-gray-500' },
 } as const;
 
@@ -120,6 +125,7 @@ export default function TodayRail({
   medPlans, onGiveMedicationDose, onUndoMedicationDose,
   baths, onEditBath,
   walks, onEditWalk, onDeleteWalk, onStopWalk,
+  extractions, onEditExtraction, onDeleteExtraction,
 }: Props) {
   const daysOfLife = getCurrentDaysOfLife(config);
   const todayFeedings = getTodayFeedings(feedings);
@@ -133,6 +139,8 @@ export default function TodayRail({
     (f) => f.hasBreast && ((f.breastMinLeft ?? 0) + (f.breastMinRight ?? 0)) > 0
   );
   const todayDiapers = getTodayDiapers(diapers);
+  const todayExtractions = extractions.filter((e) => isSameDay(e.timestamp, today));
+  const avgFeedsTarget = avgDailyFeeds(feedings);
   const wetCount = todayDiapers.filter((d) => d.content === 'wet' || d.content === 'both').length;
   const dirtyCount = todayDiapers.filter((d) => d.content === 'dirty' || d.content === 'both').length;
   const timeline = buildTimeline(feedings, rests, diapers, {
@@ -143,7 +151,7 @@ export default function TodayRail({
     massageLogs,
     medications,
     baths,
-  }, walks);
+  }, walks, undefined, extractions);
   const etiquetasSueno = etiquetarSuenos(rests, config);
   const conteoHoy = contarPorTipo(rests, config, today);
 
@@ -322,7 +330,7 @@ export default function TodayRail({
                 <p className="text-xs text-gray-400 mt-0.5">jeringa ml</p>
               </div>
             </div>
-            <DayInsights feedings={todayFeedings} rests={todayRests} reference={reference} sleepRef={sleepRef} todayRestMinutes={totalRestMin} siestasHoy={conteoHoy.siestas} nocturnosHoy={conteoHoy.nocturnos} />
+            <DayInsights feedings={todayFeedings} rests={todayRests} reference={reference} sleepRef={sleepRef} todayRestMinutes={totalRestMin} siestasHoy={conteoHoy.siestas} nocturnosHoy={conteoHoy.nocturnos} extractions={todayExtractions} avgFeedsTarget={avgFeedsTarget} />
             <WeekComparison feedings={feedings} rests={rests} />
           </div>
         )}
@@ -387,6 +395,8 @@ export default function TodayRail({
           onStopWalk={onStopWalk}
           onEditMedication={onEditMedication}
           onEditBath={onEditBath}
+          onEditExtraction={onEditExtraction}
+          onDeleteExtraction={onDeleteExtraction}
         />
       )}
 
@@ -423,6 +433,7 @@ function Rail({
   onEditDiaper, onDeleteDiaper,
   onEditWalk, onDeleteWalk, onStopWalk,
   onEditMedication, onEditBath,
+  onEditExtraction, onDeleteExtraction,
 }: {
   timeline: Timeline;
   today: string;
@@ -441,6 +452,8 @@ function Rail({
   onStopWalk: (w: Walk) => void;
   onEditMedication: (m: MedicationLog) => void;
   onEditBath: (b: Bath) => void;
+  onEditExtraction: (e: Extraction) => void;
+  onDeleteExtraction: (id: string) => void;
 }) {
   const ahora = new Date();
   let franjaAnterior: string | null = null;
@@ -491,6 +504,9 @@ function Rail({
             ) : item.type === 'walk' ? (
               <FilaPaseo walk={item.data} today={today} readOnly={readOnly}
                 onEdit={onEditWalk} onDelete={onDeleteWalk} onStop={onStopWalk} />
+            ) : item.type === 'extraction' ? (
+              <FilaExtraccion extraction={item.data} readOnly={readOnly}
+                onEdit={onEditExtraction} onDelete={onDeleteExtraction} />
             ) : (
               <FilaCuidado
                 entry={item.data}
@@ -763,6 +779,36 @@ function FilaPanal({ diaper, readOnly, onEdit, onDelete }: {
         if (await confirm('¿Eliminar este cambio de pañal?')) onDelete(diaper.id);
       }}
       etiquetaBorrar="Eliminar pañal"
+    />
+  );
+}
+
+const LADO_LABEL: Record<Extraction['side'], string> = { left: 'Izquierdo', right: 'Derecho', both: 'Ambos' };
+
+function FilaExtraccion({ extraction, readOnly, onEdit, onDelete }: {
+  extraction: Extraction; readOnly?: boolean;
+  onEdit: (e: Extraction) => void; onDelete: (id: string) => void;
+}) {
+  const confirm = useConfirm();
+  const detalle = [
+    extraction.purpose === 'extra' ? 'Extra (banco)' : null,
+    extraction.durationMin != null ? `${extraction.durationMin} min` : null,
+    extraction.notes ? `“${extraction.notes}”` : null,
+  ].filter(Boolean).join(' · ');
+
+  return (
+    <Fila
+      horaInicio={formatTime(extraction.timestamp)}
+      acento="extraccion"
+      icono={<span className="text-base">🥛</span>}
+      titulo={LADO_LABEL[extraction.side]}
+      chips={extraction.ml != null ? <Chip tono="extraccion">{extraction.ml} ml</Chip> : null}
+      detalle={detalle || null}
+      onClick={readOnly ? undefined : () => onEdit(extraction)}
+      onDelete={readOnly ? undefined : async () => {
+        if (await confirm('¿Eliminar esta extracción?')) onDelete(extraction.id);
+      }}
+      etiquetaBorrar="Eliminar extracción"
     />
   );
 }

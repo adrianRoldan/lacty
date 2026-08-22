@@ -1,4 +1,4 @@
-import type { Feeding, Rest } from '../types';
+import type { Feeding, Rest, Extraction } from '../types';
 import type { FeedingReference, SleepReference } from '../data/referenceTable';
 import {
   getTotalSupplementMl,
@@ -22,6 +22,10 @@ interface Props {
   todayRestMinutes: number;
   siestasHoy: number;
   nocturnosHoy: number;
+  extractions: Extraction[];
+  /** Media de tomas/día de la última semana (avgDailyFeeds), o null si aún
+   *  no hay suficientes días con datos — entonces se usa `reference`. */
+  avgFeedsTarget: number | null;
 }
 
 // Semaphore levels for the progress bars
@@ -51,7 +55,7 @@ const LEVEL_LABELS: Record<Level, string> = {
   over:  'superado',
 };
 
-export default function DayInsights({ feedings, rests, reference, sleepRef, todayRestMinutes, siestasHoy, nocturnosHoy }: Props) {
+export default function DayInsights({ feedings, rests, reference, sleepRef, todayRestMinutes, siestasHoy, nocturnosHoy, extractions, avgFeedsTarget }: Props) {
   const totalMl = getTotalSupplementMl(feedings) + getTotalBottleMl(feedings) + getTotalEstimatedBreastMl(feedings);
   const totalFeedings = feedings.length;
   const avgGap = getAvgGapMinutes(feedings);
@@ -60,8 +64,20 @@ export default function DayInsights({ feedings, rests, reference, sleepRef, toda
   const avgAwakeWindow = getAvgAwakeWindowMinutes(rests);
   const totalRestToday = todayRestMinutes;
 
-  const hasAnyData = totalFeedings > 0 || rests.length > 0;
+  const hasAnyData = totalFeedings > 0 || rests.length > 0 || extractions.length > 0;
   if (!hasAnyData) return null;
+
+  // Objetivo de extracciones/día: la media real de tomas de este bebé si hay
+  // datos suficientes, si no la tabla por edad. Sacarte al ritmo de las tomas
+  // protege la producción sin sobre-estimularla.
+  const extractionsHoy = extractions.filter((e) => e.purpose === 'replace').length;
+  const extractionsExtra = extractions.filter((e) => e.purpose === 'extra').length;
+  const extractionMl = extractions.reduce((s, e) => s + (e.ml ?? 0), 0);
+  const extractionRef = avgFeedsTarget != null
+    ? { min: Math.max(1, Math.round(avgFeedsTarget - 1)), max: Math.round(avgFeedsTarget + 1), label: `~${Math.round(avgFeedsTarget)}/día de tu bebé` }
+    : reference
+      ? { min: reference.feedsPerDayMin, max: reference.feedsPerDayMax, label: undefined }
+      : null;
 
   return (
     <div className="space-y-3 mb-6">
@@ -140,6 +156,41 @@ export default function DayInsights({ feedings, rests, reference, sleepRef, toda
               <AverageRow icon="🌙" label="Sueños nocturnos hoy" value={String(nocturnosHoy)} />
             )}
           </div>
+        </div>
+      )}
+
+      {/* Extracciones: frecuencia frente al ritmo real de tomas del bebé */}
+      {extractionRef && (
+        <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            Extracciones
+          </h3>
+
+          <ProgressRow
+            label="Extracciones hoy"
+            value={extractionsHoy}
+            refMin={extractionRef.min}
+            refMax={extractionRef.max}
+            refLabel={extractionRef.label}
+            formatValue={(v) => String(v)}
+          />
+
+          {extractionMl > 0 && (
+            <AverageRow icon="🥛" label="ml extraídos hoy" value={`${extractionMl} ml`} />
+          )}
+
+          {extractionsExtra > 0 && (
+            <p className="text-xs text-amber-700 bg-amber-50 rounded-xl px-3 py-2 leading-relaxed">
+              +{extractionsExtra} extra para banco hoy — puntual está bien, pero hacerlo a
+              diario tiende a subir la producción por encima de lo que el bebé necesita.
+            </p>
+          )}
+
+          <p className="text-xs text-gray-400 leading-relaxed">
+            ℹ️ El objetivo se ajusta a las tomas reales de tu bebé (o a la referencia por
+            edad si aún no hay suficientes días registrados): sacarte con esa frecuencia
+            protege la producción sin sobre-estimularla.
+          </p>
         </div>
       )}
     </div>

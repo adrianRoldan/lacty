@@ -1,4 +1,4 @@
-import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath } from '../types';
+import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, Extraction } from '../types';
 import { markOnline, markOffline } from '../offline';
 
 const BASE = '/api';
@@ -956,6 +956,32 @@ export async function updateBath(b: Bath): Promise<Bath> {
 
 export async function deleteBath(id: string): Promise<void> {
   await apiFetch(`${BASE}/baths/${id}`, { method: 'DELETE', headers: mutHeaders() });
+}
+
+// ── Extracciones ─────────────────────────────────────────────────────────────
+
+export async function getExtractions(): Promise<Extraction[]> {
+  return json(await apiFetch(`${BASE}/extractions`, { headers: babyHeaders() }));
+}
+
+export async function createExtraction(e: Extraction): Promise<Extraction> {
+  return json(await apiFetch(`${BASE}/extractions`, {
+    method: 'POST',
+    headers: mutHeaders(),
+    body: JSON.stringify(e),
+  }));
+}
+
+export async function updateExtraction(e: Extraction): Promise<Extraction> {
+  return json(await apiFetch(`${BASE}/extractions/${e.id}`, {
+    method: 'PUT',
+    headers: mutHeaders(),
+    body: JSON.stringify(e),
+  }));
+}
+
+export async function deleteExtraction(id: string): Promise<void> {
+  await apiFetch(`${BASE}/extractions/${id}`, { method: 'DELETE', headers: mutHeaders() });
 }
 
 export interface NotificationPrefs {

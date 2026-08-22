@@ -1,4 +1,4 @@
-import type { Feeding, Rest, TimelineItem, DiaperChange, VitaminDLog, ProbioticLog, MassageLog, MedicationLog, Walk, Bath, BathSkin } from '../types';
+import type { Feeding, Rest, TimelineItem, DiaperChange, VitaminDLog, ProbioticLog, MassageLog, MedicationLog, Walk, Bath, BathSkin, Extraction } from '../types';
 import { isSameDay, todayIso, localDateOf } from './dateUtils';
 import { getReferenceForDay } from '../data/referenceTable';
 
@@ -79,6 +79,27 @@ export function getAvgGapMinutes(feedings: Feeding[]): number | null {
     total += (new Date(sorted[i].timestamp).getTime() - new Date(sorted[i - 1].timestamp).getTime()) / 60000;
   }
   return Math.round(total / (sorted.length - 1));
+}
+
+/**
+ * Media de tomas/día de los últimos `days` con datos (excluye hoy, que aún
+ * está incompleto). Da un objetivo de frecuencia propio de este bebé, más
+ * fiable que la tabla por edad para decidir cuántas veces sacarse leche.
+ * Devuelve null si no hay al menos 3 días con tomas registradas.
+ */
+export function avgDailyFeeds(feedings: Feeding[], days = 7): number | null {
+  const hoy = todayIso();
+  const desde = new Date();
+  desde.setDate(desde.getDate() - days);
+  const counts = new Map<string, number>();
+  for (const f of feedings) {
+    const day = localDateOf(f.timestamp);
+    if (day === hoy || new Date(day) < desde) continue;
+    counts.set(day, (counts.get(day) ?? 0) + 1);
+  }
+  if (counts.size < 3) return null;
+  const total = [...counts.values()].reduce((s, n) => s + n, 0);
+  return total / counts.size;
 }
 
 // Average ml per feeding (only feedings that recorded any ml).
@@ -292,7 +313,8 @@ export function buildTimeline(
   diapers: DiaperChange[],
   careLogs?: CareLogInputs,
   walks: Walk[] = [],
-  dayFilter?: string
+  dayFilter?: string,
+  extractions: Extraction[] = []
 ): TimelineItem[] {
   const day = dayFilter ?? todayIso();
 
@@ -330,6 +352,9 @@ export function buildTimeline(
         || (!dayFilter && w.endTime == null)
         || terminaEnElDia(w.startTime, w.endTime))
       .map((w) => ({ type: 'walk' as const, data: w, sortKey: w.startTime })),
+    ...extractions
+      .filter((e) => isSameDay(e.timestamp, day))
+      .map((e) => ({ type: 'extraction' as const, data: e, sortKey: e.timestamp })),
     ...buildCareItems(careLogs ?? {}).filter((c) => isSameDay(c.sortKey, day)),
   ];
   return items.sort((a, b) => b.sortKey.localeCompare(a.sortKey));
@@ -492,7 +517,8 @@ export function groupTimelineByDay(
   rests: Rest[],
   diapers: DiaperChange[],
   careLogs?: CareLogInputs,
-  walks: Walk[] = []
+  walks: Walk[] = [],
+  extractions: Extraction[] = []
 ): Record<string, TimelineItem[]> {
   const groups: Record<string, TimelineItem[]> = {};
 
@@ -515,6 +541,11 @@ export function groupTimelineByDay(
     const day = localDateOf(w.startTime);
     if (!groups[day]) groups[day] = [];
     groups[day].push({ type: 'walk', data: w, sortKey: w.startTime });
+  }
+  for (const e of extractions) {
+    const day = localDateOf(e.timestamp);
+    if (!groups[day]) groups[day] = [];
+    groups[day].push({ type: 'extraction', data: e, sortKey: e.timestamp });
   }
   for (const c of buildCareItems(careLogs ?? {})) {
     const day = localDateOf(c.sortKey);
