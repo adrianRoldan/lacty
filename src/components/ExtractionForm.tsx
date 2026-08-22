@@ -1,14 +1,20 @@
 import { useState } from 'react';
-import type { Extraction, ExtractionSide } from '../types';
-import { generateId } from '../utils/feedingUtils';
-import { toLocalDatetimeInputValue } from '../utils/dateUtils';
+import type { BabyConfig, Extraction, ExtractionSide, Feeding } from '../types';
+import { generateId, avgDailyFeeds } from '../utils/feedingUtils';
+import { toLocalDatetimeInputValue, getCurrentDaysOfLife, isSameDay, todayIso } from '../utils/dateUtils';
+import { getEffectiveReference } from '../data/referenceTable';
 import { useConfirm } from './ConfirmDialog';
+import ExtractionsInsightCard from './ExtractionsInsightCard';
 
 interface Props {
   onSave: (e: Extraction) => Promise<void>;
   onCancel: () => void;
   onDelete?: (id: string) => void;
   existing?: Extraction | null;
+  config: BabyConfig;
+  currentWeightKg?: number;
+  feedings: Feeding[];
+  extractions: Extraction[];
 }
 
 const LADOS: { valor: ExtractionSide; etiqueta: string }[] = [
@@ -19,12 +25,19 @@ const LADOS: { valor: ExtractionSide; etiqueta: string }[] = [
 
 type NumField = number | '';
 
-export default function ExtractionForm({ onSave, onCancel, onDelete, existing }: Props) {
+export default function ExtractionForm({ onSave, onCancel, onDelete, existing, config, currentWeightKg, feedings, extractions }: Props) {
   const confirm = useConfirm();
 
   const [id] = useState(() => existing?.id ?? generateId());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [showInfo, setShowInfo] = useState(false);
+
+  // Mismos datos que la tarjeta «Extracciones» de Medias del día: así se
+  // puede consultar la frecuencia recomendada sin salir del formulario.
+  const reference = getEffectiveReference(getCurrentDaysOfLife(config), currentWeightKg);
+  const avgFeedsTarget = avgDailyFeeds(feedings);
+  const todayExtractions = extractions.filter((e) => isSameDay(e.timestamp, todayIso()));
   const [timestamp, setTimestamp] = useState(
     toLocalDatetimeInputValue(existing ? new Date(existing.timestamp) : new Date())
   );
@@ -196,15 +209,44 @@ export default function ExtractionForm({ onSave, onCancel, onDelete, existing }:
         </button>
 
         {existing && onDelete && (
-          <button
-            type="button"
-            onClick={handleDelete}
-            className="w-full py-3 rounded-xl text-sm font-semibold text-red-500 bg-red-50 active:bg-red-100 touch-manipulation"
-          >
-            🗑️ Eliminar extracción
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setShowInfo(true)}
+              aria-label="Ver información de extracciones"
+              title="Ver información de extracciones"
+              className="shrink-0 px-4 py-3 rounded-xl text-lg bg-gray-100 text-gray-500 active:bg-gray-200 touch-manipulation"
+            >
+              🔍
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="flex-1 py-3 rounded-xl text-sm font-semibold text-red-500 bg-red-50 active:bg-red-100 touch-manipulation"
+            >
+              🗑️ Eliminar extracción
+            </button>
+          </div>
         )}
       </form>
+
+      {showInfo && (
+        <div
+          className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/40 sm:p-6"
+          onClick={() => setShowInfo(false)}
+        >
+          <div
+            className="bg-cream-50 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 max-h-[90vh] overflow-y-auto"
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-900">Extracciones</h2>
+              <button onClick={() => setShowInfo(false)} className="text-gray-400 text-xl touch-manipulation">✕</button>
+            </div>
+            <ExtractionsInsightCard extractions={todayExtractions} avgFeedsTarget={avgFeedsTarget} reference={reference} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

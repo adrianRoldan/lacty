@@ -1273,12 +1273,16 @@ export default function App() {
           />
         )}
 
-        {(screen === 'nueva-extraccion' || screen === 'editar-extraccion') && (
+        {(screen === 'nueva-extraccion' || screen === 'editar-extraccion') && config && (
           <ExtractionForm
             existing={editingExtraction}
             onSave={handleSaveExtraction}
             onDelete={handleDeleteExtraction}
             onCancel={() => { setEditingExtraction(null); closeForm(); }}
+            config={config}
+            currentWeightKg={currentWeightKg}
+            feedings={feedings}
+            extractions={extractions}
           />
         )}
 

@@ -10,6 +10,8 @@ import {
   getAvgAwakeWindowMinutes,
 } from '../utils/feedingUtils';
 import { formatMinutes } from '../utils/dateUtils';
+import { ProgressRow, AverageRow } from './InsightRows';
+import ExtractionsInsightCard from './ExtractionsInsightCard';
 
 interface Props {
   feedings: Feeding[];
@@ -28,33 +30,6 @@ interface Props {
   avgFeedsTarget: number | null;
 }
 
-// Semaphore levels for the progress bars
-type Level = 'empty' | 'low' | 'mid' | 'ok' | 'over';
-
-function getLevel(value: number, min: number, max: number): Level {
-  if (value === 0) return 'empty';
-  if (value < min * 0.5) return 'low';
-  if (value < min) return 'mid';
-  if (value <= max) return 'ok';
-  return 'over';
-}
-
-const LEVEL_COLORS: Record<Level, { bar: string; text: string; bg: string }> = {
-  empty: { bar: 'bg-gray-200',   text: 'text-gray-400',   bg: 'bg-gray-50'    },
-  low:   { bar: 'bg-red-400',    text: 'text-red-600',    bg: 'bg-red-50'     },
-  mid:   { bar: 'bg-amber-400',  text: 'text-amber-600',  bg: 'bg-amber-50'   },
-  ok:    { bar: 'bg-green-500',  text: 'text-green-700',  bg: 'bg-green-50'   },
-  over:  { bar: 'bg-sage-500',   text: 'text-sage-700',   bg: 'bg-sage-50'    },
-};
-
-const LEVEL_LABELS: Record<Level, string> = {
-  empty: 'sin datos',
-  low:   'lejos',
-  mid:   'cerca',
-  ok:    'en rango',
-  over:  'superado',
-};
-
 export default function DayInsights({ feedings, rests, reference, sleepRef, todayRestMinutes, siestasHoy, nocturnosHoy, extractions, avgFeedsTarget }: Props) {
   const totalMl = getTotalSupplementMl(feedings) + getTotalBottleMl(feedings) + getTotalEstimatedBreastMl(feedings);
   const totalFeedings = feedings.length;
@@ -66,18 +41,6 @@ export default function DayInsights({ feedings, rests, reference, sleepRef, toda
 
   const hasAnyData = totalFeedings > 0 || rests.length > 0 || extractions.length > 0;
   if (!hasAnyData) return null;
-
-  // Objetivo de extracciones/día: la media real de tomas de este bebé si hay
-  // datos suficientes, si no la tabla por edad. Sacarte al ritmo de las tomas
-  // protege la producción sin sobre-estimularla.
-  const extractionsHoy = extractions.filter((e) => e.purpose === 'replace').length;
-  const extractionsExtra = extractions.filter((e) => e.purpose === 'extra').length;
-  const extractionMl = extractions.reduce((s, e) => s + (e.ml ?? 0), 0);
-  const extractionRef = avgFeedsTarget != null
-    ? { min: Math.max(1, Math.round(avgFeedsTarget - 1)), max: Math.round(avgFeedsTarget + 1), label: `~${Math.round(avgFeedsTarget)}/día de tu bebé` }
-    : reference
-      ? { min: reference.feedsPerDayMin, max: reference.feedsPerDayMax, label: undefined }
-      : null;
 
   return (
     <div className="space-y-3 mb-6">
@@ -159,96 +122,7 @@ export default function DayInsights({ feedings, rests, reference, sleepRef, toda
         </div>
       )}
 
-      {/* Extracciones: frecuencia frente al ritmo real de tomas del bebé */}
-      {extractionRef && (
-        <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-            Extracciones
-          </h3>
-
-          <ProgressRow
-            label="Extracciones hoy"
-            value={extractionsHoy}
-            refMin={extractionRef.min}
-            refMax={extractionRef.max}
-            refLabel={extractionRef.label}
-            formatValue={(v) => String(v)}
-          />
-
-          {extractionMl > 0 && (
-            <AverageRow icon="🥛" label="ml extraídos hoy" value={`${extractionMl} ml`} />
-          )}
-
-          {extractionsExtra > 0 && (
-            <p className="text-xs text-amber-700 bg-amber-50 rounded-xl px-3 py-2 leading-relaxed">
-              +{extractionsExtra} extra para banco hoy — puntual está bien, pero hacerlo a
-              diario tiende a subir la producción por encima de lo que el bebé necesita.
-            </p>
-          )}
-
-          <p className="text-xs text-gray-400 leading-relaxed">
-            ℹ️ El objetivo se ajusta a las tomas reales de tu bebé (o a la referencia por
-            edad si aún no hay suficientes días registrados): sacarte con esa frecuencia
-            protege la producción sin sobre-estimularla.
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ProgressRow({
-  label, value, refMin, refMax, formatValue, refLabel,
-}: {
-  label: string;
-  value: number;
-  refMin: number;
-  refMax: number;
-  formatValue: (v: number) => string;
-  refLabel?: string;
-}) {
-  const level = getLevel(value, refMin, refMax);
-  const colors = LEVEL_COLORS[level];
-  // Bar width relative to refMax, capped at 100%
-  const fillPct = Math.min((value / refMax) * 100, 100);
-  // Tick position for the minimum reference
-  const minTickPct = (refMin / refMax) * 100;
-
-  return (
-    <div>
-      <div className="flex items-baseline justify-between mb-1.5">
-        <span className="text-sm font-medium text-gray-700">{label}</span>
-        <div className="flex items-center gap-2">
-          <span className={`text-sm font-bold ${colors.text}`}>{formatValue(value)}</span>
-          <span className="text-xs text-gray-400">/ {refLabel ?? `${refMin}–${refMax}`}</span>
-          <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${colors.bg} ${colors.text}`}>
-            {LEVEL_LABELS[level]}
-          </span>
-        </div>
-      </div>
-      <div className="relative h-2.5 bg-gray-100 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-500 ${colors.bar}`}
-          style={{ width: `${fillPct}%` }}
-        />
-        {/* Tick at refMin */}
-        <div
-          className="absolute top-0 bottom-0 w-px bg-white/70"
-          style={{ left: `${minTickPct}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function AverageRow({ icon, label, value }: { icon: string; label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2 text-sm text-gray-600">
-        <span>{icon}</span>
-        <span>{label}</span>
-      </div>
-      <span className="text-sm font-semibold text-gray-800">{value}</span>
+      <ExtractionsInsightCard extractions={extractions} avgFeedsTarget={avgFeedsTarget} reference={reference} />
     </div>
   );
 }
