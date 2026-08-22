@@ -1549,7 +1549,7 @@ export default function App() {
 
       {/* FABs — inicio rápido (solo en Hoy, no admin, no viewer) */}
       {screen === 'hoy' && !isAdmin && !isViewer && (
-        <div className="fixed right-5 bottom-20 lg:bottom-6 z-20 flex flex-col items-end gap-3">
+        <div className="fixed right-5 bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6 z-20 flex flex-col items-end gap-3">
           {/* FABs extra — visibles solo al expandir, algo más pequeños que los
               principales. En una columna la pila mide 552 px: con la cabecera
               de 64 px hacen falta unos 700 px de alto, así que por debajo de
