@@ -1418,6 +1418,50 @@ function checkNotifications() {
         }
       }
 
+      // Extracción: solo si la familia ya usa alimentación diferida (si nunca
+      // ha registrado una extracción, no aplica). Avisa cuando toca empezar a
+      // sacarse leche para que esté lista antes de que el bebé vuelva a pedir.
+      const extrCount = db.prepare(`SELECT COUNT(*) AS n FROM extractions WHERE baby_id = ?`).get(babyId).n;
+      if (extrCount > 0 && lastFeedingRow) {
+        const lastFeedingTime = new Date(JSON.parse(lastFeedingRow.data).timestamp).getTime();
+        const yaExtraidoEsteCiclo = db.prepare(
+          `SELECT 1 FROM extractions WHERE baby_id = ?
+           AND json_extract(data, '$.purpose') = 'replace'
+           AND json_extract(data, '$.timestamp') > ? LIMIT 1`
+        ).get(babyId, new Date(lastFeedingTime).toISOString());
+
+        if (!yaExtraidoEsteCiclo) {
+          // avgGap: gaps entre las últimas ~14 tomas (mismo criterio que getAvgGapMinutes en el cliente)
+          const recentFeedings = db.prepare(
+            `SELECT json_extract(data, '$.timestamp') AS ts FROM feedings WHERE baby_id = ? ORDER BY ts DESC LIMIT 14`
+          ).all(babyId).map((r) => new Date(r.ts).getTime()).sort((a, b) => a - b);
+          const avgGapMin = recentFeedings.length >= 2
+            ? Math.round((recentFeedings.at(-1) - recentFeedings[0]) / (recentFeedings.length - 1) / 60000)
+            : null;
+
+          const durs = db.prepare(
+            `SELECT json_extract(data, '$.durationMin') AS d FROM extractions
+             WHERE baby_id = ? AND json_extract(data, '$.purpose') = 'replace' AND d IS NOT NULL`
+          ).all(babyId).map((r) => r.d);
+          const avgPumpMin = durs.length ? Math.round(durs.reduce((a, b) => a + b, 0) / durs.length) : 20;
+
+          if (avgGapMin != null) {
+            const avisoMs = (avgGapMin - avgPumpMin) * 60000;
+            const key = `pump:${babyId}`;
+            const lastNotif = ultimoAviso(key);
+            // No reavisar dentro del mismo ciclo (misma toma de referencia)
+            if (now - lastFeedingTime >= avisoMs && (!lastNotif || new Date(lastNotif).getTime() < lastFeedingTime)) {
+              sendPushToAccount(account_id, {
+                title: 'Hora de sacarte leche',
+                body: `Para que esté lista cuando ${name} pida`,
+                tag: `pump-${babyId}`,
+              });
+              anotarAviso(key);
+            }
+          }
+        }
+      }
+
       // Masajes frenectomía
       if (baby.frenectomyEnabled && baby.frenectomyDate) {
         const today   = fechaLocal();

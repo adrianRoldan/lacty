@@ -21,6 +21,7 @@ import {
   getRestDurationMinutes,
   buildTimeline,
   avgDailyFeeds,
+  getAvgGapMinutes,
 } from '../utils/feedingUtils';
 import { getEffectiveReference, getSleepReference } from '../data/referenceTable';
 import { etiquetarSuenos, contarPorTipo } from '../utils/sleepUtils';
@@ -236,6 +237,26 @@ export default function TodayRail({
   const isAwakeAlert = awakeMin !== null && awakeMin >= sleepRef.awakeWindowMaxMin;
   const isAwakeSevere = awakeMin !== null && awakeMin >= sleepRef.awakeWindowMaxMin * 2;
 
+  // Aviso de extracción: solo para quien ya usa alimentación diferida (si
+  // nunca ha registrado una extracción, no aplica). Cuánto falta para que
+  // toque sacarse leche = tiempo medio entre tomas de este bebé menos lo que
+  // suele tardar en sacarse una toma completa, menos lo que lleva ya sin comer.
+  const avgGap = getAvgGapMinutes(feedings);
+  const pumpDurations = extractions
+    .filter((e) => e.purpose === 'replace' && e.durationMin != null)
+    .map((e) => e.durationMin!);
+  const avgPumpDuration = pumpDurations.length > 0
+    ? Math.round(pumpDurations.reduce((a, b) => a + b, 0) / pumpDurations.length)
+    : 20;
+  const alreadyPumpedThisCycle = lastFeeding != null && extractions.some(
+    (e) => e.purpose === 'replace' && new Date(e.timestamp) > new Date(lastFeeding.timestamp)
+  );
+  const pumpAvisoEnMin = (extractions.length > 0 && !alreadyPumpedThisCycle && avgGap != null && lastFeedingElapsed != null)
+    ? (avgGap - avgPumpDuration) - lastFeedingElapsed
+    : null;
+  const isPumpAlert = pumpAvisoEnMin !== null && pumpAvisoEnMin <= 15;
+  const isPumpUrgent = pumpAvisoEnMin !== null && pumpAvisoEnMin <= 0;
+
   return (
     <div className="p-4 pb-24">
       {/* ── 1. Cabecera ────────────────────────────────────────────────── */}
@@ -357,6 +378,19 @@ export default function TodayRail({
             </span>
             <span className={`text-xs ml-auto ${isAwakeSevere ? 'text-red-400' : 'text-amber-600'}`}>
               máx. {formatElapsed(sleepRef.awakeWindowMaxMin)}
+            </span>
+          </div>
+        </div>
+      )}
+      {isPumpAlert && pumpAvisoEnMin !== null && (
+        <div className={`border-2 rounded-xl p-3 mb-2 ${isPumpUrgent ? 'border-red-400 bg-red-50' : 'border-amber-300 bg-amber-50'}`}>
+          <div className="flex items-center gap-2">
+            <span className="animate-pulse">🥛</span>
+            <span className={`text-sm font-bold ${isPumpUrgent ? 'text-red-700' : 'text-amber-800'}`}>
+              {isPumpUrgent ? 'Toca sacarte leche' : `Sácate leche en ~${pumpAvisoEnMin} min`}
+            </span>
+            <span className={`text-xs ml-auto ${isPumpUrgent ? 'text-red-400' : 'text-amber-600'}`}>
+              para que esté lista a tiempo
             </span>
           </div>
         </div>
