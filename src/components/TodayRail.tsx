@@ -29,6 +29,7 @@ import { useElapsedTime } from '../hooks/useElapsedMinutes';
 import { useConfirm } from './ConfirmDialog';
 import { MedicineIcon, StrollerIcon } from './CareIcons';
 import DayInsights from './DayInsights';
+import ExtractionsInsightCard from './ExtractionsInsightCard';
 import WeekComparison from './WeekComparison';
 import type { TipoRegistro } from './AddRecordSheet';
 
@@ -201,6 +202,7 @@ export default function TodayRail({
   });
 
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [showExtractionInfo, setShowExtractionInfo] = useState(false);
 
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -397,6 +399,7 @@ export default function TodayRail({
           onEditBath={onEditBath}
           onEditExtraction={onEditExtraction}
           onDeleteExtraction={onDeleteExtraction}
+          onInfoExtraction={() => setShowExtractionInfo(true)}
         />
       )}
 
@@ -418,6 +421,23 @@ export default function TodayRail({
         </button>
       )}
 
+      {showExtractionInfo && (
+        <div
+          className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/40 sm:p-6"
+          onClick={() => setShowExtractionInfo(false)}
+        >
+          <div
+            className="bg-cream-50 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 max-h-[90vh] overflow-y-auto"
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-900">Extracciones</h2>
+              <button onClick={() => setShowExtractionInfo(false)} className="text-gray-400 text-xl touch-manipulation">✕</button>
+            </div>
+            <ExtractionsInsightCard extractions={todayExtractions} avgFeedsTarget={avgFeedsTarget} reference={reference} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -433,7 +453,7 @@ function Rail({
   onEditDiaper, onDeleteDiaper,
   onEditWalk, onDeleteWalk, onStopWalk,
   onEditMedication, onEditBath,
-  onEditExtraction, onDeleteExtraction,
+  onEditExtraction, onDeleteExtraction, onInfoExtraction,
 }: {
   timeline: Timeline;
   today: string;
@@ -454,6 +474,7 @@ function Rail({
   onEditBath: (b: Bath) => void;
   onEditExtraction: (e: Extraction) => void;
   onDeleteExtraction: (id: string) => void;
+  onInfoExtraction: () => void;
 }) {
   const ahora = new Date();
   let franjaAnterior: string | null = null;
@@ -506,7 +527,7 @@ function Rail({
                 onEdit={onEditWalk} onDelete={onDeleteWalk} onStop={onStopWalk} />
             ) : item.type === 'extraction' ? (
               <FilaExtraccion extraction={item.data} readOnly={readOnly}
-                onEdit={onEditExtraction} onDelete={onDeleteExtraction} />
+                onEdit={onEditExtraction} onDelete={onDeleteExtraction} onInfo={onInfoExtraction} />
             ) : (
               <FilaCuidado
                 entry={item.data}
@@ -531,7 +552,7 @@ function Rail({
 function Fila({
   horaInicio, horaFin, acento, esBarra, enCurso, avisoDia,
   icono, titulo, chips, detalle, cronometro,
-  onClick, onStop, onDelete, etiquetaBorrar,
+  onClick, onStop, onDelete, onInfo, etiquetaBorrar,
 }: {
   horaInicio: string;
   horaFin?: string | null;
@@ -547,6 +568,7 @@ function Fila({
   onClick?: () => void;
   onStop?: () => void;
   onDelete?: () => void;
+  onInfo?: () => void;
   etiquetaBorrar?: string;
 }) {
   const { nodo } = ACENTO[acento];
@@ -604,6 +626,19 @@ function Fila({
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <rect x="5" y="5" width="14" height="14" rx="3" />
+            </svg>
+          </button>
+        )}
+        {onInfo && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onInfo(); }}
+            className="text-cyan-400 hover:text-cyan-600 p-1.5 shrink-0 self-center touch-manipulation"
+            aria-label="Ver información de extracciones"
+            title="Ver información de extracciones"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="7" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
           </button>
         )}
@@ -785,9 +820,9 @@ function FilaPanal({ diaper, readOnly, onEdit, onDelete }: {
 
 const LADO_LABEL: Record<Extraction['side'], string> = { left: 'Izquierdo', right: 'Derecho', both: 'Ambos' };
 
-function FilaExtraccion({ extraction, readOnly, onEdit, onDelete }: {
+function FilaExtraccion({ extraction, readOnly, onEdit, onDelete, onInfo }: {
   extraction: Extraction; readOnly?: boolean;
-  onEdit: (e: Extraction) => void; onDelete: (id: string) => void;
+  onEdit: (e: Extraction) => void; onDelete: (id: string) => void; onInfo: () => void;
 }) {
   const confirm = useConfirm();
   const detalle = [
@@ -808,6 +843,7 @@ function FilaExtraccion({ extraction, readOnly, onEdit, onDelete }: {
       onDelete={readOnly ? undefined : async () => {
         if (await confirm('¿Eliminar esta extracción?')) onDelete(extraction.id);
       }}
+      onInfo={onInfo}
       etiquetaBorrar="Eliminar extracción"
     />
   );

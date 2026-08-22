@@ -6,12 +6,15 @@ interface Props {
   extraction: Extraction;
   onEdit: (e: Extraction) => void;
   onDelete: (id: string) => void;
+  /** Abre el diálogo con la tarjeta "Extracciones" de hoy. Solo se muestra el
+   *  icono si se pasa (p. ej. no en el Historial, donde no aplica "hoy"). */
+  onShowInfo?: () => void;
   readOnly?: boolean;
 }
 
 const LADO_LABEL: Record<Extraction['side'], string> = { left: 'Izquierdo', right: 'Derecho', both: 'Ambos' };
 
-export default function ExtractionItem({ extraction, onEdit, onDelete, readOnly }: Props) {
+export default function ExtractionItem({ extraction, onEdit, onDelete, onShowInfo, readOnly }: Props) {
   const confirm = useConfirm();
 
   async function handleDelete(e: React.MouseEvent) {
@@ -49,6 +52,19 @@ export default function ExtractionItem({ extraction, onEdit, onDelete, readOnly 
           )}
         </div>
 
+        {onShowInfo && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onShowInfo(); }}
+            className="text-cyan-400 hover:text-cyan-600 active:text-cyan-700 p-2 shrink-0 touch-manipulation"
+            aria-label="Ver información de extracciones"
+            title="Ver información de extracciones"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="7" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </button>
+        )}
         {!readOnly && (
           <button
             onClick={handleDelete}

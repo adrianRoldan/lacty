@@ -20,6 +20,7 @@ import RestItem from './RestItem';
 import DiaperItem from './DiaperItem';
 import WalkItem from './WalkItem';
 import ExtractionItem from './ExtractionItem';
+import ExtractionsInsightCard from './ExtractionsInsightCard';
 import { MedicineIcon } from './CareIcons';
 import DayInsights from './DayInsights';
 import WeekComparison from './WeekComparison';
@@ -192,6 +193,7 @@ export default function DailySummary({
   });
 
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [showExtractionInfo, setShowExtractionInfo] = useState(false);
 
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -391,7 +393,7 @@ export default function DailySummary({
                 ) : item.type === 'walk' ? (
                   <WalkItem walk={item.data} onEdit={onEditWalk} onDelete={onDeleteWalk} onStop={onStopWalk} listDay={today} readOnly={readOnly} />
                 ) : item.type === 'extraction' ? (
-                  <ExtractionItem extraction={item.data} onEdit={onEditExtraction} onDelete={onDeleteExtraction} readOnly={readOnly} />
+                  <ExtractionItem extraction={item.data} onEdit={onEditExtraction} onDelete={onDeleteExtraction} onShowInfo={() => setShowExtractionInfo(true)} readOnly={readOnly} />
                 ) : (
                   <CareLine
                     kind={item.data.kind}
@@ -428,6 +430,23 @@ export default function DailySummary({
         </button>
       )}
 
+      {showExtractionInfo && (
+        <div
+          className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/40 sm:p-6"
+          onClick={() => setShowExtractionInfo(false)}
+        >
+          <div
+            className="bg-cream-50 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 max-h-[90vh] overflow-y-auto"
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-900">Extracciones</h2>
+              <button onClick={() => setShowExtractionInfo(false)} className="text-gray-400 text-xl touch-manipulation">✕</button>
+            </div>
+            <ExtractionsInsightCard extractions={todayExtractions} avgFeedsTarget={avgFeedsTarget} reference={reference} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
