@@ -12,7 +12,7 @@ export default function AdminView() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user'>('all');
-  const [sortBy, setSortBy] = useState<'lastLogin' | 'created' | 'username'>('lastLogin');
+  const [sortBy, setSortBy] = useState<'lastLogin' | 'lastActivity' | 'created' | 'username'>('lastLogin');
   const [sheet, setSheet] = useState<Sheet>(null);
   const [sheetError, setSheetError] = useState('');
   const [sheetLoading, setSheetLoading] = useState(false);
@@ -204,6 +204,7 @@ export default function AdminView() {
       case 'username': arr.sort((a, b) => a.username.localeCompare(b.username)); break;
       case 'created': arr.sort((a, b) => b.createdAt.localeCompare(a.createdAt)); break;
       case 'lastLogin': arr.sort((a, b) => (b.lastLoginAt ?? '').localeCompare(a.lastLoginAt ?? '')); break;
+      case 'lastActivity': arr.sort((a, b) => (b.lastActivityAt ?? '').localeCompare(a.lastActivityAt ?? '')); break;
     }
     return arr;
   }, [filtered, sortBy]);
@@ -260,6 +261,7 @@ export default function AdminView() {
             <select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
               className="ml-auto text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600 bg-white focus:outline-none shrink-0">
               <option value="lastLogin">Último login</option>
+              <option value="lastActivity">Última actividad</option>
               <option value="created">Registro</option>
               <option value="username">Nombre</option>
             </select>
@@ -330,6 +332,7 @@ export default function AdminView() {
                             <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-400 mt-0.5">
                               <span>Alta: {formatDt(u.createdAt)}</span>
                               <span>{u.lastLoginAt ? `Login: ${formatDt(u.lastLoginAt)}` : 'Nunca ha entrado'}</span>
+                              {u.lastActivityAt && <span>Actividad: {formatDt(u.lastActivityAt)}</span>}
                             </div>
                           </div>
                           <button

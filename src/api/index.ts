@@ -85,6 +85,8 @@ export interface AdminUserInfo {
   inviteCode?: string;
   createdAt: string;
   lastLoginAt?: string;
+  /** Última escritura autenticada de este usuario (cualquier alta/edición), no solo el login. */
+  lastActivityAt?: string;
   babies: { id: string; name: string; birthDate?: string }[];
 }
 

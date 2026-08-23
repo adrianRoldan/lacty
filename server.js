@@ -155,6 +155,9 @@ db.prepare(`UPDATE users SET family_role = 'administrador' WHERE family_role = '
 db.prepare(`UPDATE users SET family_role = 'cuidador' WHERE family_role = 'editor'`).run();
 db.prepare(`UPDATE users SET family_role = 'invitado' WHERE family_role = 'viewer'`).run();
 ensureColumn('users', 'last_login_at');
+// A diferencia de last_login_at (solo al iniciar sesión), esta se actualiza
+// en cualquier escritura autenticada — ver el middleware de /api más abajo.
+ensureColumn('users', 'last_activity_at');
 ensureColumn('users', 'email');
 // Preferencia personal: qué diseño del timeline de «Hoy» ve cada usuario, y si
 // ya se le ofreció probar la línea de tiempo (el aviso se enseña una sola vez).
@@ -587,6 +590,9 @@ app.use('/api', (req, res, next) => {
     if ((user?.family_role ?? 'cuidador') === 'invitado') {
       return res.status(403).json({ error: 'Tu cuenta es de solo lectura' });
     }
+    // Última actividad: cualquier escritura autenticada, no solo el login.
+    // Un único punto para todas las rutas de mutación en vez de tocar cada una.
+    db.prepare(`UPDATE users SET last_activity_at = datetime('now') WHERE id = ?`).run(req.session.userId);
   }
   next();
 });
@@ -600,7 +606,7 @@ function requireAdmin(req, res, next) {
 
 app.get('/api/admin/users', requireAdmin, (_req, res) => {
   const users = db.prepare(`
-    SELECT u.id, u.username, u.email, u.role, u.family_role, u.account_id, u.created_at, u.last_login_at,
+    SELECT u.id, u.username, u.email, u.role, u.family_role, u.account_id, u.created_at, u.last_login_at, u.last_activity_at,
            a.invite_code, a.name AS account_name
     FROM users u
     LEFT JOIN accounts a ON a.id = u.account_id
@@ -627,6 +633,7 @@ app.get('/api/admin/users', requireAdmin, (_req, res) => {
     inviteCode: u.invite_code,
     createdAt: u.created_at,
     lastLoginAt: u.last_login_at,
+    lastActivityAt: u.last_activity_at,
     babies: babyMap.get(u.account_id) ?? [],
   }));
 
