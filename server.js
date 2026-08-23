@@ -551,6 +551,13 @@ app.post('/api/auth/signup', authLimiter, async (req, res) => {
   req.session.accountId = accountId;
   req.session.role = 'user';
   req.session.familyRole = familyRole;
+  sendPushToAdmins({
+    title: 'Nuevo registro en Lacty',
+    body: inviteCode
+      ? `${username} se unió a una familia existente (${normalizedEmail})`
+      : `${username} creó una cuenta nueva (${normalizedEmail})`,
+    tag: `signup-${userId}`,
+  });
   res.status(201).json({ ok: true, username, accountId, role: 'user', familyRole });
 });
 
@@ -1350,6 +1357,24 @@ function sendPushToAccount(accountId, payload) {
         db.prepare(`DELETE FROM push_subscriptions WHERE endpoint = ?`).run(row.endpoint);
       } else {
         console.error('[push] Error enviando notificación:', err.statusCode, err.body ?? err.message);
+      }
+    });
+  }
+}
+
+/** Avisa a todas las cuentas administradoras suscritas, sin importar su familia. */
+function sendPushToAdmins(payload) {
+  const subs = db.prepare(`
+    SELECT ps.endpoint, ps.subscription_json FROM push_subscriptions ps
+    JOIN users u ON u.id = ps.user_id
+    WHERE u.role = 'admin'
+  `).all();
+  for (const row of subs) {
+    webpush.sendNotification(JSON.parse(row.subscription_json), JSON.stringify(payload)).catch((err) => {
+      if (err.statusCode === 410 || err.statusCode === 404) {
+        db.prepare(`DELETE FROM push_subscriptions WHERE endpoint = ?`).run(row.endpoint);
+      } else {
+        console.error('[push] Error enviando notificación a admins:', err.statusCode, err.body ?? err.message);
       }
     });
   }
