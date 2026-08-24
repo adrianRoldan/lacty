@@ -13,6 +13,17 @@ async function apiFetch(url: string, opts?: RequestInit): Promise<Response> {
     return res;
   } catch (e) {
     markOffline();
+    // El navegador lanza mensajes técnicos ("signal timed out", "Failed to
+    // fetch"...) que no dicen nada al usuario; los cambiamos aquí, en el único
+    // punto por el que pasan todas las peticiones, para que valga en cualquier
+    // pantalla (incluida la de login, antes de que exista el aviso global de
+    // conexión).
+    if (e instanceof DOMException && e.name === 'TimeoutError') {
+      throw new Error('Tu conexión va lenta ahora mismo. Inténtalo de nuevo en unos segundos.');
+    }
+    if (e instanceof TypeError) {
+      throw new Error('No se ha podido conectar. Comprueba tu conexión a internet e inténtalo de nuevo.');
+    }
     throw e;
   }
 }
