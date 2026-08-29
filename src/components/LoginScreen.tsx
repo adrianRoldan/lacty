@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import * as api from '../api';
+import PasswordInput from './PasswordInput';
 
 interface Props {
   /** `joined` indica que se ha entrado con un código de invitación. */
@@ -90,10 +91,9 @@ export default function LoginScreen({ onLogin }: Props) {
           )}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">Contraseña</label>
-            <input
-              type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+            <PasswordInput
+              value={password} onChange={setPassword}
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-500"
             />
           </div>
 
