@@ -222,23 +222,26 @@ export default function TodayRail({
     <div className="p-4 pb-24">
       {/* ── 1. Cabecera ────────────────────────────────────────────────── */}
       <div className="mb-3">
-        <div className="flex items-baseline gap-2 flex-wrap">
-          <h1 className="text-2xl font-bold text-gray-900">Hoy</h1>
-          <span className="text-base font-semibold text-gray-500">
-            {new Date().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-          </span>
-        </div>
-        <div className="flex items-center justify-between mt-0.5">
-          <p className="text-sm text-gray-500">{formatBabyAge(daysOfLife)}</p>
+        {/* «Añadir» va en la línea del título: en la de abajo, junto a la edad,
+            dejaba un renglón medio vacío y el botón quedaba más lejos del
+            pulgar. La fecha puede saltar de línea si el móvil es estrecho. */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-baseline gap-2 flex-wrap min-w-0">
+            <h1 className="text-2xl font-bold text-gray-900">Hoy</h1>
+            <span className="text-base font-semibold text-gray-500">
+              {new Date().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+            </span>
+          </div>
           {!readOnly && (
             <button
               onClick={onAbrirAñadir}
-              className="bg-sage-600 text-white font-semibold px-4 py-2 rounded-xl text-sm active:bg-sage-700 touch-manipulation"
+              className="shrink-0 bg-sage-600 text-white font-semibold px-4 py-2 rounded-xl text-sm active:bg-sage-700 touch-manipulation"
             >
               + Añadir
             </button>
           )}
         </div>
+        <p className="text-sm text-gray-500 mt-0.5">{formatBabyAge(daysOfLife)}</p>
       </div>
 
       {/* ── 2. Barra de estado compacta ────────────────────────────────── */}
