@@ -22,6 +22,8 @@ export interface CareItem {
   label: string;
   /** Contexto de una línea: dosis y horario. */
   detail: string;
+  /** Dosis sola, para la barra («2,5 ml»). */
+  dose?: string;
   /** Hora de la siguiente toma pendiente, si se sabe. */
   time?: string;
   done: boolean;
@@ -59,6 +61,7 @@ export function cuidadosConAcciones(
       icon: c.icono,
       label: c.etiqueta,
       detail: c.detalle,
+      dose: c.dosis,
       time: c.proximaHora,
       done: c.hecho,
       urgent: c.urgente,
@@ -102,37 +105,69 @@ function ordenar(items: CareItem[]): CareItem[] {
   });
 }
 
-/** Chip resumen; al tocarlo abre la hoja de cuidados. */
-export function CareSummaryChip({ items, readOnly }: { items: CareItem[]; readOnly?: boolean }) {
+/**
+ * Barra de cuidados: una línea de ancho completo encima del registro del día.
+ *
+ * Gana presencia por lo ancha, no por lo alta, porque lo principal de «Hoy»
+ * sigue siendo el registro. En reposo es discreta y dice qué toca y a qué
+ * hora; cuando una dosis ya se ha pasado se pone ámbar y saca un botón «Dar»
+ * para apuntarla sin abrir nada. El detalle completo, a un toque, en la hoja.
+ */
+export function CareTodayBar({ items, readOnly }: { items: CareItem[]; readOnly?: boolean }) {
   const [abierta, setAbierta] = useState(false);
   if (items.length === 0) return null;
 
   const orden = ordenar(items);
   const hechos = items.filter((i) => i.done).length;
   const todoHecho = hechos === items.length;
-  const hayUrgente = items.some((i) => i.urgent && !i.done);
   const siguiente = orden.find((i) => !i.done);
+  const urgente = siguiente?.urgent === true;
 
   const color = todoHecho
-    ? 'bg-green-100 text-green-700'
-    : hayUrgente
-      ? 'bg-amber-100 text-amber-800'
-      : 'bg-gray-100 text-gray-500';
+    ? 'bg-green-50 text-green-800 border-green-100'
+    : urgente
+      ? 'bg-amber-50 text-amber-900 border-amber-200'
+      : 'bg-white text-gray-700 border-gray-100';
+
+  // Detalle de la derecha: la dosis y la hora de lo siguiente. Se recorta antes
+  // que el nombre, que es lo que de verdad identifica el cuidado.
+  const detalle = [siguiente?.dose, siguiente?.time && `${urgente ? 'tocaba' : 'toca'} a las ${siguiente.time}`]
+    .filter(Boolean).join(' · ');
 
   return (
-    <>
+    <div className="flex items-stretch gap-1.5 mt-4 mb-2">
       <button
         onClick={() => setAbierta(true)}
-        className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold touch-manipulation active:brightness-95 ${color}`}
+        className={`flex-1 min-w-0 flex items-center gap-2 rounded-xl border px-3 py-2 text-left shadow-sm touch-manipulation active:brightness-95 ${color}`}
       >
-        <span aria-hidden="true">{todoHecho ? '✓' : siguiente?.icon}</span>
-        <span>Cuidados {hechos}/{items.length}</span>
-        {!todoHecho && siguiente?.time && (
-          <span className="font-normal opacity-70">· {siguiente.time}</span>
+        <span className="text-base leading-none shrink-0" aria-hidden="true">
+          {todoHecho ? '✓' : siguiente?.icon}
+        </span>
+        <span className="text-sm font-semibold shrink-0 max-w-[45%] truncate">
+          {todoHecho ? 'Cuidados al día' : siguiente?.label}
+        </span>
+        {!todoHecho && detalle && (
+          <span className="text-xs opacity-70 truncate">{detalle}</span>
         )}
+        <span className="ml-auto flex items-center gap-1 shrink-0 text-xs font-semibold">
+          <span className={todoHecho ? '' : 'opacity-70'}>{hechos}/{items.length}</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="opacity-40">
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+        </span>
       </button>
+      {/* Atajo para lo que ya se ha pasado de hora: es el caso en el que hay
+          prisa, y obligar a abrir la hoja para un toque más sobraba. */}
+      {urgente && !readOnly && siguiente && (
+        <button
+          onClick={siguiente.onAdd}
+          className="shrink-0 px-4 rounded-xl bg-amber-500 text-white text-xs font-bold shadow-sm active:bg-amber-600 touch-manipulation"
+        >
+          Dar
+        </button>
+      )}
       {abierta && <CareSheet items={orden} readOnly={readOnly} onClose={() => setAbierta(false)} />}
-    </>
+    </div>
   );
 }
 

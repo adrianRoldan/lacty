@@ -15,7 +15,7 @@ import {
 } from '../utils/feedingUtils';
 import { getEffectiveReference, getSleepReference } from '../data/referenceTable';
 import { etiquetarSuenos, contarPorTipo } from '../utils/sleepUtils';
-import { cuidadosConAcciones, CareSummaryChip } from './CareToday';
+import { cuidadosConAcciones, CareTodayBar } from './CareToday';
 import FeedingItem from './FeedingItem';
 import RestItem from './RestItem';
 import DiaperItem from './DiaperItem';
@@ -353,10 +353,8 @@ export default function DailySummary({
       <NextEventBanner events={calendarEvents} onOpen={onOpenAgenda} />
 
       {/* ── 4. Timeline — contenido principal ──────────────────────────── */}
-      <div className="flex items-center justify-between mt-4 mb-2">
-        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Registros de hoy</h2>
-        <CareSummaryChip items={careItems} readOnly={readOnly} />
-      </div>
+      <CareTodayBar items={careItems} readOnly={readOnly} />
+      <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Registros de hoy</h2>
       {timeline.length === 0 ? (
         <div className="text-center py-12 text-gray-400">
           <p className="text-4xl mb-3">🍼</p>

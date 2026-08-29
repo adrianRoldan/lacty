@@ -18,6 +18,8 @@ export interface CuidadoHoy {
   etiqueta: string;
   /** Contexto de una línea, para la hoja de añadir. */
   detalle: string;
+  /** Dosis sola («2,5 ml», «2 gotas»), para la barra de una línea. */
+  dosis?: string;
   hechas: number;
   total: number;
   /** Terminado por hoy. */
@@ -64,6 +66,7 @@ export function cuidadosDeHoy({
       icono: '💊',
       etiqueta: config.vitaminDMedName || 'Vit. D',
       detalle: '2 gotas diarias',
+      dosis: '2 gotas',
       hechas: dado ? 1 : 0,
       total: 1,
       hecho: dado,
@@ -80,6 +83,7 @@ export function cuidadosDeHoy({
       icono: '🦠',
       etiqueta: config.probioticMedName || 'Probiótico',
       detalle: '5 gotas diarias',
+      dosis: '5 gotas',
       hechas: dado ? 1 : 0,
       total: 1,
       hecho: dado,
@@ -128,6 +132,7 @@ export function cuidadosDeHoy({
       detalle: plan.doseMl != null
         ? `${String(plan.doseMl).replace('.', ',')} ml · ${horario}`
         : horario,
+      dosis: plan.doseMl != null ? `${String(plan.doseMl).replace('.', ',')} ml` : undefined,
       hechas,
       total,
       hecho: hechas >= total,
