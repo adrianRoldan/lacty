@@ -15,7 +15,7 @@ import {
 } from '../utils/feedingUtils';
 import { getEffectiveReference, getSleepReference } from '../data/referenceTable';
 import { etiquetarSuenos, contarPorTipo } from '../utils/sleepUtils';
-import { cuidadosDeHoy } from '../utils/cuidadosHoy';
+import { cuidadosConAcciones, CareSummaryChip } from './CareToday';
 import FeedingItem from './FeedingItem';
 import RestItem from './RestItem';
 import DiaperItem from './DiaperItem';
@@ -88,17 +88,6 @@ function prevFeedingTimestamp(timeline: ReturnType<typeof buildTimeline>, index:
   return null;
 }
 
-interface CareChip {
-  key: string;
-  icon: string;
-  label: string;
-  done: boolean;
-  urgent: boolean;
-  count?: { current: number; total: number };
-  onAdd: () => void;
-  onUndo?: () => void;
-}
-
 export default function DailySummary({
   config, feedings, rests, currentWeightKg, vitaminDLogs,
   calendarEvents, readOnly,
@@ -151,46 +140,18 @@ export default function DailySummary({
   const reference = getEffectiveReference(daysOfLife, currentWeightKg);
   const sleepRef = getSleepReference(daysOfLife);
 
-  // Los cuidados que tocan hoy los calcula una única función compartida; aquí
-  // solo se les enganchan las acciones de esta pantalla.
-  const careChips: CareChip[] = cuidadosDeHoy({
+  // Los cuidados que tocan hoy (qué falta y a qué hora) los calcula una función
+  // compartida; aquí solo se les enganchan las acciones de esta pantalla.
+  const careItems = cuidadosConAcciones({
     config, today,
     ahoraMin: new Date().getHours() * 60 + new Date().getMinutes(),
     vitaminDLogs, probioticLogs, massageLogs, medications, medPlans,
-  }).map((c) => {
-    const base = {
-      key: c.key,
-      icon: c.icono,
-      label: c.etiqueta,
-      done: c.hecho,
-      urgent: c.urgente,
-      count: c.total > 1 ? { current: c.hechas, total: c.total } : undefined,
-    };
-    switch (c.tipo) {
-      case 'vitaminD':
-        return { ...base,
-          onAdd: () => onGiveVitaminD(today),
-          onUndo: c.hecho ? () => onRemoveVitaminD(today) : undefined };
-      case 'probiotic':
-        return { ...base,
-          onAdd: () => onGiveProbiotic(today),
-          onUndo: c.hecho ? () => onRemoveProbiotic(today) : undefined };
-      case 'massage': {
-        const ultimo = massageLogs
-          .filter((m) => m.date === today)
-          .sort((a, b) => a.performedAt.localeCompare(b.performedAt))
-          .at(-1);
-        return { ...base,
-          count: { current: c.hechas, total: c.total },
-          onAdd: () => onAddMassage(today),
-          onUndo: ultimo ? () => onRemoveMassage(ultimo.id) : undefined };
-      }
-      default:
-        return { ...base,
-          count: { current: c.hechas, total: c.total },
-          onAdd: () => onGiveMedicationDose(c.plan!),
-          onUndo: c.hechas > 0 ? () => onUndoMedicationDose(c.plan!.id) : undefined };
-    }
+  }, {
+    today, massageLogs,
+    onGiveVitaminD, onRemoveVitaminD,
+    onGiveProbiotic, onRemoveProbiotic,
+    onAddMassage, onRemoveMassage,
+    onGiveMedicationDose, onUndoMedicationDose,
   });
 
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -394,9 +355,7 @@ export default function DailySummary({
       {/* ── 4. Timeline — contenido principal ──────────────────────────── */}
       <div className="flex items-center justify-between mt-4 mb-2">
         <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Registros de hoy</h2>
-        {careChips.length > 0 && (
-          <CareChipsRow chips={careChips} readOnly={readOnly} />
-        )}
+        <CareSummaryChip items={careItems} readOnly={readOnly} />
       </div>
       {timeline.length === 0 ? (
         <div className="text-center py-12 text-gray-400">
@@ -518,50 +477,6 @@ function AvisoLineaDeTiempo({ onProbar, onCerrar }: { onProbar: () => void; onCe
           </svg>
         </button>
       </div>
-    </div>
-  );
-}
-
-// ── Care chips row ──────────────────────────────────────────────────────────
-
-function CareChipsRow({ chips, readOnly }: { chips: CareChip[]; readOnly?: boolean }) {
-  return (
-    <div className="flex items-center gap-1.5 flex-wrap justify-end">
-      {chips.map((chip) => {
-        const countLabel = chip.count ? ` ${chip.count.current}/${chip.count.total}` : '';
-        const canAdd = !readOnly && !chip.done;
-        const canUndo = !readOnly && !!chip.onUndo;
-
-        const colorClass = chip.done
-          ? 'bg-green-100 text-green-700'
-          : chip.urgent
-            ? 'bg-amber-100 text-amber-800'
-            : 'bg-gray-100 text-gray-500';
-
-        return (
-          <div key={chip.key} className="flex items-center rounded-full overflow-hidden">
-            <button
-              onClick={canAdd ? chip.onAdd : (!readOnly && chip.done && !chip.count ? chip.onUndo : undefined)}
-              className={`flex items-center gap-1 pl-2.5 ${canUndo ? 'pr-1.5' : 'pr-2.5'} py-1 text-xs font-semibold touch-manipulation transition-colors
-                ${colorClass}
-                ${!readOnly ? 'active:brightness-95' : 'cursor-default'}`}
-            >
-              <span>{chip.icon}</span>
-              <span>{chip.label}{countLabel}</span>
-              {chip.done && !chip.count && <span className="ml-0.5">✓</span>}
-            </button>
-            {canUndo && (
-              <button
-                onClick={chip.onUndo}
-                className={`pr-2 pl-1 py-1 text-xs touch-manipulation active:brightness-95 border-l border-white/40 ${colorClass}`}
-                title="Deshacer"
-              >
-                ×
-              </button>
-            )}
-          </div>
-        );
-      })}
     </div>
   );
 }

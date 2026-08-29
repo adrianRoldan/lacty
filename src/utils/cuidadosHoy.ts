@@ -24,6 +24,8 @@ export interface CuidadoHoy {
   hecho: boolean;
   /** Ya pasó la hora prevista y sigue pendiente. */
   urgente: boolean;
+  /** Hora (HH:MM) de la siguiente toma pendiente; sin definir si ya está hecho. */
+  proximaHora?: string;
   /** Solo en las medicaciones programadas. */
   plan?: MedicationPlan;
 }
@@ -39,6 +41,8 @@ interface Entrada {
   medications: MedicationLog[];
   medPlans: MedicationPlan[];
 }
+
+const aHora = (h: number) => `${String(h).padStart(2, '0')}:00`;
 
 const aMinutos = (hora: string) => {
   const [h, m] = hora.split(':').map(Number);
@@ -64,6 +68,7 @@ export function cuidadosDeHoy({
       total: 1,
       hecho: dado,
       urgente: !dado && config.vitaminDReminderHour !== undefined && ahoraHora >= config.vitaminDReminderHour,
+      proximaHora: !dado && config.vitaminDReminderHour !== undefined ? aHora(config.vitaminDReminderHour) : undefined,
     });
   }
 
@@ -79,6 +84,7 @@ export function cuidadosDeHoy({
       total: 1,
       hecho: dado,
       urgente: !dado && config.probioticReminderHour !== undefined && ahoraHora >= config.probioticReminderHour,
+      proximaHora: !dado && config.probioticReminderHour !== undefined ? aHora(config.probioticReminderHour) : undefined,
     });
   }
 
@@ -103,6 +109,7 @@ export function cuidadosDeHoy({
         total: objetivo,
         hecho: hechas >= objetivo,
         urgente: hechas < objetivo && ahoraMin >= aMinutos(horas[siguiente]),
+        proximaHora: hechas < objetivo ? horas[siguiente] : undefined,
       });
     }
   }
@@ -111,7 +118,8 @@ export function cuidadosDeHoy({
     if (!pautaVigente(plan, today)) continue;
     const hechas = dosisDelDia(medications, plan.id, today);
     const total = plan.times.length;
-    const horario = [...plan.times].sort().join(', ');
+    const horas = [...plan.times].sort();
+    const horario = horas.join(', ');
     cuidados.push({
       key: `medplan-${plan.id}`,
       tipo: 'medplan',
@@ -124,6 +132,7 @@ export function cuidadosDeHoy({
       total,
       hecho: hechas >= total,
       urgente: dosisPendiente(plan, hechas, ahoraMin) >= 0,
+      proximaHora: hechas < total ? horas[hechas] : undefined,
       plan,
     });
   }
