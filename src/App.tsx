@@ -1548,8 +1548,21 @@ export default function App() {
       </main>
 
       {/* FABs — inicio rápido (solo en Hoy, no admin, no viewer) */}
-      {screen === 'hoy' && !isAdmin && !isViewer && (
-        <div className="fixed right-5 bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6 z-20 flex flex-col items-end gap-3">
+      {screen === 'hoy' && !isAdmin && !isViewer && (<>
+        {/* Velo al desplegar: las etiquetas de los FAB extra son `bg-white`, que
+            en claro se confunde con el fondo de página y en noche se oscurece
+            hasta casi el mismo tono, así que sobre contenido cualquiera no se
+            leían. De paso cierra el desplegable al tocar fuera. Va en z-40 para
+            tapar también la barra inferior (z-30), y con él abierto los FAB
+            suben a z-50 para quedar por encima. */}
+        {showExtraFabs && (
+          <div
+            onClick={() => setShowExtraFabs(false)}
+            aria-hidden
+            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] animate-[backdropIn_0.2s_ease-out]"
+          />
+        )}
+        <div className={`fixed right-5 bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6 flex flex-col items-end gap-3 ${showExtraFabs ? 'z-50' : 'z-20'}`}>
           {/* FABs extra — visibles solo al expandir, algo más pequeños que los
               principales. En una columna la pila mide 552 px: con la cabecera
               de 64 px hacen falta unos 700 px de alto, así que por debajo de
@@ -1645,7 +1658,7 @@ export default function App() {
             {showExtraFabs ? '✕' : '⋯'}
           </button>
         </div>
-      )}
+      </>)}
 
       {/* z-30: las cabeceras de franja del timeline son `sticky z-10` y, al estar
           siempre posicionadas, se pintaban por encima de esta barra. */}
@@ -1847,7 +1860,7 @@ function ExtraFab({ label, color, onClick, children }: {
     >
       {/* `bg-white` a secas, sin opacidad: el modo noche oscurece esa clase, y
           `bg-white/95` genera otra distinta que se quedaba blanca. */}
-      <span className="bg-white text-gray-700 text-xs font-semibold px-2.5 py-1 rounded-lg shadow-md whitespace-nowrap">
+      <span className="bg-white text-gray-700 text-xs font-semibold px-2.5 py-1 rounded-lg shadow-md ring-1 ring-gray-200 whitespace-nowrap">
         {label}
       </span>
       <span className={`w-12 h-12 rounded-full text-white shadow-lg flex items-center justify-center shrink-0 ${color}`}>
