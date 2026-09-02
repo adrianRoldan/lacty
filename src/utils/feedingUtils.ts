@@ -1,5 +1,6 @@
-import type { Feeding, Rest, TimelineItem, DiaperChange, VitaminDLog, ProbioticLog, MassageLog, MedicationLog, Walk, Bath, BathSkin, Extraction } from '../types';
+import type { BabyConfig, Feeding, Rest, TimelineItem, DiaperChange, VitaminDLog, ProbioticLog, MassageLog, MedicationLog, Walk, Bath, BathSkin, Extraction } from '../types';
 import { isSameDay, todayIso, localDateOf } from './dateUtils';
+import { esSuenoNocturno } from './sleepUtils';
 import { getReferenceForDay } from '../data/referenceTable';
 
 function isFeedingInProgress(f: Feeding): boolean {
@@ -417,10 +418,21 @@ export interface HistorySummary {
   avgRestMinutes: number;
   avgRestMinPerDay: number;
   avgSleepsPerDay: number; // nº de sueños/siestas por día con sueño
+  // Sueño separado en siestas y sueño nocturno (por la hora a la que empieza).
+  avgNapMinutes: number;      // duración media de una siesta
+  avgNightMinutes: number;    // duración media de un sueño nocturno
+  avgNapMinPerDay: number;    // minutos de siesta por día con siestas
+  avgNightMinPerDay: number;  // minutos nocturnos por día con sueño nocturno
+  avgNapsPerDay: number;      // nº de siestas por día con siestas
   avgAwakeWindowMin: number; // ventana de sueño media (minutos despierto entre siestas)
 }
 
-export function getHistorySummary(feedings: Feeding[], rests: Rest[]): HistorySummary | null {
+export function getHistorySummary(
+  feedings: Feeding[],
+  rests: Rest[],
+  /** Franja nocturna de la familia; sin ella no se puede separar siesta de noche. */
+  nightConfig?: Pick<BabyConfig, 'nightSleepStart' | 'nightSleepEnd'>,
+): HistorySummary | null {
   if (feedings.length === 0 && rests.length === 0) return null;
 
   // Unique days with feedings
@@ -505,7 +517,42 @@ export function getHistorySummary(feedings: Feeding[], rests: Rest[]): HistorySu
     : 0;
   const avgAwakeWindowMin = getAvgAwakeWindowMinutes(rests) ?? 0;
 
-  return { totalDays, avgFeedingsPerDay, avgBreastFeedsPerDay, avgBottleFeedsPerDay, avgSyringeFeedsPerDay, avgTotalMlPerDay, avgTotalMlPerFeeding, avgBreastMinPerDay, avgRestMinutes, avgRestMinPerDay, avgSleepsPerDay, avgAwakeWindowMin };
+  // Siestas y sueño nocturno por separado: la media global mezclaba una siesta
+  // de 40 min con una noche de 8 h y no describía ninguna de las dos. El tipo
+  // lo decide la hora de inicio, igual que las etiquetas «Siesta #2 / Sueño #1».
+  const nocturnos = nightConfig
+    ? completedRests.filter((r) => esSuenoNocturno(r.startTime, nightConfig))
+    : [];
+  const siestas = nightConfig
+    ? completedRests.filter((r) => !esSuenoNocturno(r.startTime, nightConfig))
+    : [];
+  const mediaPorSueno = (rs: Rest[]) => rs.length > 0
+    ? Math.round(rs.reduce((s, r) => s + (getRestDurationMinutes(r) ?? 0), 0) / rs.length)
+    : 0;
+  /** Minutos por día repartiendo en la medianoche, como el total. */
+  const minutosPorDia = (rs: Rest[]) => {
+    const porDia = new Map<string, number>();
+    for (const r of rs) {
+      for (const day of restSpanDays(r)) {
+        const mins = restMinutesOnDay(r, day);
+        if (mins > 0) porDia.set(day, (porDia.get(day) ?? 0) + mins);
+      }
+    }
+    return porDia.size > 0
+      ? Math.round([...porDia.values()].reduce((s, m) => s + m, 0) / porDia.size)
+      : 0;
+  };
+  const diasConSiesta = new Set(siestas.map((r) => localDateOf(r.startTime)));
+  const avgNapMinutes = mediaPorSueno(siestas);
+  const avgNightMinutes = mediaPorSueno(nocturnos);
+  const avgNapMinPerDay = minutosPorDia(siestas);
+  const avgNightMinPerDay = minutosPorDia(nocturnos);
+  const avgNapsPerDay = diasConSiesta.size > 0
+    ? Math.round((siestas.length / diasConSiesta.size) * 10) / 10
+    : 0;
+
+  return { totalDays, avgFeedingsPerDay, avgBreastFeedsPerDay, avgBottleFeedsPerDay, avgSyringeFeedsPerDay, avgTotalMlPerDay, avgTotalMlPerFeeding, avgBreastMinPerDay, avgRestMinutes, avgRestMinPerDay, avgSleepsPerDay, avgAwakeWindowMin,
+    avgNapMinutes, avgNightMinutes, avgNapMinPerDay, avgNightMinPerDay, avgNapsPerDay };
 }
 
 export function generateId(): string {

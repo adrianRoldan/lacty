@@ -125,7 +125,7 @@ export default function FeedingList({
   // El resumen respeta el filtro de días (no el de tipo, para no distorsionar las medias)
   const periodFeedings = feedings.filter(f => !cutoff || localDateOf(f.timestamp) >= cutoff);
   const periodRests     = rests.filter(r => !cutoff || localDateOf(r.startTime) >= cutoff);
-  const summary = getHistorySummary(periodFeedings, periodRests);
+  const summary = getHistorySummary(periodFeedings, periodRests, { nightSleepStart, nightSleepEnd });
 
   const periodDiapers = diapers.filter(d => !cutoff || localDateOf(d.timestamp) >= cutoff);
   const periodWalks   = walks.filter(w => !cutoff || localDateOf(w.startTime) >= cutoff);
@@ -212,13 +212,27 @@ export default function FeedingList({
                 <SummaryRow icon="⏱" label="Min pecho/día" value={formatMinutes(summary.avgBreastMinPerDay)} />
               )}
               {summary.avgRestMinPerDay > 0 && (
-                <SummaryRow icon="🌙" label="Sueño/día"     value={formatMinutes(summary.avgRestMinPerDay)} />
+                <SummaryRow icon="🛏" label="Sueño/día"     value={formatMinutes(summary.avgRestMinPerDay)} />
               )}
               {summary.avgSleepsPerDay > 0 && (
-                <SummaryRow icon="🛏" label="Nº sueños/día" value={String(summary.avgSleepsPerDay)} />
+                <SummaryRow icon="🔢" label="Nº sueños/día" value={String(summary.avgSleepsPerDay)} />
               )}
-              {summary.avgRestMinutes > 0 && (
-                <SummaryRow icon="💤" label="Sueño/siesta"  value={formatMinutes(summary.avgRestMinutes)} />
+              {/* Siestas y noche por separado: la media de «un sueño» juntaba
+                  siestas de 40 min con noches de 8 h. */}
+              {summary.avgNapMinPerDay > 0 && (
+                <SummaryRow icon="💤" label="Siestas/día"   value={formatMinutes(summary.avgNapMinPerDay)} />
+              )}
+              {summary.avgNightMinPerDay > 0 && (
+                <SummaryRow icon="🌙" label="Noche/día"     value={formatMinutes(summary.avgNightMinPerDay)} />
+              )}
+              {summary.avgNapMinutes > 0 && (
+                <SummaryRow icon="💤" label="Media siesta"  value={formatMinutes(summary.avgNapMinutes)} />
+              )}
+              {summary.avgNightMinutes > 0 && (
+                <SummaryRow icon="🌙" label="Media noche"   value={formatMinutes(summary.avgNightMinutes)} />
+              )}
+              {summary.avgNapsPerDay > 0 && (
+                <SummaryRow icon="💤" label="Nº siestas/día" value={String(summary.avgNapsPerDay)} />
               )}
               {summary.avgAwakeWindowMin > 0 && (
                 <SummaryRow icon="⏳" label="Ventana de sueño" value={formatMinutes(summary.avgAwakeWindowMin)} />
