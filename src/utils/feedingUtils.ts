@@ -1,6 +1,6 @@
 import type { BabyConfig, Feeding, Rest, TimelineItem, DiaperChange, VitaminDLog, ProbioticLog, MassageLog, MedicationLog, Walk, Bath, BathSkin, Extraction } from '../types';
 import { isSameDay, todayIso, localDateOf } from './dateUtils';
-import { esSuenoNocturno } from './sleepUtils';
+import { esSuenoNocturno, etiquetarSuenos, ventanaNocturna } from './sleepUtils';
 import { getReferenceForDay } from '../data/referenceTable';
 
 function isFeedingInProgress(f: Feeding): boolean {
@@ -424,6 +424,9 @@ export interface HistorySummary {
   avgNapMinPerDay: number;    // minutos de siesta por día con siestas
   avgNightMinPerDay: number;  // minutos nocturnos por día con sueño nocturno
   avgNapsPerDay: number;      // nº de siestas por día con siestas
+  /** Hora media (minutos desde las 00:00) a la que termina el «Sueño #1» de la noche; null sin datos. */
+  avgFirstNightWakeMin: number | null;
+  firstNightWakeNights: number; // noches que entran en esa media
   avgAwakeWindowMin: number; // ventana de sueño media (minutos despierto entre siestas)
 }
 
@@ -551,8 +554,40 @@ export function getHistorySummary(
     ? Math.round((siestas.length / diasConSiesta.size) * 10) / 10
     : 0;
 
+  // Hora media del primer despertar de la noche (fin del «Sueño #1»), para
+  // saber cuándo sacar leche y tenerla lista. Se numera con todos los sueños
+  // (también el que está en curso) para que el #1 sea el mismo que en la lista.
+  // Las noches en que el primer sueño acaba ya fuera de la franja nocturna no
+  // cuentan: eso es el despertar de la mañana, no una toma de madrugada.
+  let avgFirstNightWakeMin: number | null = null;
+  let firstNightWakeNights = 0;
+  if (nightConfig) {
+    const etiquetas = etiquetarSuenos(rests, nightConfig);
+    const inicioNoche = (() => {
+      const [h, m] = ventanaNocturna(nightConfig).inicio.split(':').map(Number);
+      return h * 60 + m;
+    })();
+    // Minutos desde el inicio de la franja: así las 23:30 y la 01:00 se
+    // promedian sin que la medianoche las separe.
+    const desdeInicio = rests
+      .filter((r) => {
+        const e = etiquetas.get(r.id);
+        return e?.tipo === 'nocturno' && e.numero === 1 && r.endTime
+          && esSuenoNocturno(r.endTime, nightConfig);
+      })
+      .map((r) => {
+        const d = new Date(r.endTime!);
+        return (d.getHours() * 60 + d.getMinutes() - inicioNoche + 1440) % 1440;
+      });
+    firstNightWakeNights = desdeInicio.length;
+    if (desdeInicio.length > 0) {
+      const media = desdeInicio.reduce((s, m) => s + m, 0) / desdeInicio.length;
+      avgFirstNightWakeMin = Math.round(inicioNoche + media) % 1440;
+    }
+  }
+
   return { totalDays, avgFeedingsPerDay, avgBreastFeedsPerDay, avgBottleFeedsPerDay, avgSyringeFeedsPerDay, avgTotalMlPerDay, avgTotalMlPerFeeding, avgBreastMinPerDay, avgRestMinutes, avgRestMinPerDay, avgSleepsPerDay, avgAwakeWindowMin,
-    avgNapMinutes, avgNightMinutes, avgNapMinPerDay, avgNightMinPerDay, avgNapsPerDay };
+    avgNapMinutes, avgNightMinutes, avgNapMinPerDay, avgNightMinPerDay, avgNapsPerDay, avgFirstNightWakeMin, firstNightWakeNights };
 }
 
 export function generateId(): string {

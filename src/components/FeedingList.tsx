@@ -231,6 +231,13 @@ export default function FeedingList({
               {summary.avgNightMinutes > 0 && (
                 <SummaryRow icon="🌙" label="Media noche"   value={formatMinutes(summary.avgNightMinutes)} />
               )}
+              {summary.avgFirstNightWakeMin != null && (
+                <SummaryRow
+                  icon="⏰"
+                  label={`Despierta del 1er sueño (${summary.firstNightWakeNights} ${summary.firstNightWakeNights === 1 ? 'noche' : 'noches'})`}
+                  value={`${String(Math.floor(summary.avgFirstNightWakeMin / 60)).padStart(2, '0')}:${String(summary.avgFirstNightWakeMin % 60).padStart(2, '0')}`}
+                />
+              )}
               {summary.avgNapsPerDay > 0 && (
                 <SummaryRow icon="💤" label="Nº siestas/día" value={String(summary.avgNapsPerDay)} />
               )}
