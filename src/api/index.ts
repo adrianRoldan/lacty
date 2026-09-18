@@ -55,14 +55,24 @@ async function json<T>(res: Response): Promise<T> {
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
+/** Los diseños de «Hoy» que conviven mientras se decide cuál se queda. */
+export type TimelineDesign = 'clasico' | 'rail' | 'ahora';
+
+const DISENOS_HOY: TimelineDesign[] = ['clasico', 'rail', 'ahora'];
+
+/** Un valor desconocido (versión vieja, dato corrupto) cae en el clásico. */
+function leerDiseno(v: unknown): TimelineDesign {
+  return DISENOS_HOY.includes(v as TimelineDesign) ? (v as TimelineDesign) : 'clasico';
+}
+
 export interface AuthUser {
   username: string;
   email?: string | null;
   accountId: string;
   role: 'admin' | 'user';
   familyRole: 'administrador' | 'cuidador' | 'invitado';
-  /** Diseño del timeline de «Hoy» que ha elegido este usuario. */
-  timelineDesign: 'clasico' | 'rail';
+  /** Diseño de «Hoy» que ha elegido este usuario. */
+  timelineDesign: TimelineDesign;
   /** Si ya se le ofreció probar la línea de tiempo (el aviso sale una vez). */
   timelinePromptSeen: boolean;
   impersonating?: boolean;
@@ -112,7 +122,7 @@ export async function checkAuth(): Promise<AuthUser | null> {
       accountId: data.accountId,
       role: data.role ?? 'user',
       familyRole: data.familyRole ?? 'cuidador',
-      timelineDesign: data.timelineDesign === 'rail' ? 'rail' : 'clasico',
+      timelineDesign: leerDiseno(data.timelineDesign),
       timelinePromptSeen: !!data.timelinePromptSeen,
       impersonating: data.impersonating ?? false,
       originalUsername: data.originalUsername ?? undefined,
@@ -124,7 +134,7 @@ export async function checkAuth(): Promise<AuthUser | null> {
 
 /** Guarda preferencias personales en la cuenta, no en el dispositivo. */
 export async function updatePreferences(prefs: {
-  timelineDesign?: 'clasico' | 'rail';
+  timelineDesign?: TimelineDesign;
   timelinePromptSeen?: boolean;
 }): Promise<void> {
   const res = await apiFetch(`${BASE}/auth/preferences`, {
@@ -162,7 +172,7 @@ export async function login(username: string, password: string): Promise<AuthUse
     throw new Error(err.error ?? 'Error al iniciar sesión');
   }
   const data = await res.json();
-  return { username: data.username, accountId: data.accountId, role: data.role ?? 'user', familyRole: data.familyRole ?? 'cuidador', timelineDesign: data.timelineDesign === 'rail' ? 'rail' : 'clasico', timelinePromptSeen: !!data.timelinePromptSeen };
+  return { username: data.username, accountId: data.accountId, role: data.role ?? 'user', familyRole: data.familyRole ?? 'cuidador', timelineDesign: leerDiseno(data.timelineDesign), timelinePromptSeen: !!data.timelinePromptSeen };
 }
 
 export async function signup(opts: { username: string; email: string; password: string; babyName?: string; inviteCode?: string }): Promise<AuthUser> {
@@ -177,7 +187,7 @@ export async function signup(opts: { username: string; email: string; password: 
     throw new Error(err.error ?? 'Error al crear la cuenta');
   }
   const data = await res.json();
-  return { username: data.username, accountId: data.accountId, role: data.role ?? 'user', familyRole: data.familyRole ?? 'cuidador', timelineDesign: data.timelineDesign === 'rail' ? 'rail' : 'clasico', timelinePromptSeen: !!data.timelinePromptSeen };
+  return { username: data.username, accountId: data.accountId, role: data.role ?? 'user', familyRole: data.familyRole ?? 'cuidador', timelineDesign: leerDiseno(data.timelineDesign), timelinePromptSeen: !!data.timelinePromptSeen };
 }
 
 export interface AccountMember { id: string; username: string; isAdmin: boolean; isMe: boolean; familyRole: 'administrador' | 'cuidador' | 'invitado'; }

@@ -461,12 +461,15 @@ app.get('/api/auth/me', (req, res) => {
   });
 });
 
+/** Diseños de «Hoy» que conviven mientras se decide cuál se queda. */
+const DISENOS_HOY = ['clasico', 'rail', 'ahora'];
+
 // Preferencias personales del usuario (de momento, todo sobre el timeline).
 app.put('/api/auth/preferences', (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: 'No autenticado' });
   const { timelineDesign, timelinePromptSeen } = req.body ?? {};
   if (timelineDesign !== undefined) {
-    if (timelineDesign !== 'clasico' && timelineDesign !== 'rail') {
+    if (!DISENOS_HOY.includes(timelineDesign)) {
       return res.status(400).json({ error: 'Diseño no válido' });
     }
     db.prepare(`UPDATE users SET timeline_design = ? WHERE id = ?`).run(timelineDesign, req.session.userId);

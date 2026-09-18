@@ -182,7 +182,8 @@ const SALIDA_MS = 200;           // debe coincidir con la transición de salida
  * A diferencia de aquella, **no se cierra al apuntar**: lo normal es dar dos o
  * tres cosas seguidas, y cerrarse tras la primera obligaba a volver a abrirla.
  */
-function CareSheet({ items, readOnly, onClose }: {
+/** La usan la barra de una línea y los chips de «Ahora». */
+export function CareSheet({ items, readOnly, onClose }: {
   items: CareItem[];
   readOnly?: boolean;
   onClose: () => void;

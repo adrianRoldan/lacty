@@ -1,17 +1,19 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import * as api from './api';
+import type { TimelineDesign } from './api';
 import { toast } from './toast';
 
 /**
- * Diseño del timeline de «Hoy». Conviven dos mientras se decide cuál se queda:
- * el clásico (tarjetas de colores) y la línea de tiempo. Cada persona elige el
- * suyo desde el aviso de «Hoy» y puede cambiarlo cuando quiera en Ajustes.
+ * Diseño de «Hoy». Conviven tres mientras se decide cuál se queda: el clásico
+ * (tarjetas de colores), la línea de tiempo y «Ahora» —la propuesta nueva, que
+ * cambia toda la mitad de arriba de la pantalla—. Cada persona elige el suyo y
+ * puede cambiarlo cuando quiera en Ajustes.
  *
  * Tanto el diseño elegido como si ya se enseñó el aviso viven en la cuenta
  * (columnas `timeline_design` y `timeline_prompt_seen` del usuario), no en el
  * dispositivo: así se ve igual en el móvil y en el ordenador.
  */
-export type TimelineDesign = 'clasico' | 'rail';
+export type { TimelineDesign } from './api';
 
 interface TimelineDesignCtx {
   design: TimelineDesign;

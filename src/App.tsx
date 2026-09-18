@@ -9,6 +9,7 @@ import BabyConfigScreen from './components/BabyConfig';
 import BabyProfile from './components/BabyProfile';
 import GrowthView from './components/GrowthView';
 import TodayRail from './components/TodayRail';
+import TodayAhora from './components/TodayAhora';
 import CareSettings from './components/CareSettings';
 import LoginScreen from './components/LoginScreen';
 import DailySummary from './components/DailySummary';
@@ -1000,8 +1001,9 @@ export default function App() {
     toast('Línea de tiempo activada · puedes volver al diseño anterior en Ajustes');
   }
 
-  // Props de la pantalla «Hoy». Se comparten con la propuesta de rediseño
-  // (TodayRail) para que ambas se comporten igual y la comparación sea justa.
+  // Props de la pantalla «Hoy». Las comparten los tres diseños que conviven
+  // (clásico, línea de tiempo y «Ahora») para que se comporten igual y la
+  // comparación sea justa.
   const propsHoy = config ? {
     config,
     feedings,
@@ -1288,7 +1290,9 @@ export default function App() {
 
         {/* Main tabs */}
         {screen === 'hoy' && propsHoy && (
-          timelineDesign === 'rail'
+          timelineDesign === 'ahora'
+            ? <TodayAhora {...propsHoy} />
+          : timelineDesign === 'rail'
             ? <TodayRail {...propsHoy} />
             : <DailySummary
                 {...propsHoy}
