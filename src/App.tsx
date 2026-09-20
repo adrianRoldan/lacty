@@ -49,6 +49,7 @@ import ThemeSelector from './components/ThemeSelector';
 import { Toaster, toast } from './toast';
 import { OfflineBanner } from './offline';
 import { useTimelineDesign } from './timelineDesign';
+import { useModoMadrugada } from './hooks/useModoMadrugada';
 import { onceInFlight } from './utils/onceInFlight';
 const ChartsView = lazy(() => import('./components/ChartsView'));
 
@@ -133,7 +134,21 @@ export default function App() {
     dismissPrompt: dismissTimelinePrompt,
     hydrate: hydrateTimelineDesign,
   } = useTimelineDesign();
-  const { theme } = useTheme();
+  const { theme, forzarOscuro } = useTheme();
+
+  /**
+   * Modo madrugada: de 23:00 a 7:00 la app se pone oscura aunque el tema sea
+   * claro. Vive aquí, y no en la pantalla de «Hoy», para que no parpadee al
+   * cambiar de sección de noche.
+   *
+   * Solo para quien usa el diseño «Ahora»: el clásico y la línea de tiempo se
+   * quedan como estaban hasta que se decida cuál se queda.
+   */
+  const esMadrugada = useModoMadrugada();
+  useEffect(() => {
+    forzarOscuro(timelineDesign === 'ahora' && esMadrugada);
+  }, [timelineDesign, esMadrugada, forzarOscuro]);
+
   const [activeTab, setActiveTab] = useState<Tab>('hoy');
   const [screen, setScreen] = useState<Screen>('hoy');
   const [drawerOpen, setDrawerOpen] = useState(false);

@@ -18,13 +18,19 @@
  *     el resto de tipos siguen en la hoja de «Añadir».
  *  4. Los cuidados son una fila de fichas que se lee de un vistazo, no un
  *     chip resumen que hay que abrir para saber qué falta.
+ *  5. De 23:00 a 7:00 entra en MODO MADRUGADA: la pantalla se queda en lo
+ *     único que se usa a esa hora —el cronómetro de lo que está en curso y un
+ *     botón grande para terminarlo— y fuerza el oscuro aunque el tema sea
+ *     claro. Se va el resumen del día, la próxima cita y los cuidados que no
+ *     corren prisa; los que ya tocaban se quedan, porque una dosis de
+ *     medicación de madrugada es justo lo que no se puede esconder.
  */
 import { useState, useEffect } from 'react';
 import type {
   BabyConfig, Feeding, Rest, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent,
   DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, Extraction,
 } from '../types';
-import { getCurrentDaysOfLife, formatBabyAge, formatMinutes, isSameDay, todayIso } from '../utils/dateUtils';
+import { getCurrentDaysOfLife, formatBabyAge, formatMinutes, formatTime, isSameDay, todayIso } from '../utils/dateUtils';
 import {
   getTodayFeedings,
   getTotalSupplementMl,
@@ -41,6 +47,7 @@ import { getEffectiveReference, getSleepReference } from '../data/referenceTable
 import { etiquetarSuenos, contarPorTipo } from '../utils/sleepUtils';
 import { cuidadosConAcciones, CareSheet, type CareItem } from './CareToday';
 import { useElapsedTime } from '../hooks/useElapsedMinutes';
+import { useModoMadrugada, MADRUGADA_DESDE } from '../hooks/useModoMadrugada';
 import { Rail } from './TimelineRail';
 import NextEventBanner from './NextEventBanner';
 import DayInsights from './DayInsights';
@@ -221,19 +228,68 @@ export default function TodayAhora({
   const [resumenAbierto, setResumenAbierto] = useState(false);
   const [infoExtraccion, setInfoExtraccion] = useState(false);
 
+  // ── Modo madrugada ────────────────────────────────────────────────────────
+  // Aquí solo se decide el CONTENIDO. El oscuro lo fuerza App para toda la app:
+  // si lo hiciera esta pantalla, al tocar «Historial» a las tres de la mañana
+  // se volvería blanca de golpe.
+  const madrugada = useModoMadrugada();
+
+  const enCurso: EnCurso | null = feedingInProgress && lastFeeding
+    ? { tipo: 'toma', inicio: lastFeeding.timestamp, detalle: detalleDeToma(lastFeeding),
+        onTerminar: () => onStopFeeding(lastFeeding) }
+    : restInProgress
+      ? { tipo: 'sueno', inicio: restInProgress.startTime, detalle: null,
+          onTerminar: () => onStopRest(restInProgress) }
+      : null;
+
+  // La toma de ANTES de la que está en curso. Sin esto, la tarjeta de contexto
+  // repetía la hora de inicio del propio cronómetro.
+  const tomaPrevia = feedingInProgress
+    ? [...feedings].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).find((f) => f.id !== lastFeeding?.id) ?? null
+    : lastFeeding;
+  const previaHaceMin = tomaPrevia
+    ? Math.max(0, Math.floor((Date.now() - new Date(tomaPrevia.timestamp).getTime()) / 60000))
+    : null;
+
+  // Cuántas veces ha comido desde que empezó esta noche: es la pregunta de las
+  // cuatro de la mañana, y no depende de dónde caiga la medianoche.
+  const desdeLaNoche = inicioDeLaNoche().getTime();
+  const tomasDeLaNoche = feedings.filter((f) => new Date(f.timestamp).getTime() >= desdeLaNoche).length;
+
+  const cuidadosVisibles = madrugada ? careItems.filter((c) => !c.done && c.urgent) : careItems;
+  const avisosVisibles = madrugada ? avisos.filter((a) => a.urgente) : avisos;
+
   return (
     <div className="p-4 pb-24">
       {/* ── 1. Cabecera ────────────────────────────────────────────────── */}
-      <div className="mb-3">
-        <h1 className="text-2xl font-bold text-gray-900 leading-tight">Hoy</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          {new Date().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
-          {config.name ? ` · ${config.name}, ` : ' · '}
-          {formatBabyAge(daysOfLife)}
-        </p>
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-gray-900 leading-tight">
+            {madrugada ? 'Madrugada' : 'Hoy'}
+          </h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {madrugada
+              ? new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+              : new Date().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
+            {config.name ? ` · ${config.name}, ` : ' · '}
+            {formatBabyAge(daysOfLife)}
+          </p>
+        </div>
+        {madrugada && (
+          <span
+            className="shrink-0 flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1.5 text-[11px] font-semibold text-gray-500"
+            title={`De ${MADRUGADA_DESDE}:00 a 7:00 la pantalla se simplifica y la app se pone oscura`}
+          >
+            <MoonGlyph />
+            Modo noche
+          </span>
+        )}
       </div>
 
       {/* ── 2. La tarjeta «Ahora» ──────────────────────────────────────── */}
+      {madrugada && enCurso ? (
+        <TarjetaEnCurso enCurso={enCurso} readOnly={readOnly} />
+      ) : (
       <TarjetaAhora
         feedingInProgress={feedingInProgress}
         lastFeedingStart={lastFeeding?.timestamp}
@@ -250,14 +306,31 @@ export default function TodayAhora({
         onAddSueno={() => onAdd('sueno')}
         onAbrirAñadir={onAbrirAñadir}
       />
+      )}
 
       {/* ── 3. Una sola línea de acción, con cola si hiciera falta ─────── */}
-      {avisos.length > 0 && <LineaDeAviso aviso={avisos[0]} pendientes={avisos.length} />}
+      {avisosVisibles.length > 0 && <LineaDeAviso aviso={avisosVisibles[0]} pendientes={avisosVisibles.length} />}
 
       {/* ── 4. Cuidados del día ────────────────────────────────────────── */}
-      <FichasDeCuidado items={careItems} readOnly={readOnly} />
+      <FichasDeCuidado items={cuidadosVisibles} readOnly={readOnly} />
 
       {/* ── 5. Resumen del día, plegado ────────────────────────────────── */}
+      {madrugada ? (
+        <div className="flex gap-2 mt-3">
+          {enCurso && (
+            <TarjetaContexto
+              etiqueta="Toma anterior"
+              valor={tomaPrevia ? formatTime(tomaPrevia.timestamp) : '—'}
+              nota={previaHaceMin !== null ? `hace ${formatElapsed(previaHaceMin)}` : undefined}
+            />
+          )}
+          <TarjetaContexto
+            etiqueta="Esta noche"
+            valor={tomasDeLaNoche === 1 ? '1 toma' : `${tomasDeLaNoche} tomas`}
+            nota={enCurso ? undefined : 'desde las 23:00'}
+          />
+        </div>
+      ) : (
       <div className="bg-white rounded-2xl shadow-sm mt-3 overflow-hidden">
         <button
           onClick={() => setResumenAbierto((o) => !o)}
@@ -304,19 +377,23 @@ export default function TodayAhora({
           </div>
         )}
       </div>
+      )}
 
       {/* ── 6. Próxima cita ────────────────────────────────────────────── */}
-      <div className="mt-3">
-        <NextEventBanner events={calendarEvents} onOpen={onOpenAgenda} />
-      </div>
+      {/* A las cuatro de la mañana, una cita del jueves no pinta nada. */}
+      {!madrugada && (
+        <div className="mt-3">
+          <NextEventBanner events={calendarEvents} onOpen={onOpenAgenda} />
+        </div>
+      )}
 
       {/* ── 7. Registro del día ────────────────────────────────────────── */}
       <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mt-4 mb-2">
-        Registros de hoy
+        {madrugada ? 'Esta noche' : 'Registros de hoy'}
       </h2>
       {timeline.length === 0 ? (
         <div className="text-center py-10 text-gray-400">
-          <p className="text-base">Aún no hay registros hoy</p>
+          <p className="text-base">{madrugada ? 'Nada apuntado esta noche' : 'Aún no hay registros hoy'}</p>
           {!readOnly && (
             <p className="text-sm mt-1">Empieza por los dos botones de arriba.</p>
           )}
@@ -346,7 +423,7 @@ export default function TodayAhora({
         />
       )}
 
-      {timeline.length > 0 && (
+      {timeline.length > 0 && !madrugada && (
         <button
           onClick={onOpenExport}
           className="w-full mt-4 flex items-center gap-3 bg-white rounded-2xl shadow-sm px-4 py-3 text-left active:bg-gray-50 touch-manipulation"
@@ -385,6 +462,100 @@ export default function TodayAhora({
       )}
     </div>
   );
+}
+
+// ── Modo madrugada ──────────────────────────────────────────────────────────
+
+interface EnCurso {
+  tipo: 'toma' | 'sueno';
+  inicio: string;
+  detalle: string | null;
+  onTerminar: () => void;
+}
+
+/**
+ * De madrugada, lo que está en curso ES la pantalla: un cronómetro que se lee
+ * a un metro y un botón que ocupa todo el ancho. Nada más, porque a esa hora
+ * no se consulta nada, se termina una toma y se vuelve a la cama.
+ */
+function TarjetaEnCurso({ enCurso, readOnly }: { enCurso: EnCurso; readOnly?: boolean }) {
+  const esToma = enCurso.tipo === 'toma';
+  // Una toma se cronometra —los minutos de cada pecho cuentan—, un sueño no:
+  // ahí «48:01» se lee como horas y los segundos solo son ruido.
+  const cronometro = useElapsedTime(enCurso.inicio);
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((n) => n + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
+  const minutos = Math.max(0, Math.floor((Date.now() - new Date(enCurso.inicio).getTime()) / 60000));
+  const t = esToma ? cronometro : formatElapsed(minutos);
+  const acento = esToma ? 'text-mustard-700' : 'text-lagoon-700';
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm p-5">
+      <div className="flex items-center gap-2">
+        <span className={`w-2 h-2 rounded-full ${esToma ? 'bg-mustard-300' : 'bg-lagoon-300'}`} aria-hidden="true" />
+        <span className={`text-[11px] font-semibold uppercase tracking-wide ${acento}`}>
+          {esToma ? 'Toma en curso' : 'Durmiendo'}
+        </span>
+        <span className="ml-auto text-xs text-gray-400">
+          desde las {formatTime(enCurso.inicio)}
+        </span>
+      </div>
+
+      <p className={`font-bold tracking-tight tabular-nums text-gray-900 mt-2 ${
+        esToma ? 'text-[54px] leading-[58px]' : 'text-[44px] leading-[50px]'
+      }`}>
+        {t}
+      </p>
+
+      {enCurso.detalle && (
+        <p className="text-sm text-gray-500 mt-1.5">{enCurso.detalle}</p>
+      )}
+
+      {!readOnly && (
+        <button
+          onClick={enCurso.onTerminar}
+          className="w-full h-14 rounded-2xl bg-sage-600 text-white text-base font-bold mt-4 touch-manipulation active:bg-sage-700"
+        >
+          {esToma ? 'Terminar toma' : 'Terminar sueño'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function TarjetaContexto({ etiqueta, valor, nota }: { etiqueta: string; valor: string; nota?: string }) {
+  return (
+    <div className="flex-1 min-w-0 bg-white rounded-2xl shadow-sm px-3 py-2.5">
+      <p className="text-[11px] text-gray-400 truncate">{etiqueta}</p>
+      <p className="text-[15px] font-semibold text-gray-900 mt-0.5 truncate tabular-nums">{valor}</p>
+      {nota && <p className="text-[11px] text-gray-400 mt-0.5 truncate">{nota}</p>}
+    </div>
+  );
+}
+
+/** Qué se está dando en una toma abierta, para no tener que abrirla. */
+function detalleDeToma(f: Feeding): string | null {
+  const partes = [
+    f.hasBreast && 'pecho',
+    f.hasBottle && 'biberón',
+    f.hasSupplement && 'jeringa',
+  ].filter(Boolean) as string[];
+  if (partes.length === 0) return null;
+  return partes.join(' + ').replace(/^./, (c) => c.toUpperCase());
+}
+
+/**
+ * Cuándo empezó la noche en curso: si aún no han dado las 7, la de ayer;
+ * si ya es de día, la que viene.
+ */
+function inicioDeLaNoche(ahora: Date = new Date()): Date {
+  const d = new Date(ahora);
+  if (d.getHours() < MADRUGADA_DESDE) d.setDate(d.getDate() - 1);
+  d.setHours(MADRUGADA_DESDE, 0, 0, 0);
+  return d;
 }
 
 // ── La tarjeta «Ahora» ──────────────────────────────────────────────────────
