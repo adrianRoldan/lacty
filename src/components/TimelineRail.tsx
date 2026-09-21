@@ -8,7 +8,7 @@
  * Antes estaba dentro de TodayRail y el segundo no podía usarlo sin duplicar
  * el editar/borrar/finalizar de los seis tipos de registro.
  */
-import type React from 'react';
+import React, { createContext, useContext } from 'react';
 import type {
   Feeding, Rest, DiaperChange, Walk, Extraction, CareEntry, MedicationLog, Bath,
 } from '../types';
@@ -16,10 +16,29 @@ import { formatTime, formatMinutes, gapMinutes, isSameDay, startDayHint } from '
 import { buildTimeline, getRestDurationMinutes } from '../utils/feedingUtils';
 import { useElapsedTime } from '../hooks/useElapsedMinutes';
 import { useConfirm } from './ConfirmDialog';
-import { MedicineIcon, StrollerIcon } from './CareIcons';
+import {
+  MedicineIcon, StrollerIcon,
+  BottleIcon, SyringeIcon, MoonIcon, NapIcon, DropIcon, PumpIcon, NappyIcon,
+} from './CareIcons';
+import { BreastIcon } from './FeedingItem';
 
 // ── Paleta del rail ─────────────────────────────────────────────────────────
-// El color vive en el nodo y en el texto de acento, no en un bloque de fondo.
+// Dos paletas para dos variantes, porque el color no se comporta igual de
+// puntito que de fondo.
+//
+// `plano` (la línea de tiempo): el color vive en el nodo y en los chips, así
+// que puede permitirse un tono por subtipo —pecho rosa, biberón azul,
+// fórmula ámbar— sin cansar.
+//
+// `cajas` («Ahora»): el color pasa a ser el fondo del registro, y ocho tintes
+// distintos en una pantalla se vuelven una macedonia. Se agrupa por CATEGORÍA
+// con la paleta de la app —todas las tomas en mostaza, el sueño en lagoon, el
+// pañal en taupe, el paseo en sage— y el subtipo lo cuenta el icono, que para
+// eso está. Es lo que se validó en el mockup.
+//
+// Todos los tonos de `cajas` están redefinidos en el bloque `.dark` de
+// index.css. No es un detalle: `sky-50` no lo está, y con él las cajas de
+// pañal salían BLANCAS de noche con el texto encima sin contraste.
 const ACENTO = {
   pecho:   { nodo: 'bg-pink-600',    chip: 'bg-pink-100 text-pink-700' },
   biberon: { nodo: 'bg-blue-600',    chip: 'bg-blue-100 text-blue-700' },
@@ -34,6 +53,50 @@ const ACENTO = {
 
 type Acento = keyof typeof ACENTO;
 
+const COMER = {
+  nodo: 'bg-mustard-300', caja: 'bg-mustard-100',
+  glifo: 'text-mustard-700', chip: 'bg-mustard-200 text-mustard-700',
+} as const;
+
+const CAJAS: Record<Acento, { nodo: string; caja: string; glifo: string; chip: string }> = {
+  pecho: COMER,
+  biberon: COMER,
+  formula: COMER,
+  jeringa: COMER,
+  sueno:   { nodo: 'bg-lagoon-300', caja: 'bg-lagoon-100', glifo: 'text-lagoon-700', chip: 'bg-lagoon-200 text-lagoon-700' },
+  // taupe-100 y no -50: sobre el fondo crema de la app, el -50 no llegaba a
+  // leerse como una caja.
+  panal:   { nodo: 'bg-taupe-200',  caja: 'bg-taupe-100',  glifo: 'text-taupe-700',  chip: 'bg-taupe-200 text-taupe-700' },
+  paseo:   { nodo: 'bg-sage-600',   caja: 'bg-sage-50',    glifo: 'text-sage-700',   chip: 'bg-sage-100 text-sage-700' },
+  // Rosa y no cian: el cian era el único tinte que gritaba entre los demás, y
+  // además se confundía con el lagoon del sueño. El rosa queda libre porque
+  // las tomas se han agrupado en mostaza, y la extracción es leche.
+  extraccion: { nodo: 'bg-pink-600', caja: 'bg-pink-50',   glifo: 'text-pink-700',   chip: 'bg-pink-100 text-pink-700' },
+  // `bg-white` y no un gris: sobre el fondo crema un gray-100 no se ve, y de
+  // noche `.dark .bg-white` lo convierte en la superficie oscura de siempre.
+  cuidado: { nodo: 'bg-gray-300',   caja: 'bg-white',      glifo: 'text-gray-500',   chip: 'bg-gray-100 text-gray-500' },
+};
+
+/**
+ * Cómo se pinta cada registro:
+ *
+ *  - `plano`  — el de la «línea de tiempo»: fila transparente, color en el
+ *               nodo y en los chips.
+ *  - `cajas`  — el de «Ahora»: cada registro en una cajita del color de su
+ *               categoría, con un icono SVG teñido en vez de un emoji.
+ *
+ * Va por contexto y no por prop para no atravesar con él las seis filas.
+ */
+export type VarianteRail = 'plano' | 'cajas';
+const VarianteCtx = createContext<VarianteRail>('plano');
+
+/** El juego de colores que toca, según la variante en la que se esté pintando. */
+function usePaleta(acento: Acento) {
+  const enCajas = useContext(VarianteCtx) === 'cajas';
+  const p = enCajas ? CAJAS[acento] : ACENTO[acento];
+  return { ...p, caja: enCajas ? CAJAS[acento].caja : '', glifo: enCajas ? CAJAS[acento].glifo : '', enCajas };
+}
+
 // ── El rail ─────────────────────────────────────────────────────────────────
 
 export type Timeline = ReturnType<typeof buildTimeline>;
@@ -46,6 +109,7 @@ export function Rail({
   onEditWalk, onDeleteWalk, onStopWalk,
   onEditMedication, onEditBath,
   onEditExtraction, onDeleteExtraction, onInfoExtraction,
+  variante = 'plano',
 }: {
   timeline: Timeline;
   today: string;
@@ -67,11 +131,13 @@ export function Rail({
   onEditExtraction: (e: Extraction) => void;
   onDeleteExtraction: (id: string) => void;
   onInfoExtraction: () => void;
+  variante?: VarianteRail;
 }) {
   const ahora = new Date();
   let franjaAnterior: string | null = null;
 
   return (
+    <VarianteCtx.Provider value={variante}>
     <div className="relative">
       {/* Marcador de «ahora»: el timeline va de lo más reciente a lo más antiguo */}
       <div className="flex gap-2">
@@ -133,6 +199,7 @@ export function Rail({
         );
       })}
     </div>
+    </VarianteCtx.Provider>
   );
 }
 
@@ -143,7 +210,7 @@ export function Rail({
  */
 function Fila({
   horaInicio, horaFin, acento, esBarra, enCurso, avisoDia,
-  icono, titulo, chips, detalle, cronometro,
+  icono, glifo, titulo, chips, detalle, cronometro,
   onClick, onStop, onDelete, onInfo, etiquetaBorrar,
 }: {
   horaInicio: string;
@@ -153,6 +220,8 @@ function Fila({
   enCurso?: boolean;
   avisoDia?: string | null;
   icono: React.ReactNode;
+  /** Icono SVG para la variante en cajas; sin él se usa el emoji de `icono`. */
+  glifo?: React.ReactNode;
   titulo: string;
   chips?: React.ReactNode;
   detalle?: React.ReactNode;
@@ -163,7 +232,7 @@ function Fila({
   onInfo?: () => void;
   etiquetaBorrar?: string;
 }) {
-  const { nodo } = ACENTO[acento];
+  const { nodo, caja, glifo: colorGlifo, enCajas } = usePaleta(acento);
 
   return (
     <div className="group flex gap-2">
@@ -185,14 +254,19 @@ function Fila({
         )}
       </div>
 
-      {/* Contenido */}
+      {/* Contenido. En cajas el color se va al fondo del registro; en plano
+          la fila es transparente y el color vive solo en el nodo y los chips. */}
       <div
         onClick={onClick}
-        className={`flex-1 min-w-0 flex items-start gap-2 rounded-xl px-2 py-1.5 mb-0.5 select-none
-          ${onClick ? 'cursor-pointer active:bg-gray-100' : ''}
-          ${enCurso ? 'bg-white shadow-sm' : ''}`}
+        className={`flex-1 min-w-0 flex items-start gap-2 select-none
+          ${enCajas
+            ? `rounded-xl px-2.5 py-2 mb-1.5 ${caja} ${enCurso ? 'ring-1 ring-gray-300' : ''}`
+            : `rounded-xl px-2 py-1.5 mb-0.5 ${enCurso ? 'bg-white shadow-sm' : ''}`}
+          ${onClick ? (enCajas ? 'cursor-pointer active:brightness-95' : 'cursor-pointer active:bg-gray-100') : ''}`}
       >
-        <span className="shrink-0 w-5 flex justify-center pt-0.5 leading-none">{icono}</span>
+        <span className={`shrink-0 w-5 flex justify-center pt-0.5 leading-none ${enCajas ? colorGlifo : ''}`}>
+          {enCajas ? (glifo ?? icono) : icono}
+        </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
             {avisoDia && (
@@ -224,7 +298,9 @@ function Fila({
         {onInfo && (
           <button
             onClick={(e) => { e.stopPropagation(); onInfo(); }}
-            className="text-cyan-400 hover:text-cyan-600 p-1.5 shrink-0 self-center touch-manipulation"
+            className={`p-1.5 shrink-0 self-center touch-manipulation ${
+              enCajas ? 'text-gray-400 hover:text-gray-600' : 'text-cyan-400 hover:text-cyan-600'
+            }`}
             aria-label="Ver información de extracciones"
             title="Ver información de extracciones"
           >
@@ -255,8 +331,9 @@ function Fila({
 }
 
 function Chip({ tono, children }: { tono: Acento; children: React.ReactNode }) {
+  const { chip } = usePaleta(tono);
   return (
-    <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${ACENTO[tono].chip}`}>
+    <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${chip}`}>
       {children}
     </span>
   );
@@ -309,6 +386,7 @@ function FilaToma({ feeding, today, readOnly, onEdit, onDelete, onStop }: {
       enCurso={enCurso}
       avisoDia={startDayHint(feeding.timestamp, today)}
       icono={<span className="text-base">{feeding.hasBreast ? '🤱' : feeding.hasBottle ? '🍼' : '💉'}</span>}
+      glifo={feeding.hasBreast ? <BreastIcon size={16} /> : feeding.hasBottle ? <BottleIcon /> : <SyringeIcon />}
       titulo={nombres.join(' + ') || 'Toma'}
       chips={<>
         {feeding.hasBreast && !pechoEnCurso && totalBreastMin > 0 && <Chip tono="pecho">{formatMinutes(totalBreastMin)}</Chip>}
@@ -350,6 +428,7 @@ function FilaSueno({ rest, today, etiqueta, readOnly, onEdit, onDelete, onStop }
       enCurso={enCurso}
       avisoDia={startDayHint(rest.startTime, today)}
       icono={<span className="text-base">{etiqueta?.startsWith('Siesta') ? '💤' : '🌙'}</span>}
+      glifo={etiqueta?.startsWith('Siesta') ? <NapIcon /> : <MoonIcon />}
       titulo={etiqueta ?? 'Sueño'}
       chips={duracion != null
         ? <Chip tono="sueno">{formatMinutes(duracion)}</Chip>
@@ -398,6 +477,7 @@ function FilaPanal({ diaper, readOnly, onEdit, onDelete }: {
       horaInicio={formatTime(diaper.timestamp)}
       acento="panal"
       icono={<span className="text-base">{PANAL_ICON[diaper.content]}</span>}
+      glifo={diaper.content === 'wet' ? <DropIcon /> : <NappyIcon />}
       titulo={PANAL_LABEL[diaper.content]}
       chips={alarma ? <span className="bg-red-100 text-red-600 text-[11px] font-bold px-1.5 py-0.5 rounded-full">⚠ revisar</span> : null}
       detalle={detalle || null}
@@ -428,6 +508,7 @@ function FilaExtraccion({ extraction, readOnly, onEdit, onDelete, onInfo }: {
       horaInicio={formatTime(extraction.timestamp)}
       acento="extraccion"
       icono={<span className="text-base">🥛</span>}
+      glifo={<PumpIcon />}
       titulo={LADO_LABEL[extraction.side]}
       chips={extraction.ml != null ? <Chip tono="extraccion">{extraction.ml} ml</Chip> : null}
       detalle={detalle || null}
@@ -461,6 +542,7 @@ function FilaPaseo({ walk, today, readOnly, onEdit, onDelete, onStop }: {
       enCurso={enCurso}
       avisoDia={startDayHint(walk.startTime, today)}
       icono={<span className="text-coral-700"><StrollerIcon size={16} /></span>}
+      glifo={<StrollerIcon size={16} />}
       titulo="Paseo"
       chips={duracion != null
         ? <Chip tono="paseo">{formatMinutes(duracion)}</Chip>
@@ -479,6 +561,7 @@ function FilaPaseo({ walk, today, readOnly, onEdit, onDelete, onStop }: {
 
 /** Cuidados puntuales (vitamina, probiótico, masaje, medicamento, baño). */
 function FilaCuidado({ entry, onEdit }: { entry: CareEntry; onEdit?: () => void }) {
+  const enCajas = useContext(VarianteCtx) === 'cajas';
   return (
     <div className="group flex gap-2">
       <div className="w-11 shrink-0 text-right pt-2">
@@ -488,7 +571,11 @@ function FilaCuidado({ entry, onEdit }: { entry: CareEntry; onEdit?: () => void 
         <span className="absolute left-1/2 -translate-x-1/2 inset-y-0 w-px bg-gray-300" />
         <span className="absolute left-1/2 -translate-x-1/2 top-2.5 w-1.5 h-1.5 rounded-full bg-gray-300 ring-2 ring-cream-50" />
       </div>
-      <div className="flex-1 min-w-0 flex items-center gap-1.5 px-2 py-1">
+      {/* Los cuidados se quedan discretos también en cajas: son el apunte de
+          que algo se dio, no un registro que se consulte. */}
+      <div className={`flex-1 min-w-0 flex items-center gap-1.5 ${
+        enCajas ? `${CAJAS.cuidado.caja} rounded-xl px-2.5 py-1.5 mb-1.5` : 'px-2 py-1'
+      }`}>
         <span className="shrink-0 text-xs leading-none">
           {entry.kind === 'medication'
             ? <span className="text-violet-500"><MedicineIcon size={13} /></span>

@@ -18,6 +18,9 @@
  *     el resto de tipos siguen en la hoja de «Añadir».
  *  4. Los cuidados son una fila de fichas que se lee de un vistazo, no un
  *     chip resumen que hay que abrir para saber qué falta.
+ *  4b. El registro del día va en cajitas del color de su tipo, con iconos SVG
+ *     teñidos en vez de emojis (variante «cajas» del rail compartido): se ve
+ *     qué es cada fila sin leerla.
  *  5. De 23:00 a 7:00 entra en MODO MADRUGADA: la pantalla se queda en lo
  *     único que se usa a esa hora —el cronómetro de lo que está en curso y un
  *     botón grande para terminarlo— y fuerza el oscuro aunque el tema sea
@@ -400,6 +403,7 @@ export default function TodayAhora({
         </div>
       ) : (
         <Rail
+          variante="cajas"
           timeline={timeline}
           today={today}
           etiquetasSueno={etiquetasSueno}
