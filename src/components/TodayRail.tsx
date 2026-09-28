@@ -301,7 +301,7 @@ export default function TodayRail({
                 <p className="text-xs text-gray-400 mt-0.5">jeringa ml</p>
               </div>
             </div>
-            <DayInsights feedings={todayFeedings} rests={todayRests} reference={reference} sleepRef={sleepRef} todayRestMinutes={totalRestMin} siestasHoy={conteoHoy.siestas} nocturnosHoy={conteoHoy.nocturnos} extractions={todayExtractions} avgFeedsTarget={avgFeedsTarget} />
+            <DayInsights feedings={todayFeedings} rests={todayRests} reference={reference} sleepRef={sleepRef} todayRestMinutes={totalRestMin} siestasHoy={conteoHoy.siestas} nocturnosHoy={conteoHoy.nocturnos} extractions={todayExtractions} avgFeedsTarget={avgFeedsTarget} baths={baths} />
             <WeekComparison feedings={feedings} rests={rests} />
           </div>
         )}

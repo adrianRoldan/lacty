@@ -374,7 +374,7 @@ export default function TodayAhora({
             <DayInsights
               feedings={todayFeedings} rests={todayRests} reference={reference} sleepRef={sleepRef}
               todayRestMinutes={totalRestMin} siestasHoy={conteoHoy.siestas} nocturnosHoy={conteoHoy.nocturnos}
-              extractions={todayExtractions} avgFeedsTarget={avgFeedsTarget}
+              extractions={todayExtractions} avgFeedsTarget={avgFeedsTarget} baths={baths}
             />
             <WeekComparison feedings={feedings} rests={rests} />
           </div>
