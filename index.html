@@ -24,6 +24,23 @@
 
     <!-- Color de barra de navegador en Android -->
     <meta name="theme-color" content="#7D9E82" />
+
+    <!-- Modo noche desde el primer instante: sin esto, hasta que llega el
+         JavaScript de la app la página se ve en blanco y deslumbra. Misma regla
+         que getInitialTheme() en src/theme.tsx: su elección guardada o, si no
+         eligió nada, la del sistema. -->
+    <script>
+      (function () {
+        var t = null;
+        try { t = localStorage.getItem('lacty-theme'); } catch (e) {}
+        var oscuro = t === 'dark' || (t !== 'light' && !!window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+        if (oscuro) document.documentElement.classList.add('dark');
+      })();
+    </script>
+    <style>
+      html { background-color: #F5F4F2; }
+      html.dark { background-color: #14140f; color-scheme: dark; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
