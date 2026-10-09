@@ -238,6 +238,47 @@
   --orb-alerta-texto: #FF8E80;
 }
 
+/* Fondo de «Órbita»: con ese diseño elegido, <html> lleva la clase `.orbita`
+   (la pone App) y la paleta neutra se enfría. En oscuro, el negro cálido del
+   modo noche pasa al azul noche de los mockups; en claro, el crema pasa a un
+   gris frío. Solo se tocan neutros y superficies: los colores de cada tipo de
+   registro siguen siendo los de siempre. */
+.orbita:not(.dark) {
+  /* Los dos grises más claros, un punto más oscuros y fríos: sobre este fondo
+     la pista del reloj (gray-100) desaparecía. */
+  --color-gray-100: #E6E8F1;
+  --color-gray-200: #D5D9E8;
+  --color-cream-50:  #F3F4F9;
+  --color-cream-100: #E8EAF3;
+  --color-cream-200: #D9DCEA;
+}
+.dark.orbita {
+  --color-gray-50:  #151829;
+  --color-gray-100: #1D2138;
+  --color-gray-200: #2C3150;
+  --color-gray-300: #3A4066;
+  --color-gray-400: #6E7491;
+  --color-gray-500: #A3A8C3;
+  --color-gray-600: #BEC2D8;
+  --color-gray-700: #D6D9E8;
+  --color-gray-800: #E9EAF2;
+  --color-gray-900: #F4EFE6;
+
+  --color-cream-50:  #0E1020;
+  --color-cream-100: #141729;
+  --color-cream-200: #1D2138;
+}
+.dark.orbita .bg-white {
+  background-color: #171A2E;
+}
+.orbita:not(.dark) body {
+  background-color: #F3F4F9;
+}
+.dark.orbita body {
+  background-color: #0E1020;
+  color: #F4EFE6;
+}
+
 * {
   box-sizing: border-box;
 }

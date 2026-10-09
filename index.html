@@ -35,11 +35,15 @@
         try { t = localStorage.getItem('lacty-theme'); } catch (e) {}
         var oscuro = t === 'dark' || (t !== 'light' && !!window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
         if (oscuro) document.documentElement.classList.add('dark');
+        // Con el diseño «Órbita», el fondo es azul noche (ver src/index.css).
+        try { if (localStorage.getItem('lacty-orbita') === '1') document.documentElement.classList.add('orbita'); } catch (e) {}
       })();
     </script>
     <style>
       html { background-color: #F5F4F2; }
       html.dark { background-color: #14140f; color-scheme: dark; }
+      html.orbita { background-color: #F3F4F9; }
+      html.dark.orbita { background-color: #0E1020; }
     </style>
   </head>
   <body>

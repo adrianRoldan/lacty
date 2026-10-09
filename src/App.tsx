@@ -150,6 +150,15 @@ export default function App() {
     forzarOscuro((timelineDesign === 'ahora' || timelineDesign === 'orbita') && esMadrugada);
   }, [timelineDesign, esMadrugada, forzarOscuro]);
 
+  // «Órbita» enfría la paleta de toda la app (azul noche en oscuro, ver
+  // src/index.css). Se recuerda en el dispositivo para que index.html pinte
+  // ese fondo antes de que cargue la app y no haya un destello de otro color.
+  useEffect(() => {
+    const orbita = timelineDesign === 'orbita';
+    document.documentElement.classList.toggle('orbita', orbita);
+    try { localStorage.setItem('lacty-orbita', orbita ? '1' : '0'); } catch { /* sin almacenamiento */ }
+  }, [timelineDesign]);
+
   const [activeTab, setActiveTab] = useState<Tab>('hoy');
   const [screen, setScreen] = useState<Screen>('hoy');
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -1169,7 +1178,8 @@ export default function App() {
 
       {/* Columna principal */}
       <div className="flex flex-col flex-1 min-w-0 w-full lg:max-w-5xl lg:mx-auto">
-      {!showForm && !isAdmin && config && (
+      {/* En «Hoy» con «Órbita» la cabecera la pone la propia pantalla. */}
+      {!showForm && !isAdmin && config && !(screen === 'hoy' && timelineDesign === 'orbita') && (
         <BabyBar
           babies={babies}
           activeId={config.id}
@@ -1314,7 +1324,13 @@ export default function App() {
         {/* Main tabs */}
         {screen === 'hoy' && propsHoy && (
           timelineDesign === 'orbita'
-            ? <TodayOrbita {...propsHoy} />
+            ? <TodayOrbita
+                {...propsHoy}
+                babies={babies}
+                onSwitchBaby={switchBaby}
+                onGoToBaby={() => navigate('config')}
+                onOpenDrawer={() => setDrawerOpen(true)}
+              />
           : timelineDesign === 'ahora'
             ? <TodayAhora {...propsHoy} />
           : timelineDesign === 'rail'

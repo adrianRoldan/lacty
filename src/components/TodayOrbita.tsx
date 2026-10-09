@@ -50,9 +50,15 @@ import ExtractionsInsightCard from './ExtractionsInsightCard';
 import OrbitaDial from './OrbitaDial';
 import { LineaDeAviso, FichasDeCuidado, CajaMl, type Aviso } from './TodayAhora';
 import type { TipoRegistro } from './AddRecordSheet';
+import { useTheme } from '../theme';
 
 interface Props {
   config: BabyConfig;
+  /** Para la cabecera propia, que sustituye a la barra de arriba de la app. */
+  babies: BabyConfig[];
+  onSwitchBaby: (id: string) => void;
+  onGoToBaby: () => void;
+  onOpenDrawer: () => void;
   feedings: Feeding[];
   rests: Rest[];
   currentWeightKg?: number;
@@ -101,7 +107,7 @@ interface Props {
 }
 
 export default function TodayOrbita({
-  config, feedings, rests, currentWeightKg, vitaminDLogs,
+  config, babies, onSwitchBaby, onGoToBaby, onOpenDrawer, feedings, rests, currentWeightKg, vitaminDLogs,
   calendarEvents, readOnly,
   onOpenAgenda, onOpenExport,
   onAdd, onAbrirAñadir, onQuickBreast, onQuickBottle, onQuickRest,
@@ -301,15 +307,18 @@ export default function TodayOrbita({
       </div>
 
       {/* ── 1. Cabecera ────────────────────────────────────────────────── */}
-      <div className="flex items-baseline justify-between gap-3">
-        <h1 className="text-2xl font-bold text-gray-900 leading-tight">Hoy</h1>
-        <p className="text-sm text-gray-500 truncate">
-          {config.name ? `${config.name} · ` : ''}{formatBabyAge(daysOfLife)}
-          {currentWeightKg ? ` · ${currentWeightKg.toLocaleString('es-ES')} kg` : ''}
-          {' · '}
-          {ahora.toLocaleDateString('es-ES', { weekday: 'long' })}
-        </p>
-      </div>
+      <Cabecera
+        config={config}
+        babies={babies}
+        subtitulo={[
+          formatBabyAge(daysOfLife),
+          currentWeightKg ? `${currentWeightKg.toLocaleString('es-ES')} kg` : null,
+          ahora.toLocaleDateString('es-ES', { weekday: 'long' }),
+        ].filter(Boolean).join(' · ')}
+        onSwitchBaby={onSwitchBaby}
+        onGoToBaby={onGoToBaby}
+        onOpenDrawer={onOpenDrawer}
+      />
 
       {/* ── 2. El reloj ────────────────────────────────────────────────── */}
       <div ref={relojRef} className="mx-auto mt-3 w-full max-w-[320px]">
@@ -491,6 +500,101 @@ export default function TodayOrbita({
         </div>
       )}
     </div>
+  );
+}
+
+// ── Cabecera ────────────────────────────────────────────────────────────────
+
+/**
+ * Sustituye a la barra blanca de la app en esta pantalla: el nombre en grande
+ * (tocándolo se cambia de bebé, o se va a su ficha si solo hay uno) y dos
+ * botones redondos, modo noche y menú. La cuenta está dentro del menú.
+ */
+function Cabecera({ config, babies, subtitulo, onSwitchBaby, onGoToBaby, onOpenDrawer }: {
+  config: BabyConfig;
+  babies: BabyConfig[];
+  subtitulo: string;
+  onSwitchBaby: (id: string) => void;
+  onGoToBaby: () => void;
+  onOpenDrawer: () => void;
+}) {
+  const { theme, toggle } = useTheme();
+  const [abierto, setAbierto] = useState(false);
+  const varios = babies.length > 1;
+  const oscuro = theme === 'dark';
+
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="relative min-w-0">
+        <button
+          onClick={() => (varios ? setAbierto((o) => !o) : onGoToBaby())}
+          aria-expanded={varios ? abierto : undefined}
+          className="block min-w-0 text-left touch-manipulation"
+        >
+          <span className="flex items-center gap-1.5">
+            <span className="text-[26px] font-extrabold tracking-tight text-gray-900 leading-tight truncate">
+              {config.name || 'Mi bebé'}
+            </span>
+            {varios && (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
+                className={`shrink-0 text-gray-400 transition-transform ${abierto ? 'rotate-180' : ''}`} aria-hidden="true">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            )}
+          </span>
+          <span className="block text-sm text-gray-500 truncate">{subtitulo}</span>
+        </button>
+
+        {abierto && varios && (
+          <>
+            <div className="fixed inset-0 z-30" onClick={() => setAbierto(false)} />
+            <div className="absolute left-0 top-full mt-2 z-40 bg-white rounded-2xl shadow-lg border border-gray-100 py-1 min-w-[200px]">
+              {babies.map((b) => (
+                <button
+                  key={b.id}
+                  onClick={() => { onSwitchBaby(b.id); setAbierto(false); }}
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 text-left text-sm touch-manipulation ${
+                    b.id === config.id ? 'font-bold text-gray-900' : 'text-gray-600 active:bg-gray-50'
+                  }`}
+                >
+                  <span className="flex-1">{b.name ?? 'Mi bebé'}</span>
+                  {b.id === config.id && <span aria-hidden="true">✓</span>}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="flex gap-2 shrink-0">
+        <BotonRedondo etiqueta={oscuro ? 'Cambiar a modo día' : 'Cambiar a modo noche'} onClick={toggle}>
+          {oscuro
+            ? <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5" /></>
+            : <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />}
+        </BotonRedondo>
+        {/* En escritorio ya está la barra lateral. */}
+        <BotonRedondo etiqueta="Menú" onClick={onOpenDrawer} className="lg:hidden">
+          <path d="M4 7h16M4 12h16M4 17h10" />
+        </BotonRedondo>
+      </div>
+    </div>
+  );
+}
+
+function BotonRedondo({ etiqueta, onClick, className, children }: {
+  etiqueta: string; onClick: () => void; className?: string; children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={etiqueta}
+      title={etiqueta}
+      className={`w-11 h-11 rounded-full border border-gray-200 bg-white text-gray-800 flex items-center justify-center touch-manipulation active:brightness-95 ${className ?? ''}`}
+    >
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {children}
+      </svg>
+    </button>
   );
 }
 
