@@ -190,6 +190,34 @@ export async function signup(opts: { username: string; email: string; password: 
   return { username: data.username, accountId: data.accountId, role: data.role ?? 'user', familyRole: data.familyRole ?? 'cuidador', timelineDesign: leerDiseno(data.timelineDesign), timelinePromptSeen: !!data.timelinePromptSeen };
 }
 
+/** Client ID de Google para el botón de acceso, o null si no está configurado. */
+export async function getGoogleClientId(): Promise<string | null> {
+  try {
+    const res = await apiFetch(`${BASE}/app-info`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.googleClientId ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Entra o se registra con el ID token que devuelve el botón de Google. */
+export async function loginWithGoogle(opts: { credential: string; babyName?: string; inviteCode?: string }): Promise<AuthUser & { joined: boolean }> {
+  const res = await apiFetch(`${BASE}/auth/google`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(opts),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Error al entrar con Google');
+  }
+  const data = await res.json();
+  return { username: data.username, accountId: data.accountId, role: data.role ?? 'user', familyRole: data.familyRole ?? 'cuidador', timelineDesign: leerDiseno(data.timelineDesign), timelinePromptSeen: !!data.timelinePromptSeen, joined: !!data.joined };
+}
+
 export interface AccountMember { id: string; username: string; isAdmin: boolean; isMe: boolean; familyRole: 'administrador' | 'cuidador' | 'invitado'; }
 export interface AccountInfo {
   id: string;

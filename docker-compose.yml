@@ -16,6 +16,8 @@ services:
       SESSION_SECRET: ${SESSION_SECRET}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      # Client ID de OAuth de Google (tipo "Aplicación web"). Vacío = sin botón de Google.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       PORT: 3001
     ports:
       - "127.0.0.1:3001:3001"

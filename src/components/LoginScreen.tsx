@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import * as api from '../api';
 import PasswordInput from './PasswordInput';
+import GoogleButton from './GoogleButton';
 
 interface Props {
   /** `joined` indica que se ha entrado con un código de invitación. */
@@ -21,6 +22,32 @@ export default function LoginScreen({ onLogin }: Props) {
   const [joinExisting, setJoinExisting] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleClientId, setGoogleClientId] = useState<string | null>(null);
+
+  useEffect(() => { api.getGoogleClientId().then(setGoogleClientId); }, []);
+
+  async function handleGoogle(credential: string) {
+    // Al registrarse para unirse a una familia, el código va con la petición:
+    // sin él se crearía una cuenta nueva en vez de unirse.
+    if (mode === 'signup' && joinExisting && !inviteCode.trim()) {
+      setError('Escribe primero el código de invitación');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const user = await api.loginWithGoogle({
+        credential,
+        babyName: mode === 'signup' && !joinExisting ? babyName.trim() || undefined : undefined,
+        inviteCode: mode === 'signup' && joinExisting ? inviteCode.trim() : undefined,
+      });
+      onLogin(user.username, user.role ?? 'user', user.familyRole ?? 'cuidador', user.joined);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -67,6 +94,26 @@ export default function LoginScreen({ onLogin }: Props) {
             {mode === 'login' ? 'Registro de tomas del bebé' : 'Crea tu cuenta'}
           </p>
         </div>
+
+        {googleClientId && (
+          <>
+            <GoogleButton
+              clientId={googleClientId}
+              text={mode === 'login' ? 'continue_with' : 'signup_with'}
+              onCredential={handleGoogle}
+            />
+            {mode === 'signup' && (
+              <p className="text-xs text-gray-400 text-center mt-2">
+                Si vas a unirte a una familia, elige abajo «Unirme a una familia» y escribe el código antes de pulsar Google.
+              </p>
+            )}
+            <div className="flex items-center gap-3 my-5" aria-hidden="true">
+              <div className="flex-1 h-px bg-gray-100" />
+              <span className="text-xs text-gray-400">o con tu usuario</span>
+              <div className="flex-1 h-px bg-gray-100" />
+            </div>
+          </>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

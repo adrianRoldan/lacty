@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import webpush from 'web-push';
 import sanitizeHtml from 'sanitize-html';
+import { OAuth2Client } from 'google-auth-library';
 import { renderArticulo, renderIndice, renderSitemap, render404 } from './lib/guias-render.mjs';
 import { renderReferencias } from './lib/referencias-render.mjs';
 import { ARTICULOS_INICIALES } from './lib/guias-seed.mjs';
@@ -50,6 +51,12 @@ const vapidKeys = getVapidKeys();
 webpush.setVapidDetails('mailto:admin@lacty.app', vapidKeys.publicKey, vapidKeys.privateKey);
 
 const SQLiteStore = connectSqlite3(session);
+
+// Inicio de sesión con Google: el botón de Google Identity Services entrega un
+// ID token (JWT firmado por Google) que aquí se verifica contra el Client ID.
+// Sin GOOGLE_CLIENT_ID el botón no se muestra y la ruta responde 503.
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || null;
+const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
 
 const app = express();
 app.set('trust proxy', 1); // detrás de un proxy: usar la IP real para el rate limit
@@ -166,6 +173,10 @@ ensureColumn('users', 'timeline_prompt_seen', 'INTEGER NOT NULL DEFAULT 0');
 // Índice único parcial: permite NULL para usuarios antiguos sin email, pero
 // impide duplicados entre los que sí lo tienen.
 db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL`);
+// Identificador estable de la cuenta de Google (el "sub" del ID token). Se usa
+// en vez del email porque el email de una cuenta de Google puede cambiar.
+ensureColumn('users', 'google_sub');
+db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_sub ON users(google_sub) WHERE google_sub IS NOT NULL`);
 ensureColumn('accounts', 'invite_code');
 ensureColumn('accounts', 'name');
 for (const t of DATA_TABLES) {
@@ -443,7 +454,7 @@ app.get('/sitemap.xml', (_req, res) => {
 
 // Info pública mínima para la pantalla de login (sin datos sensibles)
 app.get('/api/health', (_, res) => res.json({ ok: true }));
-app.get('/api/app-info', (_, res) => res.json({ app: 'Lacty' }));
+app.get('/api/app-info', (_, res) => res.json({ app: 'Lacty', googleClientId: GOOGLE_CLIENT_ID }));
 
 app.get('/api/auth/me', (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ error: 'No autenticado' });
@@ -581,6 +592,91 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
   req.session.role = user.role ?? 'user';
   req.session.familyRole = user.family_role ?? 'cuidador';
   res.json({ ok: true, username: user.username, accountId: user.account_id, role: user.role ?? 'user', familyRole: user.family_role ?? 'cuidador' });
+});
+
+/** Nombre de usuario libre a partir del nombre de Google o del email. */
+function usernameLibre(base) {
+  const limpio = String(base || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 20) || 'usuario';
+  const ocupado = db.prepare('SELECT 1 FROM users WHERE username = ?');
+  if (!ocupado.get(limpio)) return limpio;
+  for (let n = 2; ; n++) {
+    if (!ocupado.get(`${limpio}${n}`)) return `${limpio}${n}`;
+  }
+}
+
+// Entrar (o registrarse) con Google. Se busca primero por el "sub" de Google;
+// si no hay nadie vinculado pero existe un usuario con ese email (verificado
+// por Google), se vincula a esa cuenta. Si no existe, se crea: con código de
+// invitación se une a esa familia; sin él, cuenta nueva con su primer bebé.
+app.post('/api/auth/google', authLimiter, async (req, res) => {
+  if (!googleClient) return res.status(503).json({ error: 'El acceso con Google no está disponible' });
+  const { credential, babyName, inviteCode } = req.body ?? {};
+  if (!credential) return res.status(400).json({ error: 'Faltan campos' });
+
+  let payload;
+  try {
+    const ticket = await googleClient.verifyIdToken({ idToken: String(credential), audience: GOOGLE_CLIENT_ID });
+    payload = ticket.getPayload();
+  } catch {
+    return res.status(401).json({ error: 'No se ha podido verificar la cuenta de Google' });
+  }
+  if (!payload?.sub || !payload.email || !payload.email_verified) {
+    return res.status(401).json({ error: 'Tu cuenta de Google no tiene un email verificado' });
+  }
+  const email = payload.email.toLowerCase();
+
+  let user = db.prepare('SELECT * FROM users WHERE google_sub = ?').get(payload.sub);
+  if (!user) {
+    user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    if (user) db.prepare('UPDATE users SET google_sub = ? WHERE id = ?').run(payload.sub, user.id);
+  }
+
+  let isNew = false;
+  if (!user) {
+    const userId = newId();
+    const username = usernameLibre(payload.given_name || email.split('@')[0]);
+    // Sin contraseña: password_hash vacío nunca casa con bcrypt.compare, así
+    // que solo se puede entrar con Google hasta que ponga una en su perfil.
+    if (inviteCode) {
+      const acc = db.prepare(`SELECT id FROM accounts WHERE invite_code = ?`).get(String(inviteCode).trim().toUpperCase());
+      if (!acc) return res.status(404).json({ error: 'Código de invitación no válido' });
+      db.prepare(`INSERT INTO users (id, account_id, username, email, password_hash, family_role, google_sub) VALUES (?, ?, ?, ?, '', 'cuidador', ?)`)
+        .run(userId, acc.id, username, email, payload.sub);
+    } else {
+      const accountId = newId();
+      const babyId = newId();
+      db.transaction(() => {
+        db.prepare(`INSERT INTO accounts (id, invite_code) VALUES (?, ?)`).run(accountId, newInvite());
+        db.prepare(`INSERT INTO users (id, account_id, username, email, password_hash, family_role, google_sub) VALUES (?, ?, ?, ?, '', 'administrador', ?)`)
+          .run(userId, accountId, username, email, payload.sub);
+        const babyData = { id: babyId, name: babyName || undefined, daysOfLifeAtSetup: 1, setupDate: new Date().toISOString().slice(0, 10) };
+        db.prepare(`INSERT INTO babies (id, account_id, data) VALUES (?, ?, ?)`).run(babyId, accountId, JSON.stringify(babyData));
+      })();
+    }
+    user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+    isNew = true;
+    sendPushToAdmins({
+      title: 'Nuevo registro en Lacty',
+      body: inviteCode
+        ? `${username} se unió a una familia existente con Google (${email})`
+        : `${username} creó una cuenta nueva con Google (${email})`,
+      tag: `signup-${userId}`,
+    });
+  }
+
+  db.prepare(`UPDATE users SET last_login_at = datetime('now') WHERE id = ?`).run(user.id);
+  req.session.userId = user.id;
+  req.session.username = user.username;
+  req.session.accountId = user.account_id;
+  req.session.role = user.role ?? 'user';
+  req.session.familyRole = user.family_role ?? 'cuidador';
+  res.status(isNew ? 201 : 200).json({
+    ok: true, isNew, joined: isNew && !!inviteCode,
+    username: user.username, accountId: user.account_id,
+    role: user.role ?? 'user', familyRole: user.family_role ?? 'cuidador',
+  });
 });
 
 app.post('/api/auth/logout', (req, res) => {
