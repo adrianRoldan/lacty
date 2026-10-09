@@ -347,6 +347,9 @@ export default function App() {
   const breastInProgress = feedings.some(
     (f) => f.hasBreast && f.breastMinLeft == null && f.breastMinRight == null
   );
+  const bottleInProgress = feedings.some(
+    (f) => f.hasBottle && f.bottleMl == null && f.endTime == null
+  );
   const restInProgress = rests.some((r) => r.endTime == null);
   const walkInProgress = walks.find((w) => w.endTime == null) ?? null;
 
@@ -1602,12 +1605,14 @@ export default function App() {
               >
                 <DiaperIcon size={23} />
               </ExtraFab>
-              <ExtraFab
-                label="Biberón" color="bg-sky-500 active:bg-sky-600 shadow-sky-500/30"
-                onClick={() => { setShowExtraFabs(false); handleQuickBottle(); }}
-              >
-                <span className="text-xl">🍼</span>
-              </ExtraFab>
+              {!breastInProgress && (
+                <ExtraFab
+                  label="Pecho" color="bg-mustard-600 active:bg-mustard-700 shadow-mustard-600/30"
+                  onClick={() => { setShowExtraFabs(false); handleQuickBreast(); }}
+                >
+                  <span className="text-xl">🤱</span>
+                </ExtraFab>
+              )}
               <ExtraFab
                 label="Medicamento" color="bg-violet-500 active:bg-violet-600 shadow-violet-500/30"
                 onClick={() => { setShowExtraFabs(false); setEditingMedication(null); setScreen('nuevo-medicamento'); }}
@@ -1659,13 +1664,13 @@ export default function App() {
               </button>
             );
           })()}
-          {!breastInProgress && (
+          {!bottleInProgress && (
             <button
-              onClick={handleQuickBreast}
-              aria-label="Iniciar toma de pecho"
-              className="w-14 h-14 rounded-full bg-mustard-600 text-white shadow-lg shadow-mustard-600/30 flex items-center justify-center text-2xl active:scale-95 active:bg-mustard-700 transition-transform touch-manipulation"
+              onClick={handleQuickBottle}
+              aria-label="Iniciar biberón"
+              className="w-14 h-14 rounded-full bg-sky-500 text-white shadow-lg shadow-sky-500/30 flex items-center justify-center text-2xl active:scale-95 active:bg-sky-600 transition-transform touch-manipulation"
             >
-              🤱
+              🍼
             </button>
           )}
           {/* Botón toggle "más" */}
