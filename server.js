@@ -473,7 +473,7 @@ app.get('/api/auth/me', (req, res) => {
 });
 
 /** Diseños de «Hoy» que conviven mientras se decide cuál se queda. */
-const DISENOS_HOY = ['clasico', 'rail', 'ahora'];
+const DISENOS_HOY = ['clasico', 'rail', 'ahora', 'orbita'];
 
 // Preferencias personales del usuario (de momento, todo sobre el timeline).
 app.put('/api/auth/preferences', (req, res) => {

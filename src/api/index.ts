@@ -56,9 +56,9 @@ async function json<T>(res: Response): Promise<T> {
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
 /** Los diseños de «Hoy» que conviven mientras se decide cuál se queda. */
-export type TimelineDesign = 'clasico' | 'rail' | 'ahora';
+export type TimelineDesign = 'clasico' | 'rail' | 'ahora' | 'orbita';
 
-const DISENOS_HOY: TimelineDesign[] = ['clasico', 'rail', 'ahora'];
+const DISENOS_HOY: TimelineDesign[] = ['clasico', 'rail', 'ahora', 'orbita'];
 
 /** Un valor desconocido (versión vieja, dato corrupto) cae en el clásico. */
 function leerDiseno(v: unknown): TimelineDesign {

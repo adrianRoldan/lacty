@@ -10,6 +10,7 @@ import BabyProfile from './components/BabyProfile';
 import GrowthView from './components/GrowthView';
 import TodayRail from './components/TodayRail';
 import TodayAhora from './components/TodayAhora';
+import TodayOrbita from './components/TodayOrbita';
 import CareSettings from './components/CareSettings';
 import LoginScreen from './components/LoginScreen';
 import DailySummary from './components/DailySummary';
@@ -141,12 +142,12 @@ export default function App() {
    * claro. Vive aquí, y no en la pantalla de «Hoy», para que no parpadee al
    * cambiar de sección de noche.
    *
-   * Solo para quien usa el diseño «Ahora»: el clásico y la línea de tiempo se
+   * Solo para quien usa «Ahora» u «Órbita»: el clásico y la línea de tiempo se
    * quedan como estaban hasta que se decida cuál se queda.
    */
   const esMadrugada = useModoMadrugada();
   useEffect(() => {
-    forzarOscuro(timelineDesign === 'ahora' && esMadrugada);
+    forzarOscuro((timelineDesign === 'ahora' || timelineDesign === 'orbita') && esMadrugada);
   }, [timelineDesign, esMadrugada, forzarOscuro]);
 
   const [activeTab, setActiveTab] = useState<Tab>('hoy');
@@ -1033,6 +1034,10 @@ export default function App() {
     onOpenAgenda: () => navigate('visitas'),
     onOpenExport: () => setScreen('exportar'),
     onAbrirAñadir: () => setAñadirAbierto(true),
+    // Inicio rápido sin formulario: en «Órbita» lo hace el dock en vez de los FAB.
+    onQuickBreast: handleQuickBreast,
+    onQuickBottle: handleQuickBottle,
+    onQuickRest: handleQuickRest,
     onAdd: (tipo: TipoRegistro) => {
       switch (tipo) {
         case 'toma':        setEditingFeeding(null);    openForm('nueva-toma'); break;
@@ -1308,7 +1313,9 @@ export default function App() {
 
         {/* Main tabs */}
         {screen === 'hoy' && propsHoy && (
-          timelineDesign === 'ahora'
+          timelineDesign === 'orbita'
+            ? <TodayOrbita {...propsHoy} />
+          : timelineDesign === 'ahora'
             ? <TodayAhora {...propsHoy} />
           : timelineDesign === 'rail'
             ? <TodayRail {...propsHoy} />
@@ -1569,8 +1576,9 @@ export default function App() {
         )}
       </main>
 
-      {/* FABs — inicio rápido (solo en Hoy, no admin, no viewer) */}
-      {screen === 'hoy' && !isAdmin && !isViewer && (<>
+      {/* FABs — inicio rápido (solo en Hoy, no admin, no viewer). «Órbita»
+          trae su propio dock con las mismas acciones. */}
+      {screen === 'hoy' && !isAdmin && !isViewer && timelineDesign !== 'orbita' && (<>
         {/* Velo al desplegar: las etiquetas de los FAB extra son `bg-white`, que
             en claro se confunde con el fondo de página y en noche se oscurece
             hasta casi el mismo tono, así que sobre contenido cualquiera no se

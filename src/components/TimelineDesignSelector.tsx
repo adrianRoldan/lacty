@@ -2,15 +2,20 @@ import { useTimelineDesign } from '../timelineDesign';
 import type { TimelineDesign } from '../api';
 
 /**
- * Elegir diseño de «Hoy». Con tres opciones ya no cabe un selector de
+ * Elegir diseño de «Hoy». Con varias opciones ya no cabe un selector de
  * pestañas en un móvil estrecho, así que va en lista: cada una con lo que la
  * distingue de verdad, que es lo que hay por encima del registro del día.
  */
 const OPCIONES: { key: TimelineDesign; label: string; desc: string; nuevo?: boolean }[] = [
   {
+    key: 'orbita',
+    label: 'Órbita',
+    nuevo: true,
+    desc: 'El día como un reloj de 24 horas: tomas por fuera, sueños por dentro y una aguja en «ahora». Abajo, un botón grande que cambia según lo que toque: empezar toma, terminarla o «se ha despertado».',
+  },
+  {
     key: 'ahora',
     label: 'Ahora',
-    nuevo: true,
     desc: 'Arriba, cuánto lleva sin comer y cuánto lleva despierto, en grande y con botones para apuntar toma o sueño de un toque. Los avisos tiñen esos números en vez de apilar cajas.',
   },
   {

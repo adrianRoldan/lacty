@@ -72,6 +72,33 @@ export function calcBreastEstimatedMl(
 }
 
 // Average gap in minutes between consecutive feedings (sorted). Returns null if < 2 feedings.
+/**
+ * Cuántos minutos faltan para que toque sacarse leche, o null si no aplica.
+ * Solo para quien ya usa alimentación diferida: tiempo medio entre tomas menos
+ * lo que tarda en sacarse una toma completa, menos lo que lleva ya sin comer.
+ * Negativo = ya tocaba.
+ */
+export function minutosParaExtraer(
+  feedings: Feeding[],
+  extractions: Extraction[],
+  lastFeeding: Feeding | null,
+  lastFeedingElapsed: number | null,
+): number | null {
+  const avgGap = getAvgGapMinutes(feedings);
+  const pumpDurations = extractions
+    .filter((e) => e.purpose === 'replace' && e.durationMin != null)
+    .map((e) => e.durationMin!);
+  const avgPumpDuration = pumpDurations.length > 0
+    ? Math.round(pumpDurations.reduce((a, b) => a + b, 0) / pumpDurations.length)
+    : 20;
+  const alreadyPumpedThisCycle = lastFeeding != null && extractions.some(
+    (e) => e.purpose === 'replace' && new Date(e.timestamp) > new Date(lastFeeding.timestamp)
+  );
+  return (extractions.length > 0 && !alreadyPumpedThisCycle && avgGap != null && lastFeedingElapsed != null)
+    ? (avgGap - avgPumpDuration) - lastFeedingElapsed
+    : null;
+}
+
 export function getAvgGapMinutes(feedings: Feeding[]): number | null {
   const sorted = [...feedings].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
   if (sorted.length < 2) return null;

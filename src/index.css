@@ -210,6 +210,34 @@
   background-color: rgba(20, 22, 19, 0.92);
 }
 
+/* ── Órbita ──────────────────────────────────────────────────────────────────
+   Colores del reloj de 24 h del diseño «Órbita» de «Hoy». Los de noche son los
+   del mockup (albaricoque, lavanda, menta sobre fondo oscuro); los de día, su
+   versión más saturada para que los arcos y los números contrasten sobre claro.
+   `-tinta` es el texto que va ENCIMA de ese color (botones rellenos). */
+:root {
+  --orb-toma: #EF8A3C;
+  --orb-toma-texto: #A84F0C;
+  --orb-toma-tinta: #2A1606;
+  --orb-sueno: #4F62EC;
+  --orb-sueno-texto: #3A4BCF;
+  --orb-sueno-tinta: #FFFFFF;
+  --orb-panal: #23A07A;
+  --orb-alerta: #E05A3E;
+  --orb-alerta-texto: #C04530;
+}
+.dark {
+  --orb-toma: #FFB37C;
+  --orb-toma-texto: #FFB37C;
+  --orb-toma-tinta: #2A1606;
+  --orb-sueno: #8FA3FF;
+  --orb-sueno-texto: #A9B8FF;
+  --orb-sueno-tinta: #0B0D1C;
+  --orb-panal: #7ED9B4;
+  --orb-alerta: #FF7A6B;
+  --orb-alerta-texto: #FF8E80;
+}
+
 * {
   box-sizing: border-box;
 }

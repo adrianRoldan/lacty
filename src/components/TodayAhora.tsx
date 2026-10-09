@@ -44,7 +44,7 @@ import {
   getTodayDiapers,
   buildTimeline,
   avgDailyFeeds,
-  getAvgGapMinutes,
+  minutosParaExtraer,
 } from '../utils/feedingUtils';
 import { getEffectiveReference, getSleepReference } from '../data/referenceTable';
 import { etiquetarSuenos, contarPorTipo } from '../utils/sleepUtils';
@@ -186,22 +186,7 @@ export default function TodayAhora({
   const awakeMin = getAwakeMinutes(rests);
 
   // ── Aviso accionable: sacarse leche a tiempo ──────────────────────────────
-  // Solo para quien ya usa alimentación diferida: cuánto falta para que toque
-  // sacarse leche = tiempo medio entre tomas menos lo que tarda en sacarse una
-  // toma completa, menos lo que lleva ya sin comer.
-  const avgGap = getAvgGapMinutes(feedings);
-  const pumpDurations = extractions
-    .filter((e) => e.purpose === 'replace' && e.durationMin != null)
-    .map((e) => e.durationMin!);
-  const avgPumpDuration = pumpDurations.length > 0
-    ? Math.round(pumpDurations.reduce((a, b) => a + b, 0) / pumpDurations.length)
-    : 20;
-  const alreadyPumpedThisCycle = lastFeeding != null && extractions.some(
-    (e) => e.purpose === 'replace' && new Date(e.timestamp) > new Date(lastFeeding.timestamp)
-  );
-  const pumpEnMin = (extractions.length > 0 && !alreadyPumpedThisCycle && avgGap != null && lastFeedingElapsed != null)
-    ? (avgGap - avgPumpDuration) - lastFeedingElapsed
-    : null;
+  const pumpEnMin = minutosParaExtraer(feedings, extractions, lastFeeding, lastFeedingElapsed);
 
   const avisos: Aviso[] = [];
   if (pumpEnMin !== null && pumpEnMin <= 15 && !readOnly) {
@@ -778,7 +763,7 @@ function BotonRegistro({ tono, etiqueta, urge, onClick }: {
 
 // ── La línea de aviso ───────────────────────────────────────────────────────
 
-interface Aviso {
+export interface Aviso {
   key: string;
   urgente: boolean;
   titulo: string;
@@ -792,7 +777,7 @@ interface Aviso {
  * hubiera más de un aviso a la vez, los demás esperan detrás con su contador
  * en lugar de apilar cajas hasta comerse la pantalla.
  */
-function LineaDeAviso({ aviso, pendientes }: { aviso: Aviso; pendientes: number }) {
+export function LineaDeAviso({ aviso, pendientes }: { aviso: Aviso; pendientes: number }) {
   const tono = aviso.urgente
     ? 'bg-coral-100 text-coral-700'
     : 'bg-amber-50 text-amber-800';
@@ -827,7 +812,7 @@ function LineaDeAviso({ aviso, pendientes }: { aviso: Aviso; pendientes: number 
  * va primero, y lo hecho se queda al final en verde. Tocar la ficha abre la
  * hoja de siempre; el botón redondo apunta la dosis sin abrir nada.
  */
-function FichasDeCuidado({ items, readOnly }: { items: CareItem[]; readOnly?: boolean }) {
+export function FichasDeCuidado({ items, readOnly }: { items: CareItem[]; readOnly?: boolean }) {
   const [hoja, setHoja] = useState(false);
   if (items.length === 0) return null;
 
@@ -925,7 +910,7 @@ function Separador() {
   return <span className="w-px h-5 bg-gray-100 shrink-0" />;
 }
 
-function CajaMl({ valor, etiqueta, color, onRecalcular }: {
+export function CajaMl({ valor, etiqueta, color, onRecalcular }: {
   valor: string; etiqueta: string; color: string; onRecalcular?: () => void;
 }) {
   return (
