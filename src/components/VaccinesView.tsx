@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { VaccineLog } from '../types';
-import { VACCINE_SCHEDULE } from '../data/vaccines';
+import { VACCINE_SCHEDULE, esDosisSistematica, type VaccineEntry } from '../data/vaccines';
 import { todayIso } from '../utils/dateUtils';
 
 interface Props {
@@ -15,8 +15,11 @@ export default function VaccinesView({ vaccineLogs, babyAgeMonths, onToggle, onD
   const administered = new Map(vaccineLogs.map(l => [l.id, l]));
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
 
-  const allEntries = VACCINE_SCHEDULE.flatMap(g => g.entries);
-  const totalDone = vaccineLogs.length;
+  // Las dosis condicionales (dependen de la vacuna o del caso) solo cuentan
+  // si se han puesto: si no, la app las daría por pendientes para siempre.
+  const cuenta = (e: VaccineEntry) => esDosisSistematica(e) || administered.has(e.id);
+  const allEntries = VACCINE_SCHEDULE.flatMap(g => g.entries).filter(cuenta);
+  const totalDone = allEntries.filter(e => administered.has(e.id)).length;
   const totalEntries = allEntries.length;
 
   const nextPending = allEntries
@@ -26,7 +29,7 @@ export default function VaccinesView({ vaccineLogs, babyAgeMonths, onToggle, onD
   return (
     <div className="p-4 pb-24">
       <h1 className="text-2xl font-bold text-gray-900 mb-1">Vacunas</h1>
-      <p className="text-sm text-gray-500 mb-4">Calendario CAV-AEP 2024 · España</p>
+      <p className="text-sm text-gray-500 mb-4">Calendario común 2026 y CAV-AEP 2026 · España</p>
 
       {/* Progress */}
       <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
@@ -51,10 +54,13 @@ export default function VaccinesView({ vaccineLogs, babyAgeMonths, onToggle, onD
       {/* Vaccine groups */}
       <div className="space-y-3">
         {VACCINE_SCHEDULE.map(group => {
-          const groupDone = group.entries.filter(e => administered.has(e.id)).length;
-          const allDone = groupDone === group.entries.length;
+          const relevantes = group.entries.filter(cuenta);
+          const groupDone = relevantes.filter(e => administered.has(e.id)).length;
+          // Un grupo con solo dosis condicionales (el VRS) no se da por hecho
+          // mientras no se apunte nada.
+          const allDone = relevantes.length > 0 && groupDone === relevantes.length;
           const isExpanded = expandedGroup === group.id;
-          const isUpcoming = group.entries.some(e => !administered.has(e.id) && e.ageMonths <= babyAgeMonths + 1);
+          const isUpcoming = relevantes.some(e => !administered.has(e.id) && e.ageMonths <= babyAgeMonths + 1);
 
           return (
             <div key={group.id} className={`rounded-2xl overflow-hidden ${isUpcoming && !allDone ? 'ring-2 ring-amber-300' : ''}`}>
@@ -72,7 +78,9 @@ export default function VaccinesView({ vaccineLogs, babyAgeMonths, onToggle, onD
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs text-gray-500">{groupDone}/{group.entries.length}</span>
+                  <span className="text-xs text-gray-500">
+                    {relevantes.length > 0 ? `${groupDone}/${relevantes.length}` : 'según el caso'}
+                  </span>
                   <span className="text-gray-400 text-sm">{isExpanded ? '▼' : '▶'}</span>
                 </div>
               </button>
@@ -82,7 +90,7 @@ export default function VaccinesView({ vaccineLogs, babyAgeMonths, onToggle, onD
                   {group.entries.map(entry => {
                     const log = administered.get(entry.id);
                     const done = !!log;
-                    const isDue = !done && entry.ageMonths <= babyAgeMonths;
+                    const isDue = !done && esDosisSistematica(entry) && entry.ageMonths <= babyAgeMonths;
                     return (
                       <VaccineRow
                         key={entry.id}
@@ -91,7 +99,7 @@ export default function VaccinesView({ vaccineLogs, babyAgeMonths, onToggle, onD
                         date={log?.date}
                         isDue={isDue}
                         readOnly={readOnly}
-                        onMark={() => onToggle(entry.id, todayIso())}
+                        onMark={(fecha) => onToggle(entry.id, fecha)}
                         onRemove={() => onDelete(entry.id)}
                       />
                     );
@@ -104,19 +112,19 @@ export default function VaccinesView({ vaccineLogs, babyAgeMonths, onToggle, onD
       </div>
 
       <p className="text-xs text-gray-400 text-center mt-6 px-4">
-        Basado en el calendario de la AEP (2024). Consulta con tu pediatra para la pauta exacta de tu bebé.
+        Basado en el calendario común del Ministerio de Sanidad y el de la AEP (2026). Cada comunidad autónoma concreta su pauta: consulta con tu pediatra la de tu bebé.
       </p>
     </div>
   );
 }
 
 function VaccineRow({ entry, done, date, isDue, readOnly, onMark, onRemove }: {
-  entry: { id: string; name: string; ageMonths: number; dose: string; description: string };
+  entry: VaccineEntry;
   done: boolean;
   date?: string;
   isDue: boolean;
   readOnly?: boolean;
-  onMark: () => void;
+  onMark: (fecha: string) => void;
   onRemove: () => void;
 }) {
   const [showDate, setShowDate] = useState(false);
@@ -142,6 +150,9 @@ function VaccineRow({ entry, done, date, isDue, readOnly, onMark, onRemove }: {
             {isDue && !done && <span className="ml-2 text-xs text-amber-600 font-medium">· toca ahora</span>}
           </p>
           <p className="text-xs text-gray-500">{entry.description} · {entry.ageMonths}m</p>
+          {entry.condicional && (
+            <p className="text-xs text-gray-400 mt-0.5">{entry.condicional}</p>
+          )}
           {done && date && (
             <p className="text-xs text-green-600 mt-0.5">
               Administrada: {new Date(date + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -159,7 +170,7 @@ function VaccineRow({ entry, done, date, isDue, readOnly, onMark, onRemove }: {
             className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-sage-400"
           />
           <button
-            onClick={() => { onMark(); setShowDate(false); }}
+            onClick={() => { onMark(customDate); setShowDate(false); }}
             className="bg-sage-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg active:bg-sage-700 touch-manipulation"
           >
             Marcar

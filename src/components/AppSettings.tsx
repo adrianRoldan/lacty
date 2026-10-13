@@ -5,7 +5,8 @@ import type { BabyConfig } from '../types';
 import * as api from '../api';
 import { isPushSupported, subscribe, unsubscribe, getSubscription } from '../utils/pushNotifications';
 import { getCurrentDaysOfLife, } from '../utils/dateUtils';
-import { getReferenceForDay, getSleepReference } from '../data/referenceTable';
+import { maxMinutosEntreTomas, ventanaVigiliaMaxima } from '../data/referenceTable';
+import { ventanaNocturna } from '../utils/sleepUtils';
 
 interface Props {
   onBack: () => void;
@@ -15,13 +16,12 @@ interface Props {
 type PushState = 'loading' | 'unsupported' | 'denied' | 'subscribed' | 'unsubscribed';
 
 function getReferenceDefaults(baby: BabyConfig) {
+  // Los mismos umbrales que usan la pantalla de «Hoy» y los avisos push.
   const days = getCurrentDaysOfLife(baby);
-  const ref   = getReferenceForDay(days);
-  const sleep = getSleepReference(days);
-  const feedsMin = ref?.feedsPerDayMin ?? 8;
   return {
-    feedingThresholdMins: Math.round(24 * 60 / feedsMin),
-    restThresholdMins:    sleep.awakeWindowMaxMin,
+    feedingThresholdMins: maxMinutosEntreTomas(days),
+    feedingNightMins:     maxMinutosEntreTomas(days, { deNoche: true }),
+    restThresholdMins:    ventanaVigiliaMaxima(days),
   };
 }
 
@@ -31,6 +31,8 @@ export default function AppSettings({ onBack, baby }: Props) {
   const [pushState, setPushState]       = useState<PushState>('loading');
   const [toggling, setToggling]         = useState(false);
   const [feedingMins, setFeedingMins]   = useState(180);
+  // false = se usa lo recomendado para su edad (y de noche, al menos 4 h).
+  const [feedingCustom, setFeedingCustom] = useState(false);
   const [restMins, setRestMins]         = useState(120);
   const [massageMins, setMassageMins]   = useState(15);
   const [savingPrefs, setSavingPrefs]   = useState(false);
@@ -49,6 +51,7 @@ export default function AppSettings({ onBack, baby }: Props) {
     if (pushState !== 'subscribed' || !baby) return;
     const defaults = getReferenceDefaults(baby);
     api.getNotificationPrefs(baby.id).then((prefs) => {
+      setFeedingCustom(prefs.feedingThresholdMins != null);
       setFeedingMins(prefs.feedingThresholdMins ?? defaults.feedingThresholdMins);
       setRestMins(prefs.restThresholdMins ?? defaults.restThresholdMins);
       setMassageMins(prefs.massageThresholdMins ?? 15);
@@ -76,19 +79,9 @@ export default function AppSettings({ onBack, baby }: Props) {
         const vapidKey = await api.getPushVapidKey();
         const sub = await subscribe(vapidKey);
         if (sub) {
+          // No se guardan umbrales al activar: sin preferencias, el servidor
+          // usa los de su edad y los va actualizando a medida que crece.
           await api.savePushSubscription(sub);
-          // Si no hay prefs guardadas, inicializar con los valores de referencia
-          if (baby) {
-            const savedPrefs = await api.getNotificationPrefs(baby.id).catch(() => ({ feedingThresholdMins: null, restThresholdMins: null }));
-            if (savedPrefs.feedingThresholdMins === null) {
-              const defaults = getReferenceDefaults(baby);
-              await api.updateNotificationPrefs(baby.id, {
-                feedingThresholdMins: defaults.feedingThresholdMins,
-                restThresholdMins: defaults.restThresholdMins,
-                massageThresholdMins: 15,
-              }).catch(() => {});
-            }
-          }
           setPushState('subscribed');
         }
       }
@@ -97,7 +90,8 @@ export default function AppSettings({ onBack, baby }: Props) {
     }
   }, [pushState, toggling]);
 
-  const savePrefs = useCallback(async (feeding: number, rest: number, massage: number) => {
+  // feeding null = volver a lo recomendado para su edad.
+  const savePrefs = useCallback(async (feeding: number | null, rest: number, massage: number) => {
     if (!baby?.id) return;
     setSavingPrefs(true);
     try {
@@ -180,16 +174,28 @@ export default function AppSettings({ onBack, baby }: Props) {
 
             {isSubscribed && baby && (
               <div className="border-t border-gray-100 pt-3 space-y-4">
-                <ThresholdRow
-                  label="Avisar si no hay toma en"
-                  value={feedingMins}
-                  min={60}
-                  max={360}
-                  step={30}
-                  onChange={(v) => setFeedingMins(v)}
-                  onCommit={(v) => savePrefs(v, restMins, massageMins)}
-                  saving={savingPrefs}
-                />
+                <div>
+                  <ThresholdRow
+                    label="Avisar si no hay toma en"
+                    value={feedingMins}
+                    min={60}
+                    max={360}
+                    step={30}
+                    onChange={(v) => setFeedingMins(v)}
+                    onCommit={(v) => { setFeedingCustom(true); savePrefs(v, restMins, massageMins); }}
+                    saving={savingPrefs}
+                  />
+                  <AvisoTomasNota
+                    baby={baby}
+                    custom={feedingCustom}
+                    onReset={() => {
+                      const d = getReferenceDefaults(baby);
+                      setFeedingCustom(false);
+                      setFeedingMins(d.feedingThresholdMins);
+                      savePrefs(null, restMins, massageMins);
+                    }}
+                  />
+                </div>
                 <ThresholdRow
                   label="Avisar si lleva despierto/a más de"
                   value={restMins}
@@ -197,14 +203,14 @@ export default function AppSettings({ onBack, baby }: Props) {
                   max={240}
                   step={15}
                   onChange={(v) => setRestMins(v)}
-                  onCommit={(v) => savePrefs(feedingMins, v, massageMins)}
+                  onCommit={(v) => savePrefs(feedingCustom ? feedingMins : null, v, massageMins)}
                   saving={savingPrefs}
                 />
                 {baby.frenectomyEnabled && (
                   <MassageThresholdRow
                     value={massageMins}
                     onChange={(v) => setMassageMins(v)}
-                    onCommit={(v) => savePrefs(feedingMins, restMins, v)}
+                    onCommit={(v) => savePrefs(feedingCustom ? feedingMins : null, restMins, v)}
                     saving={savingPrefs}
                   />
                 )}
@@ -326,5 +332,28 @@ function ThresholdRow({
         className="w-full accent-sage-500"
       />
     </div>
+  );
+}
+
+/** Debajo del ajuste de tomas: qué se está usando y por qué. */
+function AvisoTomasNota({ baby, custom, onReset }: { baby: BabyConfig; custom: boolean; onReset: () => void }) {
+  const d = getReferenceDefaults(baby);
+  const { inicio, fin } = ventanaNocturna(baby);
+  const h = (min: number) => (min % 60 === 0 ? `${min / 60} h` : `${Math.floor(min / 60)} h ${min % 60} min`);
+  if (custom) {
+    return (
+      <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
+        Usas tu propio valor, a cualquier hora.{' '}
+        <button onClick={onReset} className="text-sage-700 font-semibold underline touch-manipulation">
+          Volver a lo recomendado
+        </button>
+      </p>
+    );
+  }
+  return (
+    <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
+      Recomendado para su edad: {h(d.feedingThresholdMins)} de día y {h(d.feedingNightMins)} de noche
+      (de {inicio} a {fin}), como aconseja la Academia Americana de Pediatría. Se ajusta solo a medida que crece.
+    </p>
   );
 }

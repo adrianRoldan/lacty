@@ -12,8 +12,10 @@ import { localDateOf } from './dateUtils';
  * como la primera siesta del día.
  */
 
-export const NOCHE_INICIO_POR_DEFECTO = '20:30';
-export const NOCHE_FIN_POR_DEFECTO = '07:00';
+// La franja por defecto vive en lib/reference-data.mjs: también la usan los
+// avisos push del servidor para saber cuándo es de noche.
+import { NOCHE_INICIO_POR_DEFECTO, NOCHE_FIN_POR_DEFECTO } from '../../lib/reference-data.mjs';
+export { NOCHE_INICIO_POR_DEFECTO, NOCHE_FIN_POR_DEFECTO };
 
 const aMinutos = (hhmm: string): number => {
   const [h, m] = hhmm.split(':').map(Number);

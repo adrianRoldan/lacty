@@ -12,6 +12,22 @@ import {
   WEIGHT_FORMULA,
 } from '../../lib/reference-data.mjs';
 
+// Los umbrales de aviso se calculan en un solo sitio, el mismo que usan los
+// avisos push del servidor, para que la app y las notificaciones coincidan.
+export { maxMinutosEntreTomas, ventanaVigiliaMaxima, WEIGHT_FORMULA } from '../../lib/reference-data.mjs';
+import { maxMinutosEntreTomas, esFranjaNocturna } from '../../lib/reference-data.mjs';
+import { ventanaNocturna } from '../utils/sleepUtils';
+import type { BabyConfig } from '../types';
+
+/**
+ * Cuánto puede llevar sin comer antes de avisar, ahora mismo: de día, lo de
+ * su edad; dentro de su franja nocturna, al menos 4 h (AAP).
+ */
+export function limiteSinComer(config: BabyConfig, daysOfLife: number, ahora: Date = new Date()): number {
+  const { inicio, fin } = ventanaNocturna(config);
+  return maxMinutosEntreTomas(daysOfLife, { deNoche: esFranjaNocturna(ahora, inicio, fin) });
+}
+
 export interface FeedingReference {
   dayFrom: number;
   dayTo: number;
@@ -25,12 +41,12 @@ export interface FeedingReference {
   dailyMlMax?: number;
   // Referencia de leche materna al pecho (ml/día) para estimación orientativa.
   // Días 8–28: 502–725 ml/día. A partir del primer mes la producción se
-  // estabiliza en una meseta (~750–800 ml/día de media en LME), por lo que
-  // los días 29–90 usan 600–900 ml/día como rango orientativo.
+  // estabiliza (EPA: media de 690 ml/día de 1 a 3 meses y 770 de 3 a 6;
+  // Kent 2006: 750–800), por lo que desde el día 29 se usan 600–900 ml/día.
   breastDailyMlMin?: number;
   breastDailyMlMax?: number;
   // Sueño orientativo por EDAD (no depende del peso).
-  // Fuente: guías habituales (National Sleep Foundation / AASM).
+  // Fuente: National Sleep Foundation (2015) y AASM (2016).
   sleepHoursMin?: number;
   sleepHoursMax?: number;
   // Ventana de vigilia máxima: minutos despierto antes de que toque dormir.
@@ -39,7 +55,7 @@ export interface FeedingReference {
 
 export const FEEDING_REFERENCE: FeedingReference[] = DATOS_ALIMENTACION;
 
-// Referencia de sueño para edades fuera de la tabla (>3 meses): orientativa.
+// Referencia de sueño para edades fuera de la tabla (desde los 4 meses).
 export const SLEEP_REFERENCE_FALLBACK = DATOS_SUENO_FUERA_DE_TABLA;
 
 export interface SleepReference {
@@ -51,7 +67,7 @@ export interface SleepReference {
 /**
  * Devuelve la referencia de sueño orientativa para un día de vida dado.
  * El sueño se guía por edad (no por peso). Usa la tabla por tramos y, para
- * edades fuera de rango (>90 días), un fallback orientativo.
+ * edades fuera de rango (desde los 4 meses), un fallback orientativo.
  */
 export function getSleepReference(daysOfLife: number): SleepReference {
   const row = getReferenceForDay(daysOfLife);
@@ -89,8 +105,9 @@ export function getEstimatedBreastMlPerFeed(daysOfLife: number): number | null {
  *
  * - Days 1–6: always day-based table (stomach capacity is the limiting factor,
  *   not total daily intake).
- * - Day 7+: if weightKg is provided, uses the standard 150–180 ml/kg/day
- *   formula (WHO/AAP). Falls back to the day-based table otherwise.
+ * - Day 7+: if weightKg is provided, uses 150–180 ml/kg/day (AAP ≈165 ml/kg,
+ *   NHS 150–200), capped at the AAP's ~960 ml/day. Falls back to the
+ *   day-based table otherwise.
  */
 export function getEffectiveReference(
   daysOfLife: number,
@@ -103,11 +120,12 @@ export function getEffectiveReference(
 
   const dayRef = getReferenceForDay(daysOfLife);
   const feedsMin = dayRef?.feedsPerDayMin ?? 6;
-  const feedsMax = dayRef?.feedsPerDayMax ?? 9;
+  const feedsMax = dayRef?.feedsPerDayMax ?? 12;
 
   // Fórmula estándar para lactantes a término (ver lib/reference-data.mjs)
-  const dailyMlMin = Math.round(weightKg * WEIGHT_FORMULA.mlPerKgMin);
-  const dailyMlMax = Math.round(weightKg * WEIGHT_FORMULA.mlPerKgMax);
+  // Con el tope de la AAP: un bebé grande no «necesita» más de ~960 ml al día.
+  const dailyMlMax = Math.min(Math.round(weightKg * WEIGHT_FORMULA.mlPerKgMax), WEIGHT_FORMULA.maxDailyMl);
+  const dailyMlMin = Math.min(Math.round(weightKg * WEIGHT_FORMULA.mlPerKgMin), dailyMlMax);
 
   // Per-feed range: min ml = daily_min / most_feeds; max ml = daily_max / fewest_feeds
   const mlPerFeedMin = Math.round(dailyMlMin / feedsMax);

@@ -5,7 +5,7 @@ import session from 'express-session';
 import connectSqlite3 from 'connect-sqlite3';
 import rateLimit from 'express-rate-limit';
 import bcrypt from 'bcryptjs';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -15,6 +15,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { renderArticulo, renderIndice, renderSitemap, render404 } from './lib/guias-render.mjs';
 import { renderReferencias } from './lib/referencias-render.mjs';
 import { ARTICULOS_INICIALES } from './lib/guias-seed.mjs';
+import { maxMinutosEntreTomas, ventanaVigiliaMaxima, esFranjaNocturna, FEEDING_REFERENCE, ULTIMO_DIA_TABLA } from './lib/reference-data.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3001;
@@ -210,6 +211,11 @@ ensureColumn('push_subscriptions', 'user_agent');
 
 ensureColumn('notification_prefs', 'massage_threshold_mins', 'INTEGER NOT NULL DEFAULT 15');
 ensureColumn('notification_prefs', 'last_massage_notif_at', 'TEXT');
+// 1 = el aviso de «sin comer» lo ha elegido la familia en Ajustes y se respeta
+// a cualquier hora. 0 = se usa lo recomendado para su edad y la hora del día
+// (de noche, al menos 4 h). Antes, al activar los avisos se guardaba el valor
+// por defecto de ese día y se quedaba congelado aunque el bebé creciera.
+ensureColumn('notification_prefs', 'feeding_threshold_custom', 'INTEGER NOT NULL DEFAULT 0');
 
 // Último aviso enviado por «cosa que se repite»: cada pauta de medicación, la
 // vitamina D y el probiótico de cada bebé. Como el número de claves crece con
@@ -284,6 +290,61 @@ db.exec(`
   });
   tx();
   if (nuevas > 0) console.log(`✓ Publicadas ${nuevas} guía(s) nueva(s) en /guias/`);
+})();
+
+// Avisos de «sin comer» guardados antes de existir feeding_threshold_custom:
+// los que coinciden con algún valor por edad de la tabla se guardaron solos al
+// activar los avisos, así que pasan a seguir la recomendación de su edad. Los
+// demás los eligió alguien a mano y se respetan.
+(function marcarAvisosElegidosAMano() {
+  const clave = 'notif-feeding-custom-2026-10';
+  if (db.prepare(`SELECT 1 FROM migraciones_contenido WHERE id = ?`).get(clave)) return;
+  const porEdad = [...new Set([
+    ...FEEDING_REFERENCE.map((r) => maxMinutosEntreTomas(r.dayFrom)),
+    maxMinutosEntreTomas(ULTIMO_DIA_TABLA + 1),
+    180, // el valor que se guardaba si no había bebé o referencia
+  ])];
+  const marcadas = db.prepare(
+    `UPDATE notification_prefs SET feeding_threshold_custom = 1
+     WHERE feeding_threshold_mins NOT IN (${porEdad.map(() => '?').join(',')})`
+  ).run(...porEdad).changes;
+  db.prepare(`INSERT OR IGNORE INTO migraciones_contenido (id) VALUES (?)`).run(clave);
+  if (marcadas > 0) console.log(`✓ ${marcadas} aviso(s) de «sin comer» elegidos a mano se conservan`);
+})();
+
+// Revisión de referencias de octubre de 2026: estas dos guías llevaban cifras
+// que no coincidían con las fuentes (ml de los primeros días, tomas al día,
+// horas de sueño). Se actualizan solo si siguen exactamente como se
+// sembraron: si alguien las ha editado desde el panel, no se tocan y se avisa
+// en el log para revisarlas a mano.
+(function actualizarGuiasRevisadas() {
+  const REVISION = 'referencias-2026-10';
+  // sha256 del contenido tal como se sembró originalmente.
+  const ORIGINALES = {
+    'ventanas-de-sueno-bebe': 'f32bc0783c54dc54cfb5208008e908893f5e1574ba12678961e85d0dd30bec8f',
+    'cuantas-tomas-y-ml-necesita-un-bebe': '4f9e0d669fda4272873f1ec0ef03f11e7a6b04df898e8ace5a6e11aaf6cea8af',
+  };
+  const yaAplicada = db.prepare(`SELECT 1 FROM migraciones_contenido WHERE id = ?`);
+  const marcar     = db.prepare(`INSERT OR IGNORE INTO migraciones_contenido (id) VALUES (?)`);
+  const leer       = db.prepare(`SELECT contenido FROM articulos WHERE slug = ?`);
+  const actualizar = db.prepare(`UPDATE articulos SET contenido = ?, actualizado_at = datetime('now') WHERE slug = ?`);
+  const sha = (t) => createHash('sha256').update(t).digest('hex');
+
+  db.transaction(() => {
+    for (const [slug, huella] of Object.entries(ORIGINALES)) {
+      const clave = `${REVISION}:${slug}`;
+      if (yaAplicada.get(clave)) continue;
+      const fila = leer.get(slug);
+      const nuevo = ARTICULOS_INICIALES.find((a) => a.slug === slug)?.contenido;
+      if (fila && nuevo && sha(fila.contenido) === huella) {
+        actualizar.run(nuevo, slug);
+        console.log(`✓ Guía /guias/${slug} actualizada con las referencias revisadas`);
+      } else if (fila && nuevo && fila.contenido !== nuevo) {
+        console.warn(`[guías] /guias/${slug} se editó a mano: revisa sus cifras con lib/guias-seed.mjs`);
+      }
+      marcar.run(clave);
+    }
+  })();
 })();
 
 // Backfill de códigos de invitación para cuentas que no lo tengan
@@ -1337,7 +1398,8 @@ app.get('/api/push/prefs/:babyId', (req, res) => {
   const row = db.prepare(`SELECT * FROM notification_prefs WHERE account_id = ? AND baby_id = ?`)
     .get(req.accountId, req.params.babyId);
   res.json({
-    feedingThresholdMins:  row ? row.feeding_threshold_mins  : null,
+    // null = no lo han tocado: se usa lo recomendado para su edad.
+    feedingThresholdMins:  row?.feeding_threshold_custom ? row.feeding_threshold_mins : null,
     restThresholdMins:     row ? row.rest_threshold_mins     : null,
     massageThresholdMins:  row ? row.massage_threshold_mins  : null,
   });
@@ -1345,14 +1407,17 @@ app.get('/api/push/prefs/:babyId', (req, res) => {
 
 app.put('/api/push/prefs/:babyId', (req, res) => {
   const { feedingThresholdMins, restThresholdMins, massageThresholdMins } = req.body ?? {};
+  // feedingThresholdMins null = volver a lo recomendado para su edad.
+  const feedingCustom = feedingThresholdMins != null ? 1 : 0;
   db.prepare(`
-    INSERT INTO notification_prefs (account_id, baby_id, feeding_threshold_mins, rest_threshold_mins, massage_threshold_mins)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO notification_prefs (account_id, baby_id, feeding_threshold_mins, rest_threshold_mins, massage_threshold_mins, feeding_threshold_custom)
+    VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(account_id, baby_id) DO UPDATE SET
-      feeding_threshold_mins  = excluded.feeding_threshold_mins,
-      rest_threshold_mins     = excluded.rest_threshold_mins,
-      massage_threshold_mins  = excluded.massage_threshold_mins
-  `).run(req.accountId, req.params.babyId, feedingThresholdMins ?? 180, restThresholdMins ?? 120, massageThresholdMins ?? 15);
+      feeding_threshold_mins   = excluded.feeding_threshold_mins,
+      rest_threshold_mins      = excluded.rest_threshold_mins,
+      massage_threshold_mins   = excluded.massage_threshold_mins,
+      feeding_threshold_custom = excluded.feeding_threshold_custom
+  `).run(req.accountId, req.params.babyId, feedingThresholdMins ?? 180, restThresholdMins ?? 120, massageThresholdMins ?? 15, feedingCustom);
   res.json({ ok: true });
 });
 
@@ -1395,20 +1460,14 @@ app.post('/api/push/test', async (req, res) => {
 
 // ── Notif scheduler ──────────────────────────────────────────────────────────
 
-// Referencia orientativa por edad (días de vida) para umbrales por defecto.
-// Espeja los datos de src/data/referenceTable.ts; actualizar en paralelo si cambian.
-const NOTIF_REFERENCE = [
-  { dayTo: 28, feedsPerDayMin: 8, awakeWindowMaxMin: 60  },
-  { dayTo: 60, feedsPerDayMin: 7, awakeWindowMaxMin: 90  },
-  { dayTo: 90, feedsPerDayMin: 6, awakeWindowMaxMin: 120 },
-];
-
+// Umbrales por defecto según la edad: salen de lib/reference-data.mjs, los
+// mismos datos que usa la app. Antes había aquí una copia de la tabla que se
+// había quedado desfasada (a partir de los 3 meses, 4 h frente a las 3 h de
+// la app).
 function getDefaultNotifPrefs(daysOfLife) {
-  const row = NOTIF_REFERENCE.find((r) => daysOfLife <= r.dayTo);
-  const feedsMin = row?.feedsPerDayMin ?? 6;
   return {
-    feedingThresholdMins: Math.round(24 * 60 / feedsMin),
-    restThresholdMins:    row?.awakeWindowMaxMin ?? 180,
+    feedingThresholdMins: maxMinutosEntreTomas(daysOfLife),
+    restThresholdMins:    ventanaVigiliaMaxima(daysOfLife),
   };
 }
 
@@ -1496,8 +1555,16 @@ function checkNotifications() {
       const babyId = babyRow.id;
       const prefs = db.prepare(`SELECT * FROM notification_prefs WHERE account_id = ? AND baby_id = ?`)
         .get(account_id, babyId);
-      const defaults = getDefaultNotifPrefs(getDaysOfLife(baby));
-      const feedingMs = (prefs?.feeding_threshold_mins ?? defaults.feedingThresholdMins) * 60 * 1000;
+      const diasDeVida = getDaysOfLife(baby);
+      const defaults = getDefaultNotifPrefs(diasDeVida);
+      // Si la familia no lo ha cambiado, lo de su edad y, dentro de su franja
+      // nocturna, al menos 4 h (AAP). Si lo ha cambiado, su valor siempre.
+      const feedingMin = prefs?.feeding_threshold_custom
+        ? prefs.feeding_threshold_mins
+        : maxMinutosEntreTomas(diasDeVida, {
+            deNoche: esFranjaNocturna(new Date(), baby.nightSleepStart, baby.nightSleepEnd),
+          });
+      const feedingMs = feedingMin * 60 * 1000;
       const restMs    = (prefs?.rest_threshold_mins    ?? defaults.restThresholdMins)    * 60 * 1000;
       const name = baby.name || 'el bebé';
 

@@ -13,7 +13,7 @@ import {
   avgDailyFeeds,
   getAvgGapMinutes,
 } from '../utils/feedingUtils';
-import { getEffectiveReference, getSleepReference } from '../data/referenceTable';
+import { getEffectiveReference, getSleepReference, limiteSinComer } from '../data/referenceTable';
 import { etiquetarSuenos, contarPorTipo } from '../utils/sleepUtils';
 import { cuidadosConAcciones, CareTodayBar } from './CareToday';
 import FeedingItem from './FeedingItem';
@@ -175,7 +175,7 @@ export default function DailySummary({
   const lastFeedingElapsed = lastFeeding && !lastFeedingInProgress
     ? Math.floor((Date.now() - new Date(lastFeeding.timestamp).getTime()) / 60000)
     : null;
-  const feedingAlertMin = reference ? Math.round((24 * 60) / reference.feedsPerDayMin) : 180;
+  const feedingAlertMin = limiteSinComer(config, daysOfLife);
   const isFeedingAlert = lastFeedingElapsed !== null && lastFeedingElapsed >= feedingAlertMin;
 
   const restInProgress = rests.some((r) => r.endTime == null);

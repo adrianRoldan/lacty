@@ -160,7 +160,7 @@ export default function ChartsView({ feedings, rests, weights, heights, headCirc
   // Percentile chart data (age-based)
   const canShowPercentiles = !!birthDate && !!sex;
   const babyAgeMonths = birthDate ? ageInMonths(birthDate, localDateOf(new Date().toISOString())) : 0;
-  const percentileMaxMonth = Math.min(6, Math.ceil(babyAgeMonths) + 1);
+  const percentileMaxMonth = Math.min(PERCENTIL_MAX_MESES, Math.ceil(babyAgeMonths) + 1);
   const weightPercentileData = canShowPercentiles ? buildPercentileChartData(
     weights.map(w => ({ date: w.date, value: w.weightKg })),
     getWeightPercentiles(sex!),
@@ -461,11 +461,14 @@ export default function ChartsView({ feedings, rests, weights, heights, headCirc
 
 import type { PercentileRow } from '../data/whoPercentiles';
 
+/** Hasta dónde llegan las tablas de la OMS de src/data/whoPercentiles.ts. */
+const PERCENTIL_MAX_MESES = 24;
+
 function buildPercentileChartData(
   entries: { date: string; value: number }[],
   percentiles: PercentileRow[],
   birthDate: string,
-  maxMonth: number = 6,
+  maxMonth: number = PERCENTIL_MAX_MESES,
 ): Record<string, number | undefined>[] {
   const data: Record<string, number | undefined>[] = percentiles
     .filter(row => row.month <= maxMonth)
@@ -481,7 +484,7 @@ function buildPercentileChartData(
 
   for (const entry of entries) {
     const month = ageInMonths(birthDate, entry.date);
-    if (month < 0 || month > 6.5) continue;
+    if (month < 0 || month > PERCENTIL_MAX_MESES + 0.5) continue;
     data.push({
       month: Math.round(month * 100) / 100,
       p3: interpolate(percentiles, month, 'p3'),
@@ -552,7 +555,7 @@ function PercentileSummary({ entries, percentiles, birthDate, unit, label }: {
   const sorted = [...entries].sort((a, b) => b.date.localeCompare(a.date));
   const latest = sorted[0];
   const month = ageInMonths(birthDate, latest.date);
-  if (month < 0 || month > 6.5) return null;
+  if (month < 0 || month > PERCENTIL_MAX_MESES + 0.5) return null;
   const p = estimatePercentileNum(latest.value, percentiles, month);
   const desc = percentileDescription(p);
 

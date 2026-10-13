@@ -152,7 +152,7 @@
             "name": "¿Cómo sé si mi bebé está comiendo lo suficiente?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Lacty compara lo que lleva registrado el bebé con los rangos de referencia por edad y peso, y te muestra si el día va dentro de lo esperado en número de tomas, mililitros y horas de sueño. Es una orientación para hablar con tu pediatra, nunca un diagnóstico. Tienes los rangos y sus fuentes publicados."
+              "text": "Lacty compara lo que lleva registrado el bebé con los rangos de referencia por edad y peso, sacados de la Academia Americana de Pediatría, la OMS, la Academy of Breastfeeding Medicine y la National Sleep Foundation, y te muestra si el día va dentro de lo esperado en número de tomas, mililitros y horas de sueño. Es una orientación para hablar con tu pediatra, nunca un diagnóstico. Tienes los rangos y sus fuentes publicados."
             }
           },
           {
@@ -529,7 +529,7 @@
           <h3 class="text-lg font-bold text-gray-900 mb-2">Peso, talla y percentiles</h3>
           <p class="text-taupe-700 text-sm leading-relaxed">
             Anota peso, talla y perímetro cefálico y compáralos con las curvas de crecimiento de la OMS
-            por sexo y edad. La evolución, siempre en una gráfica clara.
+            por sexo y edad, de 0 a 24 meses. La evolución, siempre en una gráfica clara.
           </p>
         </article>
 
@@ -789,14 +789,14 @@
           <span class="w-11 h-11 rounded-2xl bg-coral-100 flex items-center justify-center text-xl shrink-0" aria-hidden="true">💉</span>
           <div>
             <h3 class="font-bold text-gray-900 mb-1">Calendario de vacunas</h3>
-            <p class="text-sm text-taupe-700 leading-relaxed">Calendario oficial de vacunación con seguimiento de las dosis recibidas.</p>
+            <p class="text-sm text-taupe-700 leading-relaxed">Calendario común 2026 del Ministerio de Sanidad y de la AEP, con seguimiento de las dosis recibidas.</p>
           </div>
         </div>
         <div class="flex items-start gap-4">
           <span class="w-11 h-11 rounded-2xl bg-mustard-100 flex items-center justify-center text-xl shrink-0" aria-hidden="true">🏆</span>
           <div>
             <h3 class="font-bold text-gray-900 mb-1">Hitos del desarrollo</h3>
-            <p class="text-sm text-taupe-700 leading-relaxed">Registra los primeros logros de tu bebé mes a mes.</p>
+            <p class="text-sm text-taupe-700 leading-relaxed">Registra los primeros logros de tu bebé mes a mes, según la lista de hitos de los CDC y la AAP.</p>
           </div>
         </div>
         <div class="flex items-start gap-4">
@@ -817,7 +817,7 @@
           <span class="w-11 h-11 rounded-2xl bg-taupe-100 flex items-center justify-center text-xl shrink-0" aria-hidden="true">🔔</span>
           <div>
             <h3 class="font-bold text-gray-900 mb-1">Notificaciones push</h3>
-            <p class="text-sm text-taupe-700 leading-relaxed">Avisos de vitamina D, probiótico y masajes para no olvidar nada.</p>
+            <p class="text-sm text-taupe-700 leading-relaxed">Avisos cuando lleva mucho sin comer o despierto, y de vitamina D, probiótico y masajes.</p>
           </div>
         </div>
         <div class="flex items-start gap-4">
@@ -864,6 +864,8 @@
           y te indica si el día va corto, en rango o por encima, tanto en número de tomas como
           en mililitros y en horas de sueño. Sirve para ir con datos a la consulta, nunca para
           sustituir el criterio de quien lleva su seguimiento.
+          El aviso de «lleva mucho sin comer» sigue a la Academia Americana de Pediatría: el primer
+          mes salta a las 3 horas de día y a las 4 de noche.
           Puedes consultar
           <a href="/referencias" class="text-sage-700 font-semibold underline">todos los rangos y sus fuentes</a>.
         </p>
@@ -874,7 +876,8 @@
           sin llegar a sobrecansarse, y se alarga a medida que crece. Cuando se pasa de largo,
           suele costar mucho más dormirle y el sueño se vuelve más frágil.
           Lacty calcula la ventana media real de tu bebé a partir de sus siestas registradas
-          y te avisa cuando lleva demasiado rato despierto para su edad.
+          y te avisa cuando lleva demasiado rato despierto para su edad. No existe una guía oficial
+          de ventanas de sueño, así que Lacty usa los rangos que publica la Cleveland Clinic.
           Lo contamos con la tabla por edades en la guía de
           <a href="/guias/ventanas-de-sueno-bebe.html" class="text-sage-700 font-semibold underline">ventanas de sueño del bebé</a>.
         </p>
@@ -906,6 +909,40 @@
           o muy por encima. Es la misma recomendación que dan las asesoras de lactancia (IBCLC):
           igualar el número de extracciones al de tomas, dejando el «extra para banco» solo para
           cuando de verdad haga falta.
+        </p>
+
+        <h3 class="text-xl font-bold text-gray-900 pt-2">En qué se basan los números de Lacty</h3>
+        <p>
+          Cada rango que usa la app está comprobado contra una publicación concreta (revisión de
+          octubre de 2026). Donde no hay una guía oficial, lo decimos.
+        </p>
+        <ul class="list-disc pl-5 space-y-2">
+          <li><strong class="text-gray-900">Mililitros de los primeros días:</strong> el protocolo de la
+            <a href="https://www.bfmed.org/assets/DOCUMENTS/PROTOCOLS/3-supplementation-protocol-english.pdf" class="text-sage-700 font-semibold underline" rel="noopener">Academy of Breastfeeding Medicine</a>:
+            de 2 a 10 ml por toma el primer día y de 30 a 60 ml el cuarto.</li>
+          <li><strong class="text-gray-900">Mililitros por peso, número de tomas y horas sin comer:</strong> la
+            <a href="https://www.healthychildren.org/English/ages-stages/baby/breastfeeding/Pages/How-Often-to-Breastfeed.aspx" class="text-sage-700 font-semibold underline" rel="noopener">Academia Americana de Pediatría</a>
+            (8 a 12 tomas al día el primer mes, sin pasar de 2–3 horas de día ni de 4 de noche) y el
+            <a href="https://www.nottinghamshirehealthcare.nhs.uk/bis-formula-feeding/" class="text-sage-700 font-semibold underline" rel="noopener">NHS británico</a> (150–200 ml por kilo y día).</li>
+          <li><strong class="text-gray-900">Leche materna para estimar las tomas al pecho:</strong> los estudios de
+            <a href="https://pubmed.ncbi.nlm.nih.gov/3202087/" class="text-sage-700 font-semibold underline" rel="noopener">Neville</a> y
+            <a href="https://pubmed.ncbi.nlm.nih.gov/16510619/" class="text-sage-700 font-semibold underline" rel="noopener">Kent</a>.</li>
+          <li><strong class="text-gray-900">Horas de sueño:</strong> la
+            <a href="https://www.thensf.org/sleep-duration-recommendations/" class="text-sage-700 font-semibold underline" rel="noopener">National Sleep Foundation</a> y la
+            <a href="https://aasm.org/resources/pdf/pediatricsleepdurationconsensus.pdf" class="text-sage-700 font-semibold underline" rel="noopener">Academia Americana de Medicina del Sueño</a>.</li>
+          <li><strong class="text-gray-900">Ventanas de sueño:</strong> no hay guía oficial; usamos los rangos de la
+            <a href="https://health.clevelandclinic.org/wake-windows-by-age" class="text-sage-700 font-semibold underline" rel="noopener">Cleveland Clinic</a>.</li>
+          <li><strong class="text-gray-900">Percentiles:</strong> los
+            <a href="https://www.who.int/tools/child-growth-standards/standards" class="text-sage-700 font-semibold underline" rel="noopener">patrones de crecimiento de la OMS</a>, de 0 a 24 meses.</li>
+          <li><strong class="text-gray-900">Vacunas:</strong> el
+            <a href="https://www.sanidad.gob.es/areas/promocionPrevencion/vacunaciones/calendario/docs/CalendarioVacunacion_Todalavida.pdf" class="text-sage-700 font-semibold underline" rel="noopener">calendario común 2026 del Ministerio de Sanidad</a>
+            y el de la <a href="https://vacunasaep.org/profesionales/calendario-de-vacunaciones-e-inmunizaciones-aep-2026" class="text-sage-700 font-semibold underline" rel="noopener">Asociación Española de Pediatría</a>.</li>
+          <li><strong class="text-gray-900">Hitos del desarrollo:</strong> la lista de los
+            <a href="https://www.cdc.gov/act-early/milestones/index.html" class="text-sage-700 font-semibold underline" rel="noopener">CDC y la AAP</a> (2022).</li>
+        </ul>
+        <p>
+          Tienes todas las cifras, tramo a tramo, en la
+          <a href="/referencias" class="text-sage-700 font-semibold underline">página de referencias</a>.
         </p>
       </div>
 
@@ -995,7 +1032,9 @@
           </summary>
           <p class="text-sm text-taupe-700 leading-relaxed mt-3">
             Lacty compara lo que lleva registrado el bebé con los rangos de referencia por edad y peso,
-            y te muestra si el día va dentro de lo esperado en número de tomas, mililitros y horas de sueño.
+            sacados de la Academia Americana de Pediatría, la OMS, la Academy of Breastfeeding Medicine
+            y la National Sleep Foundation, y te muestra si el día va dentro de lo esperado en número
+            de tomas, mililitros y horas de sueño.
             Es una orientación para hablar con tu pediatra, nunca un diagnóstico.
             Tienes <a href="/referencias" class="text-sage-700 font-semibold underline">los rangos y sus fuentes</a> publicados.
           </p>

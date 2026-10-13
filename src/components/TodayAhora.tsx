@@ -46,7 +46,7 @@ import {
   avgDailyFeeds,
   minutosParaExtraer,
 } from '../utils/feedingUtils';
-import { getEffectiveReference, getSleepReference } from '../data/referenceTable';
+import { getEffectiveReference, getSleepReference, limiteSinComer } from '../data/referenceTable';
 import { etiquetarSuenos, contarPorTipo } from '../utils/sleepUtils';
 import { cuidadosConAcciones, CareSheet, type CareItem } from './CareToday';
 import { useElapsedTime } from '../hooks/useElapsedMinutes';
@@ -179,7 +179,7 @@ export default function TodayAhora({
   const lastFeedingElapsed = lastFeeding && !feedingInProgress
     ? Math.max(0, Math.floor((Date.now() - new Date(lastFeeding.timestamp).getTime()) / 60000))
     : null;
-  const feedingLimitMin = reference ? Math.round((24 * 60) / reference.feedsPerDayMin) : 180;
+  const feedingLimitMin = limiteSinComer(config, daysOfLife);
 
   // ── Reloj de la derecha: dormir ───────────────────────────────────────────
   const restInProgress = rests.find((r) => r.endTime == null) ?? null;

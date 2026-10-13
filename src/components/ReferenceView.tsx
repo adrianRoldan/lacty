@@ -1,7 +1,7 @@
 import type { BabyConfig, Feeding, Rest } from '../types';
 import { getCurrentDaysOfLife } from '../utils/dateUtils';
 import { getTodayFeedings, getTotalSupplementMl, getTotalBreastMinutes, getRestCorrelation } from '../utils/feedingUtils';
-import { FEEDING_REFERENCE, getEffectiveReference, getSleepReference } from '../data/referenceTable';
+import { FEEDING_REFERENCE, SLEEP_REFERENCE_FALLBACK, WEIGHT_FORMULA, getEffectiveReference, getSleepReference, maxMinutosEntreTomas } from '../data/referenceTable';
 
 interface Props {
   config: BabyConfig;
@@ -19,6 +19,9 @@ function formatGap(minutes: number): string {
 
 const FIRST_WEEK = FEEDING_REFERENCE.filter(r => r.dayTo <= 7);
 const AFTER_WEEK_ONE = FEEDING_REFERENCE.filter(r => r.dayFrom >= 8);
+/** Primer día que ya no cubre la tabla: desde ahí se usan los valores de reserva. */
+const FUERA_DE_TABLA = FEEDING_REFERENCE[FEEDING_REFERENCE.length - 1].dayTo + 1;
+const { mlPerKgMin, mlPerKgMax, maxDailyMl } = WEIGHT_FORMULA;
 
 export default function ReferenceView({ config, feedings, rests, currentWeightKg }: Props) {
   const daysOfLife = getCurrentDaysOfLife(config);
@@ -64,7 +67,8 @@ export default function ReferenceView({ config, feedings, rests, currentWeightKg
             <p className="text-xs text-gray-400 mt-1">pecho + jeringa + biberón</p>
             {ref.isWeightBased && currentWeightKg && (
               <p className="text-xs text-gray-400 mt-0.5">
-                {currentWeightKg} kg × 150–180 ml/kg/día
+                {currentWeightKg} kg × {mlPerKgMin}–{mlPerKgMax} ml/kg/día
+                {Math.round(currentWeightKg * mlPerKgMax) > maxDailyMl && ` (máx. ${maxDailyMl} ml)`}
               </p>
             )}
           </div>
@@ -129,7 +133,7 @@ export default function ReferenceView({ config, feedings, rests, currentWeightKg
         </div>
 
         <p className="text-xs text-taupe-700">
-          El sueño se guía por la edad, no por el peso. Valores orientativos (NSF/AASM); cada bebé varía. El banner de "Hoy" avisa al superar la ventana de vigilia.
+          El sueño se guía por la edad, no por el peso. Horas de sueño según la National Sleep Foundation y la AASM. La ventana de vigilia no tiene una guía oficial: es el extremo alto de los rangos de la Cleveland Clinic. Cada bebé varía. El banner de "Hoy" avisa al superar la ventana de vigilia.
         </p>
       </div>
 
@@ -164,6 +168,11 @@ export default function ReferenceView({ config, feedings, rests, currentWeightKg
                 </tr>
               );
             })}
+            <FilaFueraDeTabla
+              actual={daysOfLife >= FUERA_DE_TABLA}
+              centro={`${SLEEP_REFERENCE_FALLBACK.sleepHoursMin}–${SLEEP_REFERENCE_FALLBACK.sleepHoursMax} h`}
+              derecha={formatGap(SLEEP_REFERENCE_FALLBACK.awakeWindowMaxMin)}
+            />
           </tbody>
         </table>
       </div>
@@ -173,16 +182,14 @@ export default function ReferenceView({ config, feedings, rests, currentWeightKg
         Tiempo máximo entre tomas
       </h2>
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-6">
-        {ref && (
-          <div className="px-4 py-3 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
-            <span className="text-sm text-blue-800">
-              Hoy (día {daysOfLife}): máx.
-            </span>
-            <span className="text-base font-bold text-blue-700">
-              {formatGap(Math.round((24 * 60) / ref.feedsPerDayMin))}
-            </span>
-          </div>
-        )}
+        <div className="px-4 py-3 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
+          <span className="text-sm text-blue-800">
+            Hoy (día {daysOfLife}): máx.
+          </span>
+          <span className="text-base font-bold text-blue-700">
+            {formatGap(maxMinutosEntreTomas(daysOfLife))}
+          </span>
+        </div>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
@@ -210,10 +217,15 @@ export default function ReferenceView({ config, feedings, rests, currentWeightKg
                 </tr>
               );
             })}
+            <FilaFueraDeTabla
+              actual={daysOfLife >= FUERA_DE_TABLA}
+              centro="—"
+              derecha={formatGap(maxMinutosEntreTomas(FUERA_DE_TABLA))}
+            />
           </tbody>
         </table>
         <p className="text-xs text-gray-400 px-4 py-3">
-          Calculado como 24h ÷ tomas mínimas recomendadas (AAP/OMS). El banner de alerta en "Hoy" usa este valor.
+          De día, 24 h ÷ tomas mínimas de su edad: el primer mes salen 3 h. De noche (en su franja nocturna) se espera al menos 4 h. Es lo que pide la AAP: no más de 2–3 h de día ni de 4 de noche. El banner de "Hoy" y los avisos usan estos valores.
         </p>
       </div>
 
@@ -270,7 +282,7 @@ export default function ReferenceView({ config, feedings, rests, currentWeightKg
           </p>
           <div className="bg-gray-50 rounded-xl p-4 text-center">
             <p className="text-base font-mono font-semibold text-gray-800">
-              peso (kg) × 150–180 ml = ml/día
+              peso (kg) × {mlPerKgMin}–{mlPerKgMax} ml = ml/día
             </p>
           </div>
           <div className="text-sm text-gray-600 space-y-1">
@@ -278,11 +290,16 @@ export default function ReferenceView({ config, feedings, rests, currentWeightKg
               Con <strong>{currentWeightKg} kg</strong> actuales:
             </p>
             <p className="pl-3 text-gray-700">
-              · Mínimo: {currentWeightKg} × 150 = <strong>{Math.round(currentWeightKg * 150)} ml/día</strong>
+              · Mínimo: {currentWeightKg} × {mlPerKgMin} = <strong>{Math.round(currentWeightKg! * mlPerKgMin)} ml/día</strong>
             </p>
             <p className="pl-3 text-gray-700">
-              · Máximo: {currentWeightKg} × 180 = <strong>{Math.round(currentWeightKg * 180)} ml/día</strong>
+              · Máximo: {currentWeightKg} × {mlPerKgMax} = <strong>{Math.round(currentWeightKg! * mlPerKgMax)} ml/día</strong>
             </p>
+            {Math.round(currentWeightKg! * mlPerKgMax) > maxDailyMl && (
+              <p className="pl-3 text-gray-700">
+                · Con el tope de la AAP, no más de <strong>{maxDailyMl} ml/día</strong>
+              </p>
+            )}
           </div>
           <p className="text-xs text-gray-400">
             Esta fórmula es para leche total (pecho + biberón + jeringa-dedo). Cuando el bebé crezca y el peso cambie, actualízalo en la pestaña Mi bebé para que la referencia se ajuste.
@@ -467,5 +484,19 @@ function BreastEstimationExplainer({ feedings, daysOfLife }: { feedings: Feeding
         <strong>⚠️ Estimación, no medición.</strong> La fórmula asume que más tiempo = más leche, lo cual es orientativo pero no siempre correcto. La única medición real es el pesaje de control (antes/después de la toma).
       </div>
     </div>
+  );
+}
+
+/** La última fila de las tablas por edad: lo que se usa cuando ya no hay tramo. */
+function FilaFueraDeTabla({ actual, centro, derecha }: { actual: boolean; centro: string; derecha: string }) {
+  return (
+    <tr className={`border-b border-gray-50 ${actual ? 'bg-blue-50' : ''}`}>
+      <td className={`px-4 py-3 font-medium ${actual ? 'text-blue-800' : 'text-gray-700'}`}>
+        Desde el día {FUERA_DE_TABLA}
+        {actual && <span className="ml-2 text-xs text-blue-500">← hoy</span>}
+      </td>
+      <td className={`px-4 py-3 text-right ${actual ? 'text-blue-700 font-semibold' : 'text-gray-500'}`}>{centro}</td>
+      <td className={`px-4 py-3 text-right font-semibold ${actual ? 'text-blue-800' : 'text-gray-700'}`}>{derecha}</td>
+    </tr>
   );
 }

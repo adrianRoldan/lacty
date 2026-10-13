@@ -37,7 +37,7 @@ import {
   getAvgGapMinutes,
   minutosParaExtraer,
 } from '../utils/feedingUtils';
-import { getEffectiveReference, getSleepReference } from '../data/referenceTable';
+import { getEffectiveReference, getSleepReference, limiteSinComer } from '../data/referenceTable';
 import { etiquetarSuenos, contarPorTipo, esSuenoNocturno } from '../utils/sleepUtils';
 import { cuidadosConAcciones } from './CareToday';
 import { useElapsedTime } from '../hooks/useElapsedMinutes';
@@ -178,7 +178,7 @@ export default function TodayOrbita({
   const lastFeedingElapsed = lastFeeding && !feedingInProgress
     ? Math.max(0, Math.floor((ahora.getTime() - new Date(lastFeeding.timestamp).getTime()) / 60000))
     : null;
-  const feedingLimitMin = reference ? Math.round((24 * 60) / reference.feedsPerDayMin) : 180;
+  const feedingLimitMin = limiteSinComer(config, daysOfLife);
   const nivelToma = nivelDe(lastFeedingElapsed, feedingLimitMin);
   const siguiente = siguienteToma(feedings);
 

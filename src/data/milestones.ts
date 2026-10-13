@@ -13,6 +13,17 @@ export interface MilestoneGroup {
   milestones: Milestone[];
 }
 
+/**
+ * Hitos orientativos por edad. Revisados en octubre de 2026 contra la lista
+ * de los CDC y la AAP (Zubler JM et al., Pediatrics 2022;149(3):e2021052138),
+ * donde cada hito lo alcanza al menos el 75 % de los bebés a esa edad:
+ * https://www.cdc.gov/act-early/milestones/
+ *
+ * Se movieron cuatro que estaban adelantados: responder a su nombre, el
+ * balbuceo «ma-ma, ba-ba» y sentarse sin apoyo son hitos de los 9 meses, y a
+ * los 4 meses se ríe con risitas, aún no a carcajadas. Los id no cambian para
+ * no perder lo que cada familia ya había marcado.
+ */
 export const MILESTONES: MilestoneGroup[] = [
   {
     monthFrom: 0, monthTo: 1, label: '0–1 mes',
@@ -23,7 +34,7 @@ export const MILESTONES: MilestoneGroup[] = [
       { id: 'm0-4', text: 'Se calma al oír la voz de sus padres', category: 'social' },
       { id: 'm0-5', text: 'Fija brevemente la mirada en caras cercanas', category: 'sensory' },
       { id: 'm0-6', text: 'Reacciona a sonidos fuertes (se sobresalta)', category: 'sensory' },
-      { id: 'm0-7', text: 'Emite sonidos guturales (gorjeos)', category: 'language' },
+      { id: 'm0-7', text: 'Hace ruiditos además de llorar', category: 'language' },
     ],
   },
   {
@@ -56,7 +67,7 @@ export const MILESTONES: MilestoneGroup[] = [
       { id: 'm3-1', text: 'Sostiene la cabeza firme sin apoyo', category: 'motor' },
       { id: 'm3-2', text: 'Empuja con los pies cuando se le pone de pie sobre superficie', category: 'motor' },
       { id: 'm3-3', text: 'Agarra y sacude juguetes', category: 'motor' },
-      { id: 'm3-4', text: 'Ríe a carcajadas', category: 'social' },
+      { id: 'm3-4', text: 'Se ríe con risitas cuando jugáis', category: 'social' },
       { id: 'm3-5', text: 'Imita algunos sonidos y expresiones faciales', category: 'language' },
       { id: 'm3-6', text: 'Llora de formas distintas según la necesidad', category: 'language' },
       { id: 'm3-7', text: 'Muestra interés por juguetes nuevos (los mira y alcanza)', category: 'cognitive' },
@@ -69,8 +80,8 @@ export const MILESTONES: MilestoneGroup[] = [
       { id: 'm4-1', text: 'Rueda de boca abajo a boca arriba', category: 'motor' },
       { id: 'm4-2', text: 'Se sostiene sentado con apoyo', category: 'motor' },
       { id: 'm4-3', text: 'Se lleva objetos a la boca para explorarlos', category: 'cognitive' },
-      { id: 'm4-4', text: 'Responde a su nombre girando la cabeza', category: 'language' },
-      { id: 'm4-5', text: 'Balbucea cadenas de consonantes ("ba-ba", "ma-ma")', category: 'language' },
+      { id: 'm4-4', text: 'Gira la cabeza hacia el sonido de tu voz', category: 'language' },
+      { id: 'm4-5', text: 'Te contesta con sonidos cuando le hablas', category: 'language' },
       { id: 'm4-6', text: 'Muestra alegría al ver a quienes le cuidan', category: 'social' },
       { id: 'm4-7', text: 'Intenta alcanzar objetos con una mano', category: 'motor' },
       { id: 'm4-8', text: 'Distingue colores y observa objetos pequeños', category: 'sensory' },
@@ -80,12 +91,12 @@ export const MILESTONES: MilestoneGroup[] = [
     monthFrom: 5, monthTo: 6, label: '5–6 meses',
     milestones: [
       { id: 'm5-1', text: 'Rueda en ambas direcciones', category: 'motor' },
-      { id: 'm5-2', text: 'Se sienta sin apoyo unos segundos', category: 'motor' },
+      { id: 'm5-2', text: 'Sentado, se apoya en las manos para sostenerse', category: 'motor' },
       { id: 'm5-3', text: 'Pasa objetos de una mano a otra', category: 'motor' },
       { id: 'm5-4', text: 'Reconoce caras familiares vs extraños', category: 'social' },
       { id: 'm5-5', text: 'Responde a emociones de otros (sonríe si le sonríen)', category: 'social' },
       { id: 'm5-6', text: 'Le gusta mirarse en el espejo', category: 'cognitive' },
-      { id: 'm5-7', text: 'Balbuceo variado con entonación', category: 'language' },
+      { id: 'm5-7', text: 'Hace pedorretas y grititos', category: 'language' },
       { id: 'm5-8', text: 'Explora objetos con las manos, golpeándolos', category: 'cognitive' },
     ],
   },
