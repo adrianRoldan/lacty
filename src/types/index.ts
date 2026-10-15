@@ -70,11 +70,26 @@ export interface Feeding {
   notes?: string;
 }
 
+/** Cómo volvió a dormirse tras un despertar. */
+export type WakingSoothe = 'solo' | 'chupete' | 'brazos' | 'pecho';
+
+/**
+ * Un despertar breve dentro de un sueño que sigue: se le ayuda a enlazar el
+ * ciclo y vuelve a dormirse sin que el sueño se dé por terminado.
+ */
+export interface RestWaking {
+  id: string;
+  at: string;          // ISO — cuándo se despertó
+  endAt?: string;      // ISO — cuándo volvió a dormirse (opcional)
+  soothe?: WakingSoothe;
+}
+
 export interface Rest {
   id: string;
   startTime: string;
   endTime?: string;
   notes?: string;
+  wakings?: RestWaking[];
 }
 
 export interface MilestoneLog {

@@ -2,7 +2,7 @@ import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, MilestoneLog,
 import { getCurrentDaysOfLife, getBirthDate, formatMinutes, localDateOf } from '../utils/dateUtils';
 import { getTotalSupplementMl, getTotalBottleMl, getTotalBreastMinutes, getTotalEstimatedBreastMl, restMinutesOnDay, formatDose } from '../utils/feedingUtils';
 import { MILESTONES } from '../data/milestones';
-import { contarPorTipo } from '../utils/sleepUtils';
+import { contarPorTipo, despertaresPorNoche } from '../utils/sleepUtils';
 
 interface Props {
   config: BabyConfig;
@@ -81,6 +81,12 @@ export default function PediatraSummary({ config, feedings, rests, weights, heig
     const c = contarPorTipo(rests, config, d);
     return { siestas: acc.siestas + c.siestas, nocturnos: acc.nocturnos + c.nocturnos };
   }, { siestas: 0, nocturnos: 0 });
+
+  // Despertares por noche en las noches del periodo (solo si se han apuntado).
+  const noches = despertaresPorNoche(rests, config, days[0], days[days.length - 1]);
+  const mediaDespertares = noches.some((n) => n.dentroDelSueno > 0)
+    ? Math.round((noches.reduce((s, n) => s + n.despertares, 0) / noches.length) * 10) / 10
+    : null;
 
   // Medicación de los últimos 14 días, de la más reciente a la más antigua.
   const recentMedications = medications
@@ -179,6 +185,9 @@ export default function PediatraSummary({ config, feedings, rests, weights, heig
             <Row label="Sueño/día (media)" value={formatMinutes(avgSleepPerDay)} />
             <Row label="Siestas registradas" value={String(conteoSueno.siestas)} />
             <Row label="Sueños nocturnos" value={String(conteoSueno.nocturnos)} />
+            {mediaDespertares != null && (
+              <Row label={`Despertares por noche (${noches.length} noches)`} value={String(mediaDespertares).replace('.', ',')} />
+            )}
           </div>
         </section>
 

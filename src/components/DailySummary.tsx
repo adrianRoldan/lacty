@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { BabyConfig, Feeding, Rest, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, Extraction, CareKind } from '../types';
+import type { BabyConfig, Feeding, Rest, RestWaking, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, Extraction, CareKind } from '../types';
 import { getCurrentDaysOfLife, formatBabyAge, formatMinutes, formatTime, gapMinutes, isSameDay, todayIso } from '../utils/dateUtils';
 import {
   getTodayFeedings,
@@ -14,7 +14,7 @@ import {
   getAvgGapMinutes,
 } from '../utils/feedingUtils';
 import { getEffectiveReference, getSleepReference, limiteSinComer } from '../data/referenceTable';
-import { etiquetarSuenos, contarPorTipo } from '../utils/sleepUtils';
+import { etiquetarSuenos, contarPorTipo, nocheParaMostrar } from '../utils/sleepUtils';
 import { cuidadosConAcciones, CareTodayBar } from './CareToday';
 import FeedingItem from './FeedingItem';
 import RestItem from './RestItem';
@@ -53,6 +53,8 @@ interface Props {
   onDeleteRest: (id: string) => void;
   onStopFeeding: (f: Feeding) => void;
   onStopRest: (r: Rest) => void;
+  onWakingStart: (r: Rest) => void;
+  onWakingEnd: (r: Rest, w: RestWaking) => void;
   onGiveVitaminD: (date: string) => void;
   onRemoveVitaminD: (date: string) => void;
   probioticLogs: ProbioticLog[];
@@ -97,6 +99,7 @@ export default function DailySummary({
   onEditFeeding, onEditRest,
   onDeleteFeeding, onDeleteRest,
   onStopFeeding, onStopRest,
+  onWakingStart, onWakingEnd,
   onGiveVitaminD, onRemoveVitaminD,
   probioticLogs, onGiveProbiotic, onRemoveProbiotic,
   onRecalculateTodayBreast,
@@ -312,8 +315,9 @@ export default function DailySummary({
                 <p className="text-xs text-gray-400 mt-0.5">jeringa ml</p>
               </div>
             </div>
-            <DayInsights feedings={todayFeedings} rests={todayRests} reference={reference} sleepRef={sleepRef} todayRestMinutes={totalRestMin} siestasHoy={conteoHoy.siestas} nocturnosHoy={conteoHoy.nocturnos} extractions={todayExtractions} avgFeedsTarget={avgFeedsTarget} baths={baths} />
-            <WeekComparison feedings={feedings} rests={rests} />
+            <DayInsights feedings={todayFeedings} rests={todayRests} reference={reference} sleepRef={sleepRef} todayRestMinutes={totalRestMin} siestasHoy={conteoHoy.siestas} nocturnosHoy={conteoHoy.nocturnos} extractions={todayExtractions} avgFeedsTarget={avgFeedsTarget} baths={baths}
+              noche={nocheParaMostrar(rests, config)} />
+            <WeekComparison feedings={feedings} rests={rests} config={config} />
           </div>
         )}
       </div>
@@ -382,7 +386,7 @@ export default function DailySummary({
                 {item.type === 'feeding' ? (
                   <FeedingItem feeding={item.data} onEdit={onEditFeeding} onDelete={onDeleteFeeding} onStop={onStopFeeding} listDay={today} readOnly={readOnly} />
                 ) : item.type === 'rest' ? (
-                  <RestItem rest={item.data} onEdit={onEditRest} onDelete={onDeleteRest} onStop={onStopRest} etiqueta={etiquetasSueno.get(item.data.id)?.texto} listDay={today} readOnly={readOnly} />
+                  <RestItem rest={item.data} onEdit={onEditRest} onDelete={onDeleteRest} onStop={onStopRest} onWakingStart={onWakingStart} onWakingEnd={onWakingEnd} etiqueta={etiquetasSueno.get(item.data.id)?.texto} listDay={today} readOnly={readOnly} />
                 ) : item.type === 'diaper' ? (
                   <DiaperItem diaper={item.data} onEdit={onEditDiaper} onDelete={onDeleteDiaper} readOnly={readOnly} />
                 ) : item.type === 'walk' ? (

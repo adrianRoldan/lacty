@@ -20,7 +20,7 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import type {
-  BabyConfig, Feeding, Rest, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent,
+  BabyConfig, Feeding, Rest, RestWaking, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent,
   DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, Extraction,
 } from '../types';
 import { getCurrentDaysOfLife, formatBabyAge, formatMinutes, formatTime, isSameDay, todayIso } from '../utils/dateUtils';
@@ -38,7 +38,7 @@ import {
   minutosParaExtraer,
 } from '../utils/feedingUtils';
 import { getEffectiveReference, getSleepReference, limiteSinComer } from '../data/referenceTable';
-import { etiquetarSuenos, contarPorTipo, esSuenoNocturno } from '../utils/sleepUtils';
+import { etiquetarSuenos, contarPorTipo, esSuenoNocturno, despertarAbierto, textoDespertares, nocheParaMostrar } from '../utils/sleepUtils';
 import { cuidadosConAcciones } from './CareToday';
 import { useElapsedTime } from '../hooks/useElapsedMinutes';
 import { useModoMadrugada } from '../hooks/useModoMadrugada';
@@ -78,6 +78,8 @@ interface Props {
   onDeleteRest: (id: string) => void;
   onStopFeeding: (f: Feeding) => void;
   onStopRest: (r: Rest) => void;
+  onWakingStart: (r: Rest) => void;
+  onWakingEnd: (r: Rest, w: RestWaking) => void;
   onGiveVitaminD: (date: string) => void;
   onRemoveVitaminD: (date: string) => void;
   probioticLogs: ProbioticLog[];
@@ -114,6 +116,7 @@ export default function TodayOrbita({
   onEditFeeding, onEditRest,
   onDeleteFeeding, onDeleteRest,
   onStopFeeding, onStopRest,
+  onWakingStart, onWakingEnd,
   onGiveVitaminD, onRemoveVitaminD,
   probioticLogs, onGiveProbiotic, onRemoveProbiotic,
   onRecalculateTodayBreast,
@@ -233,6 +236,11 @@ export default function TodayOrbita({
   const cuidadosVisibles = madrugada ? careItems.filter((c) => !c.done && c.urgent) : careItems;
   const avisosVisibles = madrugada ? avisos.filter((a) => a.urgente) : avisos;
 
+  // Despertares de la noche en curso (o de la última, si ya es de día).
+  const nocheHoy = nocheParaMostrar(rests, config, ahora);
+  const noche = nocheHoy?.resumen ?? null;
+  const etiquetaNoche = nocheHoy?.etiqueta;
+
   const [resumenAbierto, setResumenAbierto] = useState(false);
   const [infoExtraccion, setInfoExtraccion] = useState(false);
 
@@ -351,6 +359,13 @@ export default function TodayOrbita({
 
       {avisosVisibles.length > 0 && <LineaDeAviso aviso={avisosVisibles[0]} pendientes={avisosVisibles.length} />}
 
+      {noche && noche.despertares > 0 && (
+        <p className="mt-3 text-center text-sm text-gray-600">
+          {etiquetaNoche}: <strong className="text-gray-900">{textoDespertares(noche.despertares)}</strong>
+          {noche.minutosDespierto > 0 && ` · ${noche.minutosDespierto} min despierto`}
+        </p>
+      )}
+
       {/* ── 4. Leyenda, que es a la vez el resumen del día ─────────────── */}
       {!madrugada && (
         <div className="mt-4">
@@ -392,8 +407,9 @@ export default function TodayOrbita({
                 feedings={todayFeedings} rests={todayRests} reference={reference} sleepRef={sleepRef}
                 todayRestMinutes={totalRestMin} siestasHoy={conteoHoy.siestas} nocturnosHoy={conteoHoy.nocturnos}
                 extractions={todayExtractions} avgFeedsTarget={avgFeedsTarget} baths={baths}
+              noche={nocheParaMostrar(rests, config)}
               />
-              <WeekComparison feedings={feedings} rests={rests} />
+              <WeekComparison feedings={feedings} rests={rests} config={config} />
             </div>
           )}
         </div>
@@ -479,6 +495,8 @@ export default function TodayOrbita({
           onDormir={onQuickRest}
           onDespertar={onStopRest}
           onMas={onAbrirAñadir}
+          onWakingStart={onWakingStart}
+          onWakingEnd={onWakingEnd}
         />
       )}
 
@@ -665,11 +683,23 @@ function CentroDelReloj({
   }
   if (restInProgress) {
     const min = minutosDesde(restInProgress.startTime, ahora);
+    const abierto = despertarAbierto(restInProgress, ahora);
+    const n = restInProgress.wakings?.length ?? 0;
+    if (abierto) {
+      return (
+        <>
+          <Etiqueta>Se ha despertado</Etiqueta>
+          <CronometroGrande inicio={abierto.at} />
+          <p className="text-sm text-gray-700 mt-1">despertar n.º {n}</p>
+        </>
+      );
+    }
     return (
       <>
         <Etiqueta>{nocturno ? 'Durmiendo' : 'Siesta'}</Etiqueta>
         <NumeroGrande className="text-[var(--orb-sueno-texto)]">{formatCorto(min)}</NumeroGrande>
         <p className="text-sm text-gray-700 mt-1">desde las {formatTime(restInProgress.startTime)}</p>
+        {n > 0 && <p className="text-xs text-gray-500 mt-0.5">{textoDespertares(n)}</p>}
       </>
     );
   }
@@ -782,6 +812,7 @@ function Leyenda({ color, etiqueta, valor, nota }: { color: string; etiqueta: st
 function Dock({
   feedingInProgress, restInProgress, siguiente, urge,
   onPanal, onEmpezarToma, onTerminarToma, onDormir, onDespertar, onMas,
+  onWakingStart, onWakingEnd,
 }: {
   feedingInProgress: Feeding | null;
   restInProgress: Rest | null;
@@ -793,6 +824,8 @@ function Dock({
   onDormir: () => void;
   onDespertar: (r: Rest) => void;
   onMas: () => void;
+  onWakingStart: (r: Rest) => void;
+  onWakingEnd: (r: Rest, w: RestWaking) => void;
 }) {
   const textoSiguiente = siguiente.tipo === 'biberon' ? 'biberón' : `pecho ${siguiente.lado}`;
 
@@ -804,9 +837,11 @@ function Dock({
       onClick: () => onTerminarToma(feedingInProgress),
     };
   } else if (restInProgress) {
+    // Con el bebé dormido, el botón grande es el despertar (lo que se pulsa
+    // varias veces de noche) y terminar el sueño pasa a ser el secundario.
     principal = {
-      titulo: 'Se ha despertado', tono: 'sueno',
-      nota: `durmiendo desde las ${formatTime(restInProgress.startTime)}`,
+      titulo: 'Terminar', tono: 'sueno',
+      nota: 'el sueño',
       onClick: () => onDespertar(restInProgress),
     };
   } else {
@@ -818,17 +853,34 @@ function Dock({
     };
   }
 
-  const relleno = principal.tono === 'toma'
-    ? 'bg-[var(--orb-toma)] text-[var(--orb-toma-tinta)]'
-    : 'bg-[var(--orb-sueno)] text-[var(--orb-sueno-tinta)]';
+  const relleno = restInProgress
+    ? 'bg-gray-100 text-[var(--orb-sueno-texto)]'
+    : principal.tono === 'toma'
+      ? 'bg-[var(--orb-toma)] text-[var(--orb-toma-tinta)]'
+      : 'bg-[var(--orb-sueno)] text-[var(--orb-sueno-tinta)]';
+  const abierto = restInProgress ? despertarAbierto(restInProgress) : null;
 
   // Por encima del «+» central de la barra inferior, que sobresale de ella.
   return (
     <div className="fixed z-20 left-3 right-3 bottom-[calc(6rem+env(safe-area-inset-bottom))] lg:left-auto lg:right-6 lg:bottom-6 lg:w-[26rem]">
       <div className="bg-white border border-gray-200 rounded-[28px] shadow-lg p-2 flex items-center gap-2">
-        <BotonLateral etiqueta="Apuntar pañal" color="var(--orb-panal)" onClick={onPanal}>
-          <path d="M3 7h18v3a9 9 0 0 1-18 0V7z" /><path d="M8 7v3M16 7v3" />
-        </BotonLateral>
+        {restInProgress ? (
+          <button
+            onClick={() => (abierto ? onWakingEnd(restInProgress, abierto) : onWakingStart(restInProgress))}
+            className={`flex-1 min-w-0 h-14 rounded-[20px] flex flex-col items-center justify-center leading-tight touch-manipulation active:brightness-95 bg-[var(--orb-sueno)] text-[var(--orb-sueno-tinta)] ${
+              abierto ? 'ring-2 ring-offset-2 ring-[var(--orb-sueno)] ring-offset-white' : ''
+            }`}
+          >
+            <span className="text-[15px] font-extrabold truncate max-w-full px-2">{abierto ? 'Ya duerme' : 'Despertar'}</span>
+            <span className="text-xs opacity-80 truncate max-w-full px-2">
+              {abierto ? <MiniCronometroTinta inicio={abierto.at} /> : 'y vuelve a dormir'}
+            </span>
+          </button>
+        ) : (
+          <BotonLateral etiqueta="Apuntar pañal" color="var(--orb-panal)" onClick={onPanal}>
+            <path d="M3 7h18v3a9 9 0 0 1-18 0V7z" /><path d="M8 7v3M16 7v3" />
+          </BotonLateral>
+        )}
         <button
           onClick={principal.onClick}
           className={`flex-1 min-w-0 h-14 rounded-[20px] flex flex-col items-center justify-center leading-tight touch-manipulation active:brightness-95 ${relleno} ${

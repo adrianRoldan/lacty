@@ -11,6 +11,7 @@ import {
 } from '../utils/feedingUtils';
 import { formatMinutes, localDateOf, todayIso } from '../utils/dateUtils';
 import { ProgressRow, AverageRow } from './InsightRows';
+import { textoDespertares, type ResumenNoche } from '../utils/sleepUtils';
 import ExtractionsInsightCard from './ExtractionsInsightCard';
 
 interface Props {
@@ -30,6 +31,8 @@ interface Props {
   avgFeedsTarget: number | null;
   /** Todos los baños (no solo los de hoy): se usa el más reciente. */
   baths: Bath[];
+  /** Despertares de esta noche o de anoche (ver nocheParaMostrar). */
+  noche?: { etiqueta: string; resumen: ResumenNoche } | null;
 }
 
 /** Días naturales transcurridos desde el último baño, o null si no hay ninguno. */
@@ -46,7 +49,7 @@ function formatDaysAgo(days: number): string {
   return `hace ${days} días`;
 }
 
-export default function DayInsights({ feedings, rests, reference, sleepRef, todayRestMinutes, siestasHoy, nocturnosHoy, extractions, avgFeedsTarget, baths }: Props) {
+export default function DayInsights({ feedings, rests, reference, sleepRef, todayRestMinutes, siestasHoy, nocturnosHoy, extractions, avgFeedsTarget, baths, noche }: Props) {
   const totalMl = getTotalSupplementMl(feedings) + getTotalBottleMl(feedings) + getTotalEstimatedBreastMl(feedings);
   const totalFeedings = feedings.length;
   const avgGap = getAvgGapMinutes(feedings);
@@ -56,7 +59,7 @@ export default function DayInsights({ feedings, rests, reference, sleepRef, toda
   const totalRestToday = todayRestMinutes;
   const bathDays = daysSinceLastBath(baths);
 
-  const hasAnyData = totalFeedings > 0 || rests.length > 0 || extractions.length > 0 || bathDays !== null;
+  const hasAnyData = totalFeedings > 0 || rests.length > 0 || extractions.length > 0 || bathDays !== null || !!noche;
   if (!hasAnyData) return null;
 
   return (
@@ -108,7 +111,7 @@ export default function DayInsights({ feedings, rests, reference, sleepRef, toda
       )}
 
       {/* Averages */}
-      {(avgGap !== null || avgMl !== null || avgRest !== null || avgAwakeWindow !== null || totalRestToday > 0) && (
+      {(avgGap !== null || avgMl !== null || avgRest !== null || avgAwakeWindow !== null || totalRestToday > 0 || !!noche) && (
         <div className="bg-white rounded-2xl p-4 shadow-sm">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
             Medias del día
@@ -134,6 +137,13 @@ export default function DayInsights({ feedings, rests, reference, sleepRef, toda
             )}
             {nocturnosHoy > 0 && (
               <AverageRow icon="🌙" label="Sueños nocturnos hoy" value={String(nocturnosHoy)} />
+            )}
+            {noche && (
+              <AverageRow
+                icon="👀"
+                label={`Despertares ${noche.etiqueta.toLowerCase()}`}
+                value={`${textoDespertares(noche.resumen.despertares)}${noche.resumen.minutosDespierto > 0 ? ` · ${noche.resumen.minutosDespierto} min` : ''}`}
+              />
             )}
           </div>
         </div>

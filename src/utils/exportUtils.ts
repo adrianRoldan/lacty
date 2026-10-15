@@ -4,7 +4,7 @@ import type {
 } from '../types';
 import { buildTimeline, getRestDurationMinutes, getWalkDurationMinutes, restMinutesOnDay, formatDose } from './feedingUtils';
 import { formatTime, formatMinutes, localDateOf, getCurrentDaysOfLife, getBirthDate, formatBabyAge } from './dateUtils';
-import { etiquetarSuenos } from './sleepUtils';
+import { etiquetarSuenos, textoDespertares, minutosDespierto, ETIQUETA_CALMA } from './sleepUtils';
 
 /**
  * Exportación del historial para compartirlo con un profesional o pegarlo en
@@ -201,6 +201,18 @@ function describirExtraccion(e: Extraction): string {
 }
 
 /** Una línea de texto por registro, ya con su hora. */
+/** «  · 2 despertares (02:10 5 min, chupete; 03:40)», o nada si no hubo. */
+function describirDespertares(r: Rest): string {
+  const ws = r.wakings ?? [];
+  if (ws.length === 0) return '';
+  const partes = ws.map((w) => {
+    const extra = [minutosDespierto(w) != null ? `${minutosDespierto(w)} min` : null, w.soothe ? ETIQUETA_CALMA[w.soothe] : null]
+      .filter(Boolean).join(', ');
+    return extra ? `${formatTime(w.at)} ${extra}` : formatTime(w.at);
+  });
+  return `  · ${textoDespertares(ws.length)} (${partes.join('; ')})`;
+}
+
 function describirRegistro(item: TimelineItem, vigiliaPrevia: number | null, etiquetaSueno?: string): string {
   switch (item.type) {
     case 'feeding': {
@@ -215,7 +227,7 @@ function describirRegistro(item: TimelineItem, vigiliaPrevia: number | null, eti
       // Con etiqueta se omite el «Sueño» inicial: «Sueño 5h 30m · Sueño
       // nocturno #1» se repetía. La etiqueta ya dice de qué se trata.
       const cuerpo = etiquetaSueno ? `${etiquetaSueno} · ${duracion}` : `Sueño ${duracion}`;
-      return `${formatTime(item.data.startTime)}${fin}  ${cuerpo}${vig}`;
+      return `${formatTime(item.data.startTime)}${fin}  ${cuerpo}${vig}${describirDespertares(item.data)}`;
     }
     case 'diaper':
       return `${formatTime(item.data.timestamp)}  ${describirPanal(item.data)}`;
@@ -425,7 +437,10 @@ export function construirCsv(datos: DatosExportacion, op: OpcionesExportacion): 
           fin = r.endTime ? formatTime(r.endTime) : '';
           duracion = getRestDurationMinutes(r);
           vigilia = siestas.find((s) => s.inicio === r.startTime)?.vigiliaPreviaMin ?? null;
-          notas = r.notes ?? '';
+          notas = [
+            r.wakings?.length ? `${textoDespertares(r.wakings.length)} (${r.wakings.map((w) => formatTime(w.at)).join(', ')})` : '',
+            r.notes ?? '',
+          ].filter(Boolean).join(' · ');
           break;
         }
         case 'diaper':

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, Extraction } from './types';
+import type { BabyConfig, Feeding, Rest, RestWaking, WakingSoothe, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, Extraction } from './types';
 import { getCurrentDaysOfLife, getBirthDate, todayIso, localDateOf } from './utils/dateUtils';
 import { calcBreastEstimatedMl, generateId } from './utils/feedingUtils';
 import { esSuenoNocturno } from './utils/sleepUtils';
@@ -96,6 +96,11 @@ export default function App() {
   const [babies, setBabies] = useState<BabyConfig[]>([]);
   const [feedings, setFeedings] = useState<Feeding[]>([]);
   const [rests, setRests] = useState<Rest[]>([]);
+  // Los botones del aviso de un despertar («Deshacer», «chupete»…) se pulsan
+  // segundos después: tienen que trabajar sobre el sueño tal como esté
+  // entonces, no sobre el que había al crear el aviso.
+  const restsRef = useRef(rests);
+  restsRef.current = rests;
   const [weights, setWeights] = useState<WeightEntry[]>([]);
   const [heights, setHeights] = useState<HeightEntry[]>([]);
   const [headCircs, setHeadCircs] = useState<HeadCircEntry[]>([]);
@@ -640,6 +645,55 @@ export default function App() {
     toast('Sueño iniciado');
   }, onOfflineAction);
 
+  // ── Despertares dentro de un sueño ──────────────────────────────────────────
+  // Un despertar no termina el sueño: se apunta dentro de él, para poder contar
+  // cuántas veces se despierta en una siesta o en toda la noche.
+
+  async function guardarDespertares(restId: string, cambiar: (w: RestWaking[]) => RestWaking[]) {
+    const actual = restsRef.current.find((r) => r.id === restId);
+    if (!actual) return;
+    const updated = await api.updateRest({ ...actual, wakings: cambiar(actual.wakings ?? []) });
+    setRests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+  }
+
+  /** Las fichas de «cómo se ha dormido», para el aviso de un despertar. */
+  function accionesDeCalma(restId: string, wakingId: string) {
+    const opciones: [WakingSoothe, string][] = [['solo', 'Solo'], ['chupete', 'Chupete'], ['brazos', 'Brazos'], ['pecho', 'Pecho']];
+    return opciones.map(([valor, label]) => ({
+      label,
+      onClick: () => {
+        guardarDespertares(restId, (ws) => ws.map((w) => (w.id === wakingId ? { ...w, soothe: valor } : w)))
+          .catch(() => toast('No se pudo guardar'));
+      },
+    }));
+  }
+
+  const handleWakingStart = onceInFlight(async (rest: Rest) => {
+    const waking: RestWaking = { id: generateId(), at: new Date().toISOString() };
+    await guardarDespertares(rest.id, (ws) => [...ws, waking]);
+    const numero = (rest.wakings?.length ?? 0) + 1;
+    toast(`Despertar n.º ${numero} apuntado`, {
+      actions: [{
+        label: 'Deshacer',
+        primary: true,
+        onClick: () => {
+          guardarDespertares(rest.id, (ws) => ws.filter((w) => w.id !== waking.id))
+            .catch(() => toast('No se pudo deshacer'));
+        },
+      }],
+    });
+  }, onOfflineAction);
+
+  const handleWakingEnd = onceInFlight(async (rest: Rest, waking: RestWaking) => {
+    const endAt = new Date().toISOString();
+    await guardarDespertares(rest.id, (ws) => ws.map((w) => (w.id === waking.id ? { ...w, endAt } : w)));
+    const min = Math.max(0, Math.round((Date.parse(endAt) - Date.parse(waking.at)) / 60000));
+    toast(`Vuelve a dormir · ${min} min despierto. ¿Cómo se ha dormido?`, {
+      actions: accionesDeCalma(rest.id, waking.id),
+      duration: 8000,
+    });
+  }, onOfflineAction);
+
   async function handleSaveRest(rest: Rest) {
     if (editingRest) {
       const updated = await api.updateRest(rest);
@@ -1043,6 +1097,8 @@ export default function App() {
     onOpenAgenda: () => navigate('visitas'),
     onOpenExport: () => setScreen('exportar'),
     onAbrirAñadir: () => setAñadirAbierto(true),
+    onWakingStart: handleWakingStart,
+    onWakingEnd: handleWakingEnd,
     // Inicio rápido sin formulario: en «Órbita» lo hace el dock en vez de los FAB.
     onQuickBreast: handleQuickBreast,
     onQuickBottle: handleQuickBottle,

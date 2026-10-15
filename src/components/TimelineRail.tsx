@@ -10,12 +10,13 @@
  */
 import React, { createContext, useContext } from 'react';
 import type {
-  Feeding, Rest, DiaperChange, Walk, Extraction, CareEntry, MedicationLog, Bath,
+  Feeding, Rest, RestWaking, DiaperChange, Walk, Extraction, CareEntry, MedicationLog, Bath,
 } from '../types';
 import { formatTime, formatMinutes, gapMinutes, isSameDay, startDayHint } from '../utils/dateUtils';
 import { buildTimeline, getRestDurationMinutes } from '../utils/feedingUtils';
 import { useElapsedTime } from '../hooks/useElapsedMinutes';
 import { useConfirm } from './ConfirmDialog';
+import { despertarAbierto, textoDespertares } from '../utils/sleepUtils';
 import {
   MedicineIcon, StrollerIcon,
   BottleIcon, SyringeIcon, MoonIcon, NapIcon, DropIcon, PumpIcon, NappyIcon,
@@ -105,6 +106,7 @@ export function Rail({
   timeline, today, etiquetasSueno, readOnly,
   onEditFeeding, onDeleteFeeding, onStopFeeding,
   onEditRest, onDeleteRest, onStopRest,
+  onWakingStart, onWakingEnd,
   onEditDiaper, onDeleteDiaper,
   onEditWalk, onDeleteWalk, onStopWalk,
   onEditMedication, onEditBath,
@@ -121,6 +123,9 @@ export function Rail({
   onEditRest: (r: Rest) => void;
   onDeleteRest: (id: string) => void;
   onStopRest: (r: Rest) => void;
+  /** Apuntar un despertar sin terminar el sueño, y cerrarlo («ya duerme»). */
+  onWakingStart?: (r: Rest) => void;
+  onWakingEnd?: (r: Rest, w: RestWaking) => void;
   onEditDiaper: (d: DiaperChange) => void;
   onDeleteDiaper: (id: string) => void;
   onEditWalk: (w: Walk) => void;
@@ -176,7 +181,8 @@ export function Rail({
             ) : item.type === 'rest' ? (
               <FilaSueno rest={item.data} today={today} readOnly={readOnly}
                 etiqueta={etiquetasSueno.get(item.data.id)?.texto}
-                onEdit={onEditRest} onDelete={onDeleteRest} onStop={onStopRest} />
+                onEdit={onEditRest} onDelete={onDeleteRest} onStop={onStopRest}
+                onWakingStart={onWakingStart} onWakingEnd={onWakingEnd} />
             ) : item.type === 'diaper' ? (
               <FilaPanal diaper={item.data} readOnly={readOnly}
                 onEdit={onEditDiaper} onDelete={onDeleteDiaper} />
@@ -210,7 +216,7 @@ export function Rail({
  */
 function Fila({
   horaInicio, horaFin, acento, esBarra, enCurso, avisoDia,
-  icono, glifo, titulo, chips, detalle, cronometro,
+  icono, glifo, titulo, chips, detalle, cronometro, accion,
   onClick, onStop, onDelete, onInfo, etiquetaBorrar,
 }: {
   horaInicio: string;
@@ -226,6 +232,8 @@ function Fila({
   chips?: React.ReactNode;
   detalle?: React.ReactNode;
   cronometro?: string;
+  /** Un botón propio de la fila, bajo el título (el de despertar). */
+  accion?: React.ReactNode;
   onClick?: () => void;
   onStop?: () => void;
   onDelete?: () => void;
@@ -278,6 +286,7 @@ function Fila({
             {chips}
           </div>
           {detalle && <div className="text-xs text-gray-400 mt-0.5 truncate">{detalle}</div>}
+          {accion && <div className="mt-1.5 flex">{accion}</div>}
         </div>
 
         {cronometro && (
@@ -410,14 +419,17 @@ function FilaToma({ feeding, today, readOnly, onEdit, onDelete, onStop }: {
   );
 }
 
-function FilaSueno({ rest, today, etiqueta, readOnly, onEdit, onDelete, onStop }: {
+function FilaSueno({ rest, today, etiqueta, readOnly, onEdit, onDelete, onStop, onWakingStart, onWakingEnd }: {
   rest: Rest; today: string; etiqueta?: string; readOnly?: boolean;
   onEdit: (r: Rest) => void; onDelete: (id: string) => void; onStop: (r: Rest) => void;
+  onWakingStart?: (r: Rest) => void; onWakingEnd?: (r: Rest, w: RestWaking) => void;
 }) {
   const confirm = useConfirm();
   const elapsed = useElapsedTime(rest.startTime);
   const duracion = getRestDurationMinutes(rest);
   const enCurso = duracion == null;
+  const despertares = rest.wakings ?? [];
+  const abierto = despertarAbierto(rest);
 
   return (
     <Fila
@@ -430,11 +442,24 @@ function FilaSueno({ rest, today, etiqueta, readOnly, onEdit, onDelete, onStop }
       icono={<span className="text-base">{etiqueta?.startsWith('Siesta') ? '💤' : '🌙'}</span>}
       glifo={etiqueta?.startsWith('Siesta') ? <NapIcon /> : <MoonIcon />}
       titulo={etiqueta ?? 'Sueño'}
-      chips={duracion != null
-        ? <Chip tono="sueno">{formatMinutes(duracion)}</Chip>
-        : <Chip tono="sueno">En curso…</Chip>}
-      detalle={rest.notes ? `“${rest.notes}”` : null}
+      chips={<>
+        {duracion != null
+          ? <Chip tono="sueno">{formatMinutes(duracion)}</Chip>
+          : <Chip tono="sueno">En curso…</Chip>}
+        {despertares.length > 0 && <Chip tono="sueno">{textoDespertares(despertares.length)}</Chip>}
+      </>}
+      detalle={[
+        despertares.length > 0 ? despertares.map((w) => formatTime(w.at)).join(' · ') : null,
+        rest.notes ? `“${rest.notes}”` : null,
+      ].filter(Boolean).join(' — ') || null}
       cronometro={enCurso ? elapsed : undefined}
+      accion={enCurso && !readOnly && onWakingStart && onWakingEnd ? (
+        <BotonDespertar
+          abierto={abierto}
+          onStart={() => onWakingStart(rest)}
+          onEnd={() => abierto && onWakingEnd(rest, abierto)}
+        />
+      ) : undefined}
       onClick={readOnly ? undefined : () => onEdit(rest)}
       onStop={enCurso && !readOnly ? () => onStop(rest) : undefined}
       onDelete={readOnly ? undefined : async () => {
@@ -648,4 +673,38 @@ function anteriorTomaTimestamp(timeline: Timeline, index: number): string | null
     if (timeline[i].type === 'feeding') return (timeline[i].data as Feeding).timestamp;
   }
   return null;
+}
+
+/**
+ * El botón de despertar de un sueño en curso: «se despierta» lo apunta sin
+ * terminar el sueño; mientras está despierto, pasa a «ya duerme».
+ */
+export function BotonDespertar({ abierto, onStart, onEnd, grande }: {
+  abierto: RestWaking | null;
+  onStart: () => void;
+  onEnd: () => void;
+  grande?: boolean;
+}) {
+  const tamano = grande ? 'h-12 px-4 text-[15px]' : 'h-8 px-2.5 text-xs';
+  return abierto ? (
+    <button
+      onClick={(e) => { e.stopPropagation(); onEnd(); }}
+      className={`shrink-0 self-center rounded-full font-semibold bg-lagoon-700 text-white touch-manipulation active:brightness-95 ${tamano}`}
+    >
+      Ya duerme · <CronoDespierto desde={abierto.at} />
+    </button>
+  ) : (
+    <button
+      onClick={(e) => { e.stopPropagation(); onStart(); }}
+      // Blanco y con borde: las tarjetas de sueño ya son del tono lagoon-100 y
+      // con ese fondo el botón no se distinguía.
+      className={`shrink-0 self-center rounded-full font-semibold bg-white text-lagoon-700 ring-1 ring-lagoon-300 touch-manipulation active:brightness-95 ${tamano}`}
+    >
+      Se despierta
+    </button>
+  );
+}
+
+function CronoDespierto({ desde }: { desde: string }) {
+  return <span className="tabular-nums">{useElapsedTime(desde)}</span>;
 }

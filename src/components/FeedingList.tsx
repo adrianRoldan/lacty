@@ -238,6 +238,13 @@ export default function FeedingList({
                   value={`${String(Math.floor(summary.avgFirstNightWakeMin / 60)).padStart(2, '0')}:${String(summary.avgFirstNightWakeMin % 60).padStart(2, '0')}`}
                 />
               )}
+              {summary.avgWakingsPerNight != null && (
+                <SummaryRow
+                  icon="👀"
+                  label={`Despertares/noche (${summary.wakingNights} ${summary.wakingNights === 1 ? 'noche' : 'noches'})`}
+                  value={String(summary.avgWakingsPerNight).replace('.', ',')}
+                />
+              )}
               {summary.avgNapsPerDay > 0 && (
                 <SummaryRow icon="💤" label="Nº siestas/día" value={String(summary.avgNapsPerDay)} />
               )}

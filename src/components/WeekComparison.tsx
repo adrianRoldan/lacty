@@ -1,13 +1,16 @@
-import type { Feeding, Rest } from '../types';
+import type { BabyConfig, Feeding, Rest } from '../types';
 import { localDateOf, formatMinutes } from '../utils/dateUtils';
 import { restMinutesOnDay } from '../utils/feedingUtils';
+import { despertaresPorNoche } from '../utils/sleepUtils';
 
 interface Props {
   feedings: Feeding[];
   rests: Rest[];
+  /** Franja nocturna: con ella se comparan también los despertares por noche. */
+  config?: Pick<BabyConfig, 'nightSleepStart' | 'nightSleepEnd'>;
 }
 
-export default function WeekComparison({ feedings, rests }: Props) {
+export default function WeekComparison({ feedings, rests, config }: Props) {
   const today = new Date();
   const dow = today.getDay();
   const startThisWeek = new Date(today);
@@ -44,6 +47,19 @@ export default function WeekComparison({ feedings, rests }: Props) {
   const thisW = weekStats(thisWeekDays);
   const lastW = weekStats(lastWeekDays);
 
+  // Despertares por noche: la noche se nombra por la tarde en que empieza, así
+  // que «esta semana» son las noches que empezaron de lunes a hoy.
+  function mediaDespertares(days: string[]): number | null {
+    if (!config || days.length === 0) return null;
+    const noches = despertaresPorNoche(rests, config, days[0], days[days.length - 1]);
+    if (noches.length === 0) return null;
+    return Math.round((noches.reduce((s, n) => s + n.despertares, 0) / noches.length) * 10) / 10;
+  }
+  const despertaresEsta = mediaDespertares(thisWeekDays);
+  const despertaresAnterior = mediaDespertares(lastWeekDays);
+  // Solo si alguna noche tiene despertares: con todo a cero la fila no dice nada.
+  const mostrarDespertares = (despertaresEsta ?? 0) > 0 || (despertaresAnterior ?? 0) > 0;
+
   if (thisWeekDays.length === 0) return null;
 
   return (
@@ -59,6 +75,14 @@ export default function WeekComparison({ feedings, rests }: Props) {
         <CompRow label="ml/día" prev={`${lastW.mlPerDay}`} curr={`${thisW.mlPerDay}`} better={thisW.mlPerDay >= lastW.mlPerDay} />
         <CompRow label="Pecho min/día" prev={`${lastW.breastMinPerDay}`} curr={`${thisW.breastMinPerDay}`} better={thisW.breastMinPerDay >= lastW.breastMinPerDay} />
         <CompRow label="Sueño h/día" prev={formatMinutes(lastW.sleepMinPerDay)} curr={formatMinutes(thisW.sleepMinPerDay)} better={thisW.sleepMinPerDay >= lastW.sleepMinPerDay} />
+        {mostrarDespertares && (
+          <CompRow
+            label="Despertares/noche"
+            prev={despertaresAnterior != null ? String(despertaresAnterior).replace('.', ',') : '—'}
+            curr={despertaresEsta != null ? String(despertaresEsta).replace('.', ',') : '—'}
+            better={despertaresEsta != null && despertaresAnterior != null ? despertaresEsta <= despertaresAnterior : undefined}
+          />
+        )}
       </div>
       <p className="text-xs text-gray-400 text-center mt-2">
         Semana actual ({thisWeekDays.length}d) vs anterior (7d)

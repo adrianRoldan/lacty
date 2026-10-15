@@ -9,7 +9,7 @@
  * el timeline. Cuando se elija una definitiva, la otra se borra.
  */
 import { useState, useEffect } from 'react';
-import type { BabyConfig, Feeding, Rest, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, Extraction } from '../types';
+import type { BabyConfig, Feeding, Rest, RestWaking, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, Extraction } from '../types';
 import { getCurrentDaysOfLife, formatBabyAge, formatMinutes, isSameDay, todayIso } from '../utils/dateUtils';
 import {
   getTodayFeedings,
@@ -24,7 +24,7 @@ import {
   getAvgGapMinutes,
 } from '../utils/feedingUtils';
 import { getEffectiveReference, getSleepReference, limiteSinComer } from '../data/referenceTable';
-import { etiquetarSuenos, contarPorTipo } from '../utils/sleepUtils';
+import { etiquetarSuenos, contarPorTipo, nocheParaMostrar } from '../utils/sleepUtils';
 import { cuidadosConAcciones, CareTodayBar } from './CareToday';
 import { Rail } from './TimelineRail';
 import NextEventBanner from './NextEventBanner';
@@ -53,6 +53,8 @@ interface Props {
   onDeleteRest: (id: string) => void;
   onStopFeeding: (f: Feeding) => void;
   onStopRest: (r: Rest) => void;
+  onWakingStart: (r: Rest) => void;
+  onWakingEnd: (r: Rest, w: RestWaking) => void;
   onGiveVitaminD: (date: string) => void;
   onRemoveVitaminD: (date: string) => void;
   probioticLogs: ProbioticLog[];
@@ -91,6 +93,7 @@ export default function TodayRail({
   onEditFeeding, onEditRest,
   onDeleteFeeding, onDeleteRest,
   onStopFeeding, onStopRest,
+  onWakingStart, onWakingEnd,
   onGiveVitaminD, onRemoveVitaminD,
   probioticLogs, onGiveProbiotic, onRemoveProbiotic,
   onRecalculateTodayBreast,
@@ -301,8 +304,9 @@ export default function TodayRail({
                 <p className="text-xs text-gray-400 mt-0.5">jeringa ml</p>
               </div>
             </div>
-            <DayInsights feedings={todayFeedings} rests={todayRests} reference={reference} sleepRef={sleepRef} todayRestMinutes={totalRestMin} siestasHoy={conteoHoy.siestas} nocturnosHoy={conteoHoy.nocturnos} extractions={todayExtractions} avgFeedsTarget={avgFeedsTarget} baths={baths} />
-            <WeekComparison feedings={feedings} rests={rests} />
+            <DayInsights feedings={todayFeedings} rests={todayRests} reference={reference} sleepRef={sleepRef} todayRestMinutes={totalRestMin} siestasHoy={conteoHoy.siestas} nocturnosHoy={conteoHoy.nocturnos} extractions={todayExtractions} avgFeedsTarget={avgFeedsTarget} baths={baths}
+              noche={nocheParaMostrar(rests, config)} />
+            <WeekComparison feedings={feedings} rests={rests} config={config} />
           </div>
         )}
       </div>
@@ -370,6 +374,8 @@ export default function TodayRail({
           onEditRest={onEditRest}
           onDeleteRest={onDeleteRest}
           onStopRest={onStopRest}
+          onWakingStart={onWakingStart}
+          onWakingEnd={onWakingEnd}
           onEditDiaper={onEditDiaper}
           onDeleteDiaper={onDeleteDiaper}
           onEditWalk={onEditWalk}

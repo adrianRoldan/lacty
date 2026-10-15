@@ -30,7 +30,7 @@
  */
 import { useState, useEffect } from 'react';
 import type {
-  BabyConfig, Feeding, Rest, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent,
+  BabyConfig, Feeding, Rest, RestWaking, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent,
   DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, Extraction,
 } from '../types';
 import { getCurrentDaysOfLife, formatBabyAge, formatMinutes, formatTime, isSameDay, todayIso } from '../utils/dateUtils';
@@ -47,11 +47,11 @@ import {
   minutosParaExtraer,
 } from '../utils/feedingUtils';
 import { getEffectiveReference, getSleepReference, limiteSinComer } from '../data/referenceTable';
-import { etiquetarSuenos, contarPorTipo } from '../utils/sleepUtils';
+import { etiquetarSuenos, contarPorTipo, despertarAbierto, textoDespertares, nocheParaMostrar } from '../utils/sleepUtils';
 import { cuidadosConAcciones, CareSheet, type CareItem } from './CareToday';
 import { useElapsedTime } from '../hooks/useElapsedMinutes';
 import { useModoMadrugada, MADRUGADA_DESDE } from '../hooks/useModoMadrugada';
-import { Rail } from './TimelineRail';
+import { Rail, BotonDespertar } from './TimelineRail';
 import NextEventBanner from './NextEventBanner';
 import DayInsights from './DayInsights';
 import WeekComparison from './WeekComparison';
@@ -77,6 +77,8 @@ interface Props {
   onDeleteRest: (id: string) => void;
   onStopFeeding: (f: Feeding) => void;
   onStopRest: (r: Rest) => void;
+  onWakingStart: (r: Rest) => void;
+  onWakingEnd: (r: Rest, w: RestWaking) => void;
   onGiveVitaminD: (date: string) => void;
   onRemoveVitaminD: (date: string) => void;
   probioticLogs: ProbioticLog[];
@@ -113,6 +115,7 @@ export default function TodayAhora({
   onEditFeeding, onEditRest,
   onDeleteFeeding, onDeleteRest,
   onStopFeeding, onStopRest,
+  onWakingStart, onWakingEnd,
   onGiveVitaminD, onRemoveVitaminD,
   probioticLogs, onGiveProbiotic, onRemoveProbiotic,
   onRecalculateTodayBreast,
@@ -227,7 +230,12 @@ export default function TodayAhora({
         onTerminar: () => onStopFeeding(lastFeeding) }
     : restInProgress
       ? { tipo: 'sueno', inicio: restInProgress.startTime, detalle: null,
-          onTerminar: () => onStopRest(restInProgress) }
+          onTerminar: () => onStopRest(restInProgress),
+          sueno: {
+            rest: restInProgress,
+            onWakingStart: () => onWakingStart(restInProgress),
+            onWakingEnd: (w: RestWaking) => onWakingEnd(restInProgress, w),
+          } }
       : null;
 
   // La toma de ANTES de la que está en curso. Sin esto, la tarjeta de contexto
@@ -290,6 +298,8 @@ export default function TodayAhora({
         haySuenos={rests.length > 0}
         sexo={config.sex}
         readOnly={readOnly}
+        onWakingStart={onWakingStart}
+        onWakingEnd={onWakingEnd}
         onAddToma={() => onAdd('toma')}
         onAddSueno={() => onAdd('sueno')}
         onAbrirAñadir={onAbrirAñadir}
@@ -360,8 +370,9 @@ export default function TodayAhora({
               feedings={todayFeedings} rests={todayRests} reference={reference} sleepRef={sleepRef}
               todayRestMinutes={totalRestMin} siestasHoy={conteoHoy.siestas} nocturnosHoy={conteoHoy.nocturnos}
               extractions={todayExtractions} avgFeedsTarget={avgFeedsTarget} baths={baths}
+              noche={nocheParaMostrar(rests, config)}
             />
-            <WeekComparison feedings={feedings} rests={rests} />
+            <WeekComparison feedings={feedings} rests={rests} config={config} />
           </div>
         )}
       </div>
@@ -460,6 +471,8 @@ interface EnCurso {
   inicio: string;
   detalle: string | null;
   onTerminar: () => void;
+  /** Solo en un sueño: para apuntar despertares sin terminarlo. */
+  sueno?: { rest: Rest; onWakingStart: () => void; onWakingEnd: (w: RestWaking) => void };
 }
 
 /**
@@ -502,15 +515,41 @@ function TarjetaEnCurso({ enCurso, readOnly }: { enCurso: EnCurso; readOnly?: bo
       {enCurso.detalle && (
         <p className="text-sm text-gray-500 mt-1.5">{enCurso.detalle}</p>
       )}
+      {enCurso.sueno && (enCurso.sueno.rest.wakings?.length ?? 0) > 0 && (
+        <p className="text-sm text-gray-500 mt-1.5">{textoDespertares(enCurso.sueno.rest.wakings!.length)}</p>
+      )}
 
-      {!readOnly && (
+      {!readOnly && (enCurso.sueno ? (() => {
+        // De madrugada, despertar y terminar son los dos botones grandes: el
+        // despertar se pulsa varias veces por noche, terminar una sola.
+        const { rest, onWakingStart, onWakingEnd } = enCurso.sueno;
+        const abierto = despertarAbierto(rest);
+        return (
+          <div className="grid grid-cols-2 gap-2 mt-4">
+            <button
+              onClick={() => (abierto ? onWakingEnd(abierto) : onWakingStart())}
+              className={`h-14 rounded-2xl text-base font-bold touch-manipulation active:brightness-95 ${
+                abierto ? 'bg-lagoon-700 text-white' : 'bg-lagoon-100 text-lagoon-700'
+              }`}
+            >
+              {abierto ? 'Ya duerme' : 'Se despierta'}
+            </button>
+            <button
+              onClick={enCurso.onTerminar}
+              className="h-14 rounded-2xl bg-sage-600 text-white text-base font-bold touch-manipulation active:bg-sage-700"
+            >
+              Terminar sueño
+            </button>
+          </div>
+        );
+      })() : (
         <button
           onClick={enCurso.onTerminar}
           className="w-full h-14 rounded-2xl bg-sage-600 text-white text-base font-bold mt-4 touch-manipulation active:bg-sage-700"
         >
           {esToma ? 'Terminar toma' : 'Terminar sueño'}
         </button>
-      )}
+      ))}
     </div>
   );
 }
@@ -578,7 +617,7 @@ const BARRA = {
 function TarjetaAhora({
   feedingInProgress, lastFeedingStart, lastFeedingElapsed, feedingLimitMin, hayTomas,
   restInProgress, awakeMin, awakeLimitMin, haySuenos, sexo,
-  readOnly, onAddToma, onAddSueno, onAbrirAñadir,
+  readOnly, onWakingStart, onWakingEnd, onAddToma, onAddSueno, onAbrirAñadir,
 }: {
   feedingInProgress: boolean;
   lastFeedingStart?: string;
@@ -591,6 +630,8 @@ function TarjetaAhora({
   haySuenos: boolean;
   sexo?: 'male' | 'female';
   readOnly?: boolean;
+  onWakingStart: (r: Rest) => void;
+  onWakingEnd: (r: Rest, w: RestWaking) => void;
   onAddToma: () => void;
   onAddSueno: () => void;
   onAbrirAñadir: () => void;
@@ -619,6 +660,13 @@ function TarjetaAhora({
           nivel={nivelSueno}
           hay={haySuenos}
           sexo={sexo}
+          despertar={restInProgress && !readOnly ? (
+            <BotonDespertar
+              abierto={despertarAbierto(restInProgress)}
+              onStart={() => onWakingStart(restInProgress)}
+              onEnd={() => { const w = despertarAbierto(restInProgress); if (w) onWakingEnd(restInProgress, w); }}
+            />
+          ) : null}
         />
       </div>
 
@@ -666,9 +714,11 @@ function RelojToma({ enCurso, inicio, minutos, limite, nivel, hay }: {
   );
 }
 
-function RelojSueno({ durmiendo, minutos, limite, nivel, hay, sexo }: {
+function RelojSueno({ durmiendo, minutos, limite, nivel, hay, sexo, despertar }: {
   durmiendo: Rest | null; minutos: number | null; limite: number; nivel: Nivel; hay: boolean;
   sexo?: 'male' | 'female';
+  /** El botón de «se despierta», solo con un sueño en curso. */
+  despertar?: React.ReactNode;
 }) {
   // Sin sexo apuntado no se adivina: «sin dormir» dice lo mismo y no falla.
   const despierto = sexo === 'female' ? 'Despierta' : sexo === 'male' ? 'Despierto' : 'Sin dormir';
@@ -682,11 +732,12 @@ function RelojSueno({ durmiendo, minutos, limite, nivel, hay, sexo }: {
         : <Duracion minutos={minutos} nivel={nivel} vacio={!hay} />}
       <Barra tono="sueno" nivel={nivel} ratio={durmiendo ? 0 : razon(minutos, limite)} />
       <p className={`text-[11px] leading-4 mt-1 truncate ${NIVEL[nivel].pista}`}>
-        {durmiendo ? 'en curso'
+        {durmiendo ? ((durmiendo.wakings?.length ?? 0) > 0 ? textoDespertares(durmiendo.wakings!.length) : 'en curso')
           : !hay ? 'sin sueños aún'
           : nivel === 'alerta' ? `pasada la ventana de ${formatElapsed(limite)}`
           : `ventana de ${formatElapsed(limite)} a su edad`}
       </p>
+      {despertar && <div className="mt-2 flex">{despertar}</div>}
     </div>
   );
 }

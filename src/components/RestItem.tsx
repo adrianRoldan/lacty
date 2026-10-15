@@ -1,26 +1,32 @@
-import type { Rest } from '../types';
+import type { Rest, RestWaking } from '../types';
 import { formatTime, formatMinutes, startDayHint } from '../utils/dateUtils';
 import { getRestDurationMinutes } from '../utils/feedingUtils';
 import { useElapsedTime } from '../hooks/useElapsedMinutes';
 import { useConfirm } from './ConfirmDialog';
+import { despertarAbierto, textoDespertares } from '../utils/sleepUtils';
+import { BotonDespertar } from './TimelineRail';
 
 interface Props {
   rest: Rest;
   onEdit: (rest: Rest) => void;
   onDelete: (id: string) => void;
   onStop?: (rest: Rest) => void;
+  onWakingStart?: (rest: Rest) => void;
+  onWakingEnd?: (rest: Rest, waking: RestWaking) => void;
   /** «Siesta #2» o «Sueño #1». */
   etiqueta?: string;
   listDay?: string;
   readOnly?: boolean;
 }
 
-export default function RestItem({ rest, onEdit, onDelete, onStop, etiqueta, listDay, readOnly }: Props) {
+export default function RestItem({ rest, onEdit, onDelete, onStop, onWakingStart, onWakingEnd, etiqueta, listDay, readOnly }: Props) {
   const confirm = useConfirm();
   const duration = getRestDurationMinutes(rest);
   const elapsed = useElapsedTime(rest.startTime);
   const dayHint = listDay ? startDayHint(rest.startTime, listDay) : null;
   const icono = etiqueta?.startsWith('Siesta') ? '💤' : '🌙';
+  const despertares = rest.wakings ?? [];
+  const abierto = despertarAbierto(rest);
 
   async function handleDelete(e: React.MouseEvent) {
     e.stopPropagation();
@@ -61,9 +67,23 @@ export default function RestItem({ rest, onEdit, onDelete, onStop, etiqueta, lis
                 En curso…
               </span>
             )}
+            {despertares.length > 0 && (
+              <span className="bg-lagoon-100 text-lagoon-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                {textoDespertares(despertares.length)}
+              </span>
+            )}
           </div>
           {rest.notes && (
             <p className="text-xs text-taupe-700 mt-1 italic truncate">"{rest.notes}"</p>
+          )}
+          {duration == null && onWakingStart && onWakingEnd && !readOnly && (
+            <div className="mt-2 flex">
+              <BotonDespertar
+                abierto={abierto}
+                onStart={() => onWakingStart(rest)}
+                onEnd={() => abierto && onWakingEnd(rest, abierto)}
+              />
+            </div>
           )}
         </div>
 

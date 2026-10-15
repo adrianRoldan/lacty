@@ -83,6 +83,13 @@ export default function OrbitaDial({
     .map((d) => ({ id: d.id, h: horaDe(d.timestamp) }))
     .filter((d) => d.h >= 0 && d.h <= ahoraH);
 
+  // Despertares dentro de los sueños: un corte en el arco a esa hora, para
+  // que una noche a trozos se vea a trozos.
+  const despertares = mini ? [] : rests
+    .flatMap((r) => r.wakings ?? [])
+    .map((w) => ({ id: w.id, h: horaDe(w.at) }))
+    .filter((w) => w.h >= 0 && w.h <= ahoraH);
+
   const prevH = prevision ? horaDe(prevision) : null;
   const dibujaPrevision = prevH !== null && prevH > ahoraH && prevH < 24;
 
@@ -117,6 +124,11 @@ export default function OrbitaDial({
             opacity={s.enCurso ? 1 : apagado}
           />
         ))}
+        {despertares.map((w) => {
+          const [x1, y1] = punto(w.h, R_SUENO - grosorSueno / 2 - 1);
+          const [x2, y2] = punto(w.h, R_SUENO + grosorSueno / 2 + 1);
+          return <line key={w.id} x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--color-cream-50)" strokeWidth={3} strokeLinecap="round" />;
+        })}
         {finSuenoEnCurso && !mini && (() => {
           const [x, y] = punto(finSuenoEnCurso.tramo[1], R_SUENO);
           return <circle cx={x} cy={y} r={17} stroke="var(--orb-sueno)" strokeWidth={2} opacity={0.4} className="animate-pulse" />;
