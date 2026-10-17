@@ -71,7 +71,7 @@ export interface Feeding {
 }
 
 /** Cómo volvió a dormirse tras un despertar. */
-export type WakingSoothe = 'solo' | 'chupete' | 'brazos' | 'pecho';
+export type WakingSoothe = 'solo' | 'chupete' | 'manita' | 'brazos' | 'pecho';
 
 /**
  * Un despertar breve dentro de un sueño que sigue: se le ayuda a enlazar el

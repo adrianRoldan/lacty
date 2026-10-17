@@ -658,7 +658,7 @@ export default function App() {
 
   /** Las fichas de «cómo se ha dormido», para el aviso de un despertar. */
   function accionesDeCalma(restId: string, wakingId: string) {
-    const opciones: [WakingSoothe, string][] = [['solo', 'Solo'], ['chupete', 'Chupete'], ['brazos', 'Brazos'], ['pecho', 'Pecho']];
+    const opciones: [WakingSoothe, string][] = [['solo', 'Solo'], ['chupete', 'Chupete'], ['manita', 'Manita'], ['brazos', 'Brazos'], ['pecho', 'Pecho']];
     return opciones.map(([valor, label]) => ({
       label,
       onClick: () => {

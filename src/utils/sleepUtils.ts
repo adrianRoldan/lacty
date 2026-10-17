@@ -124,6 +124,7 @@ export const DESPERTAR_ABIERTO_MAX_MIN = 30;
 export const ETIQUETA_CALMA: Record<WakingSoothe, string> = {
   solo: 'solo',
   chupete: 'chupete',
+  manita: 'manita',
   brazos: 'brazos',
   pecho: 'pecho',
 };

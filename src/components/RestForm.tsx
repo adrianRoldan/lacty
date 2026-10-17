@@ -261,6 +261,7 @@ interface FilaDespertar {
 const CALMAS: [WakingSoothe, string][] = [
   ['solo', 'Solo'],
   ['chupete', 'Chupete'],
+  ['manita', 'Manita'],
   ['brazos', 'Brazos'],
   ['pecho', 'Pecho'],
 ];
