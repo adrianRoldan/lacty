@@ -182,9 +182,21 @@ export interface Extraction {
   notes?: string;
 }
 
+/**
+ * Nota libre con su hora: «ha vomitado un poco», «37,8 °C», «primera
+ * sonrisa». Se ve en el timeline como un cuidado más.
+ */
+export interface NoteEntry {
+  id: string;
+  timestamp: string;   // ISO — a qué hora pasó
+  text: string;
+  /** Marcada para comentarla en la consulta: sale en el resumen para el pediatra. */
+  forPediatrician?: boolean;
+}
+
 // Cuidados puntuales que se muestran como una línea sutil en el timeline
-// (vitamina D, probiótico, masaje, medicamentos y baño).
-export type CareKind = 'vitaminD' | 'probiotic' | 'massage' | 'medication' | 'bath';
+// (vitamina D, probiótico, masaje, medicamentos, baño y notas).
+export type CareKind = 'vitaminD' | 'probiotic' | 'massage' | 'medication' | 'bath' | 'note';
 
 export interface CareEntry {
   id: string;
@@ -195,6 +207,7 @@ export interface CareEntry {
   // Presentes solo en su tipo, para poder abrirlos en su formulario
   medication?: MedicationLog;
   bath?: Bath;
+  note?: NoteEntry;
 }
 
 export type TimelineItem =

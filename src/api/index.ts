@@ -1,4 +1,4 @@
-import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, Extraction } from '../types';
+import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, Extraction, NoteEntry } from '../types';
 import { markOnline, markOffline } from '../offline';
 
 const BASE = '/api';
@@ -984,6 +984,32 @@ export async function deleteWalk(id: string): Promise<void> {
 }
 
 // ── Baños ─────────────────────────────────────────────────────────────────────
+
+// ── Notas ──────────────────────────────────────────────────────────────────
+
+export async function getNotes(): Promise<NoteEntry[]> {
+  return json(await apiFetch(`${BASE}/notes`, { headers: babyHeaders() }));
+}
+
+export async function createNote(n: NoteEntry): Promise<NoteEntry> {
+  return json(await apiFetch(`${BASE}/notes`, {
+    method: 'POST',
+    headers: mutHeaders(),
+    body: JSON.stringify(n),
+  }));
+}
+
+export async function updateNote(n: NoteEntry): Promise<NoteEntry> {
+  return json(await apiFetch(`${BASE}/notes/${n.id}`, {
+    method: 'PUT',
+    headers: mutHeaders(),
+    body: JSON.stringify(n),
+  }));
+}
+
+export async function deleteNote(id: string): Promise<void> {
+  await apiFetch(`${BASE}/notes/${id}`, { method: 'DELETE', headers: mutHeaders() });
+}
 
 export async function getBaths(): Promise<Bath[]> {
   return json(await apiFetch(`${BASE}/baths`, { headers: babyHeaders() }));

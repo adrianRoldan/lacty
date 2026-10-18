@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Feeding, Rest, TimelineItem, VitaminDLog, ProbioticLog, MassageLog, DiaperChange, MedicationLog, Walk, Bath, Extraction, CareKind } from '../types';
+import type { Feeding, Rest, TimelineItem, VitaminDLog, ProbioticLog, MassageLog, DiaperChange, MedicationLog, Walk, Bath, NoteEntry, Extraction, CareKind } from '../types';
 import { BreastIcon } from './FeedingItem';
 import { DiaperIcon } from './DiaperItem';
 import { formatDate, formatDateShort, formatMinutes, formatTime, gapMinutes, localDateOf } from '../utils/dateUtils';
@@ -18,7 +18,7 @@ import RestItem from './RestItem';
 import DiaperItem from './DiaperItem';
 import WalkItem from './WalkItem';
 import ExtractionItem from './ExtractionItem';
-import { MedicineIcon, StrollerIcon } from './CareIcons';
+import { MedicineIcon, StrollerIcon, InfoIcon } from './CareIcons';
 
 interface Props {
   feedings: Feeding[];
@@ -46,6 +46,8 @@ interface Props {
   onEditMedication: (m: MedicationLog) => void;
   baths: Bath[];
   onEditBath: (b: Bath) => void;
+  notes: NoteEntry[];
+  onEditNote: (n: NoteEntry) => void;
   walks: Walk[];
   onEditWalk: (w: Walk) => void;
   onDeleteWalk: (id: string) => void;
@@ -54,7 +56,7 @@ interface Props {
   onDeleteExtraction: (id: string) => void;
 }
 
-type FilterType   = 'all' | 'feedings' | 'rests' | 'diapers' | 'walks' | 'extractions';
+type FilterType   = 'all' | 'feedings' | 'rests' | 'diapers' | 'walks' | 'extractions' | 'notes';
 type FilterPeriod = 'all' | '7d' | '14d' | '30d';
 
 function morerecentFeedingTimestamp(items: TimelineItem[], index: number): string | null {
@@ -93,6 +95,7 @@ export default function FeedingList({
   diapers, onEditDiaper, onDeleteDiaper,
   medications, onEditMedication,
   baths, onEditBath,
+  notes, onEditNote,
   walks, onEditWalk, onDeleteWalk,
   extractions, onEditExtraction, onDeleteExtraction,
 }: Props) {
@@ -146,6 +149,8 @@ export default function FeedingList({
   const periodMassageLogs   = massageLogs.filter(l => !cutoff || l.date >= cutoff);
   const periodMedications   = medications.filter(m => !cutoff || localDateOf(m.timestamp) >= cutoff);
   const periodBaths         = baths.filter(b => !cutoff || localDateOf(b.timestamp) >= cutoff);
+  // Las notas tienen filtro propio: buscar «qué apunté el martes» es habitual.
+  const periodNotes         = muestra('notes') ? notes.filter(n => !cutoff || localDateOf(n.timestamp) >= cutoff) : [];
 
   const groups = groupTimelineByDay(filteredFeedings, filteredRests, filteredDiapers, {
     vitaminDLogs:  showCare ? periodVitaminDLogs  : [],
@@ -153,6 +158,7 @@ export default function FeedingList({
     massageLogs:   showCare ? periodMassageLogs   : [],
     medications:   showCare ? periodMedications   : [],
     baths:         showCare ? periodBaths         : [],
+    notes:         periodNotes,
   }, filteredWalks, filteredExtractions);
   const days   = Object.keys(groups).sort((a, b) => b.localeCompare(a));
 
@@ -165,7 +171,7 @@ export default function FeedingList({
   }
   const months = Object.keys(monthsMap).sort((a, b) => b.localeCompare(a));
 
-  if (feedings.length === 0 && rests.length === 0 && diapers.length === 0 && walks.length === 0 && medications.length === 0 && baths.length === 0 && extractions.length === 0) {
+  if (feedings.length === 0 && rests.length === 0 && diapers.length === 0 && walks.length === 0 && medications.length === 0 && baths.length === 0 && extractions.length === 0 && notes.length === 0) {
     return (
       <div className="p-4 pb-24">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Historial</h1>
@@ -258,7 +264,7 @@ export default function FeedingList({
         {/* Filtros */}
         <div className="space-y-2 mb-5">
           <div className="flex flex-wrap gap-2">
-            {(['all', 'feedings', 'rests', 'diapers', 'walks', 'extractions'] as FilterType[]).map((v) => (
+            {(['all', 'feedings', 'rests', 'diapers', 'walks', 'extractions', 'notes'] as FilterType[]).map((v) => (
               <button
                 key={v}
                 onClick={() => setFilterType(v)}
@@ -271,6 +277,8 @@ export default function FeedingList({
                     <span className="inline-flex items-center gap-1"><DiaperIcon size={14} /> Pañales</span>
                   ) : v === 'walks' ? (
                     <span className="inline-flex items-center gap-1"><StrollerIcon size={14} /> Paseos</span>
+                  ) : v === 'notes' ? (
+                    <span className="inline-flex items-center gap-1"><InfoIcon size={14} /> Notas</span>
                   ) : (
                     '🥛 Extracciones'
                   )}
@@ -431,10 +439,12 @@ export default function FeedingList({
                                         kind={item.data.kind}
                                         icon={item.data.icon}
                                         label={item.data.label}
+                                        paraPediatra={item.data.note?.forPediatrician}
                                         time={formatTime(item.data.timestamp)}
                                         onEdit={readOnly ? undefined
                                           : item.data.medication ? () => onEditMedication(item.data.medication!)
                                           : item.data.bath ? () => onEditBath(item.data.bath!)
+                                          : item.data.note ? () => onEditNote(item.data.note!)
                                           : undefined}
                                       />
                                     )}
@@ -479,24 +489,31 @@ function GapLine({ minutes }: { minutes: number }) {
   );
 }
 
-function CareLine({ kind, icon, label, time, onEdit }: {
+function CareLine({ kind, icon, label, time, onEdit, paraPediatra }: {
   kind: CareKind; icon: string; label: string; time: string; onEdit?: () => void;
+  /** Nota marcada para comentar en la consulta. */
+  paraPediatra?: boolean;
 }) {
+  const esNota = kind === 'note';
   return (
-    <div className="flex items-center gap-2 pl-4 pr-3 py-1 my-0.5">
-      <span className="text-xs text-gray-400 shrink-0 inline-flex items-center gap-1.5">
+    <div className={`flex ${esNota ? 'items-start' : 'items-center'} gap-2 pl-4 pr-3 py-1 my-0.5`}>
+      {/* La nota es texto libre: puede ocupar dos líneas en vez de salirse. */}
+      <span className={`text-xs text-gray-400 inline-flex items-start gap-1.5 ${esNota ? 'min-w-0' : 'shrink-0 items-center'}`}>
         {/* Los medicamentos usan icono propio: el emoji 💊 ya lo ocupa la vitamina D */}
         {kind === 'medication'
           ? <span className="text-violet-500"><MedicineIcon size={14} /></span>
-          : <span>{icon}</span>}
-        <span className="font-medium text-gray-500">{time}</span>
-        <span>{label}</span>
+          : esNota
+            ? <span className="text-gray-500 pt-px"><InfoIcon size={14} /></span>
+            : <span>{icon}</span>}
+        <span className="font-medium text-gray-500 shrink-0">{time}</span>
+        <span className={esNota ? 'text-gray-600 line-clamp-2' : ''}>{label}</span>
+        {paraPediatra && <span title="Para comentar con el pediatra" aria-label="Para comentar con el pediatra">🩺</span>}
       </span>
       {onEdit && (
         <button
           onClick={onEdit}
           className="text-gray-300 hover:text-sage-600 active:text-sage-700 p-1 shrink-0 touch-manipulation"
-          aria-label={kind === 'bath' ? 'Editar baño' : 'Editar medicamento'}
+          aria-label={kind === 'bath' ? 'Editar baño' : kind === 'note' ? 'Editar nota' : 'Editar medicamento'}
           title="Editar"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">

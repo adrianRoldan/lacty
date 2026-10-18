@@ -1,4 +1,4 @@
-import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, MilestoneLog, MedicationLog } from '../types';
+import type { BabyConfig, Feeding, Rest, WeightEntry, HeightEntry, MilestoneLog, MedicationLog, NoteEntry } from '../types';
 import { getCurrentDaysOfLife, getBirthDate, formatMinutes, localDateOf } from '../utils/dateUtils';
 import { getTotalSupplementMl, getTotalBottleMl, getTotalBreastMinutes, getTotalEstimatedBreastMl, restMinutesOnDay, formatDose } from '../utils/feedingUtils';
 import { MILESTONES } from '../data/milestones';
@@ -12,6 +12,7 @@ interface Props {
   heights: HeightEntry[];
   milestoneLogs: MilestoneLog[];
   medications: MedicationLog[];
+  notes: NoteEntry[];
   onBack: () => void;
 }
 
@@ -32,7 +33,7 @@ function getPastDays(n: number): string[] {
   });
 }
 
-export default function PediatraSummary({ config, feedings, rests, weights, heights, milestoneLogs, medications, onBack }: Props) {
+export default function PediatraSummary({ config, feedings, rests, weights, heights, milestoneLogs, medications, notes, onBack }: Props) {
   const daysOfLife = getCurrentDaysOfLife(config);
   const birthDate = getBirthDate(config);
   const days = getPastDays(14);
@@ -88,6 +89,14 @@ export default function PediatraSummary({ config, feedings, rests, weights, heig
     ? Math.round((noches.reduce((s, n) => s + n.despertares, 0) / noches.length) * 10) / 10
     : null;
 
+  // Notas marcadas «comentar con el pediatra» del último mes: van arriba del
+  // todo, porque son justo lo que la familia quería preguntar.
+  const haceUnMes = new Date();
+  haceUnMes.setDate(haceUnMes.getDate() - 30);
+  const notasParaComentar = notes
+    .filter((n) => n.forPediatrician && new Date(n.timestamp) >= haceUnMes)
+    .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+
   // Medicación de los últimos 14 días, de la más reciente a la más antigua.
   const recentMedications = medications
     .filter(m => days.includes(localDateOf(m.timestamp)))
@@ -136,6 +145,25 @@ export default function PediatraSummary({ config, feedings, rests, weights, heig
             Generado: {new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
+
+        {notasParaComentar.length > 0 && (
+          <section className="mb-5">
+            <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-2">Para comentar en la consulta (último mes)</h2>
+            <div className="bg-white rounded-xl p-4 shadow-sm print:shadow-none print:border print:border-gray-200">
+              <ul className="space-y-2">
+                {notasParaComentar.map((n) => (
+                  <li key={n.id} className="flex items-start gap-2 text-sm">
+                    <span className="shrink-0" aria-hidden="true">🩺</span>
+                    <span className="text-gray-800 whitespace-pre-line">{n.text}</span>
+                    <span className="text-xs text-gray-400 ml-auto shrink-0 tabular-nums">
+                      {new Date(n.timestamp).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        )}
 
         {/* Antropometría */}
         <section className="mb-5">

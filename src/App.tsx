@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import type { BabyConfig, Feeding, Rest, RestWaking, WakingSoothe, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, Extraction } from './types';
+import type { BabyConfig, Feeding, Rest, RestWaking, WakingSoothe, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, Extraction, NoteEntry } from './types';
 import { getCurrentDaysOfLife, getBirthDate, todayIso, localDateOf } from './utils/dateUtils';
 import { calcBreastEstimatedMl, generateId } from './utils/feedingUtils';
 import { esSuenoNocturno } from './utils/sleepUtils';
@@ -34,6 +34,7 @@ import ExportView from './components/ExportView';
 import MedicationForm from './components/MedicationForm';
 import WalkForm from './components/WalkForm';
 import BathForm from './components/BathForm';
+import NoteForm from './components/NoteForm';
 import ExtractionForm from './components/ExtractionForm';
 import { MedicineIcon, StrollerIcon, ScaleIcon } from './components/CareIcons';
 import { useAmount } from './components/AmountDialog';
@@ -88,6 +89,8 @@ type Screen =
   | 'editar-paseo'
   | 'nuevo-bano'
   | 'editar-bano'
+  | 'nueva-nota'
+  | 'editar-nota'
   | 'nueva-extraccion'
   | 'editar-extraccion';
 
@@ -120,6 +123,8 @@ export default function App() {
   const [editingWalk, setEditingWalk] = useState<Walk | null>(null);
   const [baths, setBaths] = useState<Bath[]>([]);
   const [editingBath, setEditingBath] = useState<Bath | null>(null);
+  const [notes, setNotes] = useState<NoteEntry[]>([]);
+  const [editingNote, setEditingNote] = useState<NoteEntry | null>(null);
   const [extractions, setExtractions] = useState<Extraction[]>([]);
   const [editingExtraction, setEditingExtraction] = useState<Extraction | null>(null);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
@@ -204,15 +209,16 @@ export default function App() {
 
   // Trae todos los datos del bebé activo (asume que api.setActiveBaby ya está fijado).
   async function loadBabyData() {
-    const [fds, rsts, wts, hts, hcs, vdLogs, prLogs, mLogs, msLogs, vacLogs, cons, cal, dps, meds, plans, wks, bths, exts] = await Promise.all([
+    const [fds, rsts, wts, hts, hcs, vdLogs, prLogs, mLogs, msLogs, vacLogs, cons, cal, dps, meds, plans, wks, bths, exts, nts] = await Promise.all([
       api.getFeedings(), api.getRests(), api.getWeights(), api.getHeights(), api.getHeadCircs(), api.getVitaminDLogs(),
       api.getProbioticLogs(), api.getMassageLogs(), api.getMilestones(), api.getVaccines(), api.getConsultations(), api.getCalendarEvents(),
       api.getDiapers(), api.getMedications(), api.getMedicationPlans(), api.getWalks(), api.getBaths(), api.getExtractions(),
+      api.getNotes(),
     ]);
     setFeedings(fds); setRests(rsts); setWeights(wts); setHeights(hts); setHeadCircs(hcs);
     setVitaminDLogs(vdLogs); setProbioticLogs(prLogs); setMassageLogs(mLogs);
     setMilestoneLogs(msLogs); setVaccineLogs(vacLogs); setConsultations(cons); setCalendarEvents(cal);
-    setDiapers(dps); setMedications(meds); setMedPlans(plans); setWalks(wks); setBaths(bths); setExtractions(exts);
+    setDiapers(dps); setMedications(meds); setMedPlans(plans); setWalks(wks); setBaths(bths); setExtractions(exts); setNotes(nts);
   }
 
   // Carga los bebés de la cuenta, fija el activo (el último usado si existe) y sus datos.
@@ -329,6 +335,8 @@ export default function App() {
         case 'medplans':   api.getMedicationPlans().then(setMedPlans); break;
         case 'walks':      api.getWalks().then(setWalks); break;
         case 'baths':      api.getBaths().then(setBaths); break;
+        case 'extractions': api.getExtractions().then(setExtractions); break;
+        case 'notes':      api.getNotes().then(setNotes); break;
       }
     };
 
@@ -990,6 +998,29 @@ export default function App() {
     toast('Baño registrado');
   }, onOfflineAction);
 
+  // ── Notas ──────────────────────────────────────────────────────────────────
+
+  async function handleSaveNote(entry: NoteEntry) {
+    if (editingNote) {
+      const updated = await api.updateNote(entry);
+      setNotes((prev) => prev.map((n) => (n.id === updated.id ? updated : n)));
+    } else {
+      const created = await api.createNote(entry);
+      setNotes((prev) => [...prev, created]);
+    }
+    toast(editingNote ? 'Nota actualizada' : 'Nota guardada');
+    setEditingNote(null);
+    closeForm();
+  }
+
+  const handleDeleteNote = onceInFlight(async (id: string) => {
+    await api.deleteNote(id);
+    setNotes((prev) => prev.filter((n) => n.id !== id));
+    toast('Nota eliminada');
+    setEditingNote(null);
+    closeForm();
+  }, onOfflineAction);
+
   async function handleSaveBath(entry: Bath) {
     if (editingBath) {
       const updated = await api.updateBath(entry);
@@ -1109,6 +1140,7 @@ export default function App() {
         case 'sueno':       setEditingRest(null);       openForm('nuevo-sueño'); break;
         case 'panal':       setEditingDiaper(null);     openForm('nuevo-pañal'); break;
         case 'bano':        setEditingBath(null);       openForm('nuevo-bano'); break;
+        case 'nota':        setEditingNote(null);       openForm('nueva-nota'); break;
         case 'paseo':       setEditingWalk(null);       openForm('nuevo-paseo'); break;
         case 'medicamento': setEditingMedication(null); openForm('nuevo-medicamento'); break;
         case 'extraccion':  setEditingExtraction(null); openForm('nueva-extraccion'); break;
@@ -1146,6 +1178,8 @@ export default function App() {
     onStopWalk: handleStopWalk,
     baths,
     onEditBath: (b: Bath) => { setEditingBath(b); openForm('editar-bano'); },
+    notes,
+    onEditNote: (n: NoteEntry) => { setEditingNote(n); openForm('editar-nota'); },
     extractions,
     onEditExtraction: (e: Extraction) => { setEditingExtraction(e); openForm('editar-extraccion'); },
     onDeleteExtraction: handleDeleteExtraction,
@@ -1162,6 +1196,7 @@ export default function App() {
     'nuevo-medicamento', 'editar-medicamento',
     'nuevo-paseo', 'editar-paseo',
     'nuevo-bano', 'editar-bano',
+    'nueva-nota', 'editar-nota',
     'nueva-extraccion', 'editar-extraccion',
     'resumen-pediatra',
     'exportar',
@@ -1355,6 +1390,15 @@ export default function App() {
           />
         )}
 
+        {(screen === 'nueva-nota' || screen === 'editar-nota') && (
+          <NoteForm
+            existing={editingNote}
+            onSave={handleSaveNote}
+            onDelete={handleDeleteNote}
+            onCancel={() => { setEditingNote(null); closeForm(); }}
+          />
+        )}
+
         {(screen === 'nuevo-bano' || screen === 'editar-bano') && (
           <BathForm
             existing={editingBath}
@@ -1440,6 +1484,8 @@ export default function App() {
             onDeleteWalk={handleDeleteWalk}
             baths={baths}
             onEditBath={(b) => { setEditingBath(b); setScreen('editar-bano'); }}
+            notes={notes}
+            onEditNote={(n) => { setEditingNote(n); setScreen('editar-nota'); }}
             extractions={extractions}
             onEditExtraction={(e) => { setEditingExtraction(e); setScreen('editar-extraccion'); }}
             onDeleteExtraction={handleDeleteExtraction}
@@ -1583,7 +1629,7 @@ export default function App() {
           <ExportView
             datos={{
               config, feedings, rests, diapers, walks, medications,
-              vitaminDLogs, probioticLogs, massageLogs, weights, baths, extractions,
+              vitaminDLogs, probioticLogs, massageLogs, weights, baths, extractions, notes,
             }}
             onBack={() => setScreen(activeTab)}
           />
@@ -1598,6 +1644,7 @@ export default function App() {
             heights={heights}
             milestoneLogs={milestoneLogs}
             medications={medications}
+            notes={notes}
             onBack={() => setScreen(activeTab)}
           />
         )}

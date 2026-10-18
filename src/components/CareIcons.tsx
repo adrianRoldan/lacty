@@ -3,6 +3,21 @@
 // 🦠 probiótico. Se dibujan como SVG igual que DiaperIcon y BreastIcon.
 
 /** Frasco de jarabe con cruz: medicamentos (Apiretal, Dalsy…). */
+/** Nota libre: el símbolo de información, un círculo con una «i». */
+export function InfoIcon({ size = 20, className = '' }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"
+      className={className} aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5.5" />
+      <circle cx="12" cy="7.75" r="0.6" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function MedicineIcon({ size = 20, className = '' }: { size?: number; className?: string }) {
   return (
     <svg

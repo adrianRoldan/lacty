@@ -1,4 +1,4 @@
-import type { BabyConfig, Feeding, Rest, TimelineItem, DiaperChange, VitaminDLog, ProbioticLog, MassageLog, MedicationLog, Walk, Bath, BathSkin, Extraction } from '../types';
+import type { BabyConfig, Feeding, Rest, TimelineItem, DiaperChange, VitaminDLog, ProbioticLog, MassageLog, MedicationLog, Walk, Bath, BathSkin, Extraction, NoteEntry } from '../types';
 import { isSameDay, todayIso, localDateOf } from './dateUtils';
 import { esSuenoNocturno, etiquetarSuenos, ventanaNocturna, despertaresPorNoche } from './sleepUtils';
 import { getReferenceForDay } from '../data/referenceTable';
@@ -249,6 +249,7 @@ export interface CareLogInputs {
   massageLogs?: MassageLog[];
   medications?: MedicationLog[];
   baths?: Bath[];
+  notes?: NoteEntry[];
 }
 
 /** Cómo se lee cada observación de piel en el timeline y en la exportación. */
@@ -324,6 +325,22 @@ function buildCareItems(careLogs: CareLogInputs): TimelineItem[] {
         bath: b,
       },
       sortKey: b.timestamp,
+    });
+  }
+
+  // Notas: se ven como un cuidado más, con el texto como etiqueta.
+  for (const n of careLogs.notes ?? []) {
+    items.push({
+      type: 'care',
+      data: {
+        id: `note-${n.id}`,
+        kind: 'note',
+        icon: 'ℹ️',
+        label: n.text,
+        timestamp: n.timestamp,
+        note: n,
+      },
+      sortKey: n.timestamp,
     });
   }
 

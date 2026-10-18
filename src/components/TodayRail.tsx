@@ -9,7 +9,7 @@
  * el timeline. Cuando se elija una definitiva, la otra se borra.
  */
 import { useState, useEffect } from 'react';
-import type { BabyConfig, Feeding, Rest, RestWaking, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, Extraction } from '../types';
+import type { BabyConfig, Feeding, Rest, RestWaking, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, NoteEntry, Extraction } from '../types';
 import { getCurrentDaysOfLife, formatBabyAge, formatMinutes, isSameDay, todayIso } from '../utils/dateUtils';
 import {
   getTodayFeedings,
@@ -75,6 +75,8 @@ interface Props {
   onUndoMedicationDose: (planId: string) => void;
   baths: Bath[];
   onEditBath: (b: Bath) => void;
+  notes: NoteEntry[];
+  onEditNote: (n: NoteEntry) => void;
   walks: Walk[];
   onEditWalk: (w: Walk) => void;
   onDeleteWalk: (id: string) => void;
@@ -102,6 +104,7 @@ export default function TodayRail({
   medications, onEditMedication,
   medPlans, onGiveMedicationDose, onUndoMedicationDose,
   baths, onEditBath,
+  notes, onEditNote,
   walks, onEditWalk, onDeleteWalk, onStopWalk,
   extractions, onEditExtraction, onDeleteExtraction,
 }: Props) {
@@ -129,6 +132,7 @@ export default function TodayRail({
     massageLogs,
     medications,
     baths,
+    notes,
   }, walks, undefined, extractions);
   const etiquetasSueno = etiquetarSuenos(rests, config);
   const conteoHoy = contarPorTipo(rests, config, today);
@@ -383,6 +387,7 @@ export default function TodayRail({
           onStopWalk={onStopWalk}
           onEditMedication={onEditMedication}
           onEditBath={onEditBath}
+          onEditNote={onEditNote}
           onEditExtraction={onEditExtraction}
           onDeleteExtraction={onDeleteExtraction}
           onInfoExtraction={() => setShowExtractionInfo(true)}

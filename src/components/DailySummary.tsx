@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { BabyConfig, Feeding, Rest, RestWaking, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, Extraction, CareKind } from '../types';
+import type { BabyConfig, Feeding, Rest, RestWaking, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, NoteEntry, Extraction, CareKind } from '../types';
 import { getCurrentDaysOfLife, formatBabyAge, formatMinutes, formatTime, gapMinutes, isSameDay, todayIso } from '../utils/dateUtils';
 import {
   getTodayFeedings,
@@ -22,7 +22,7 @@ import DiaperItem from './DiaperItem';
 import WalkItem from './WalkItem';
 import ExtractionItem from './ExtractionItem';
 import ExtractionsInsightCard from './ExtractionsInsightCard';
-import { MedicineIcon } from './CareIcons';
+import { MedicineIcon, InfoIcon } from './CareIcons';
 import NextEventBanner from './NextEventBanner';
 import DayInsights from './DayInsights';
 import WeekComparison from './WeekComparison';
@@ -75,6 +75,8 @@ interface Props {
   onUndoMedicationDose: (planId: string) => void;
   baths: Bath[];
   onEditBath: (b: Bath) => void;
+  notes: NoteEntry[];
+  onEditNote: (n: NoteEntry) => void;
   walks: Walk[];
   onEditWalk: (w: Walk) => void;
   onDeleteWalk: (id: string) => void;
@@ -108,6 +110,7 @@ export default function DailySummary({
   medications, onEditMedication,
   medPlans, onGiveMedicationDose, onUndoMedicationDose,
   baths, onEditBath,
+  notes, onEditNote,
   walks, onEditWalk, onDeleteWalk, onStopWalk,
   extractions, onEditExtraction, onDeleteExtraction,
 }: Props) {
@@ -135,6 +138,7 @@ export default function DailySummary({
     massageLogs: massageLogs,
     medications: medications,
     baths: baths,
+    notes,
   }, walks, undefined, extractions);
   // Se numeran sobre todos los sueños, no solo los de hoy: la numeración
   // nocturna necesita ver la noche completa aunque cruce la medianoche.
@@ -398,10 +402,12 @@ export default function DailySummary({
                     kind={item.data.kind}
                     icon={item.data.icon}
                     label={item.data.label}
+                    paraPediatra={item.data.note?.forPediatrician}
                     time={formatTime(item.data.timestamp)}
                     onEdit={readOnly ? undefined
                       : item.data.medication ? () => onEditMedication(item.data.medication!)
                       : item.data.bath ? () => onEditBath(item.data.bath!)
+                      : item.data.note ? () => onEditNote(item.data.note!)
                       : undefined}
                   />
                 )}
@@ -516,24 +522,31 @@ function GapLine({ minutes }: { minutes: number }) {
   );
 }
 
-function CareLine({ kind, icon, label, time, onEdit }: {
+function CareLine({ kind, icon, label, time, onEdit, paraPediatra }: {
   kind: CareKind; icon: string; label: string; time: string; onEdit?: () => void;
+  /** Nota marcada para comentar en la consulta. */
+  paraPediatra?: boolean;
 }) {
+  const esNota = kind === 'note';
   return (
-    <div className="flex items-center gap-2 pl-4 pr-3 py-1 my-0.5">
-      <span className="text-xs text-gray-400 shrink-0 inline-flex items-center gap-1.5">
+    <div className={`flex ${esNota ? 'items-start' : 'items-center'} gap-2 pl-4 pr-3 py-1 my-0.5`}>
+      {/* La nota es texto libre: puede ocupar dos líneas en vez de salirse. */}
+      <span className={`text-xs text-gray-400 inline-flex items-start gap-1.5 ${esNota ? 'min-w-0' : 'shrink-0 items-center'}`}>
         {/* Los medicamentos usan icono propio: el emoji 💊 ya lo ocupa la vitamina D */}
         {kind === 'medication'
           ? <span className="text-violet-500"><MedicineIcon size={14} /></span>
-          : <span>{icon}</span>}
-        <span className="font-medium text-gray-500">{time}</span>
-        <span>{label}</span>
+          : esNota
+            ? <span className="text-gray-500 pt-px"><InfoIcon size={14} /></span>
+            : <span>{icon}</span>}
+        <span className="font-medium text-gray-500 shrink-0">{time}</span>
+        <span className={esNota ? 'text-gray-600 line-clamp-2' : ''}>{label}</span>
+        {paraPediatra && <span title="Para comentar con el pediatra" aria-label="Para comentar con el pediatra">🩺</span>}
       </span>
       {onEdit && (
         <button
           onClick={onEdit}
           className="text-gray-300 hover:text-sage-600 active:text-sage-700 p-1 shrink-0 touch-manipulation"
-          aria-label={kind === 'bath' ? 'Editar baño' : 'Editar medicamento'}
+          aria-label={kind === 'bath' ? 'Editar baño' : kind === 'note' ? 'Editar nota' : 'Editar medicamento'}
           title="Editar"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">

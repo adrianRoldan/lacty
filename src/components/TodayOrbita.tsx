@@ -21,7 +21,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type {
   BabyConfig, Feeding, Rest, RestWaking, VitaminDLog, ProbioticLog, MassageLog, CalendarEvent,
-  DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, Extraction,
+  DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, NoteEntry, Extraction,
 } from '../types';
 import { getCurrentDaysOfLife, formatBabyAge, formatMinutes, formatTime, isSameDay, todayIso } from '../utils/dateUtils';
 import {
@@ -99,6 +99,8 @@ interface Props {
   onUndoMedicationDose: (planId: string) => void;
   baths: Bath[];
   onEditBath: (b: Bath) => void;
+  notes: NoteEntry[];
+  onEditNote: (n: NoteEntry) => void;
   walks: Walk[];
   onEditWalk: (w: Walk) => void;
   onDeleteWalk: (id: string) => void;
@@ -125,6 +127,7 @@ export default function TodayOrbita({
   medications, onEditMedication,
   medPlans, onGiveMedicationDose, onUndoMedicationDose,
   baths, onEditBath,
+  notes, onEditNote,
   walks, onEditWalk, onDeleteWalk, onStopWalk,
   extractions, onEditExtraction, onDeleteExtraction,
 }: Props) {
@@ -165,6 +168,7 @@ export default function TodayOrbita({
     massageLogs,
     medications,
     baths,
+    notes,
   }, walks, undefined, extractions);
   const etiquetasSueno = etiquetarSuenos(rests, config);
   const conteoHoy = contarPorTipo(rests, config, today);
@@ -458,6 +462,7 @@ export default function TodayOrbita({
           onStopWalk={onStopWalk}
           onEditMedication={onEditMedication}
           onEditBath={onEditBath}
+          onEditNote={onEditNote}
           onEditExtraction={onEditExtraction}
           onDeleteExtraction={onDeleteExtraction}
           onInfoExtraction={() => setInfoExtraccion(true)}

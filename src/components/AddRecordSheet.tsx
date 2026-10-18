@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CuidadoHoy } from '../utils/cuidadosHoy';
 import { DiaperIcon } from './DiaperItem';
-import { MedicineIcon, StrollerIcon, ScaleIcon } from './CareIcons';
+import { MedicineIcon, StrollerIcon, ScaleIcon, InfoIcon } from './CareIcons';
 
 /**
  * Selector para añadir un registro cualquiera.
@@ -13,7 +13,7 @@ import { MedicineIcon, StrollerIcon, ScaleIcon } from './CareIcons';
  */
 
 export type TipoRegistro =
-  | 'toma' | 'sueno' | 'panal' | 'bano' | 'paseo' | 'medicamento' | 'extraccion'
+  | 'toma' | 'sueno' | 'panal' | 'bano' | 'paseo' | 'medicamento' | 'extraccion' | 'nota'
   | 'peso' | 'altura' | 'perimetro';
 
 interface Props {
@@ -40,6 +40,7 @@ const DIA_A_DIA: Opcion[] = [
   { tipo: 'paseo',       etiqueta: 'Paseo',       color: 'bg-coral-100 text-coral-700',     icono: <StrollerIcon size={22} /> },
   { tipo: 'medicamento', etiqueta: 'Medicamento', color: 'bg-violet-100 text-violet-700',   icono: <MedicineIcon size={21} /> },
   { tipo: 'extraccion',  etiqueta: 'Extracción',  color: 'bg-cyan-100 text-cyan-700',       icono: <span className="text-xl">🥛</span> },
+  { tipo: 'nota',        etiqueta: 'Nota',        color: 'bg-gray-100 text-gray-700',       icono: <InfoIcon size={22} /> },
 ];
 
 const MEDIDAS: Opcion[] = [

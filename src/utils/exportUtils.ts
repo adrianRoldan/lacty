@@ -1,6 +1,6 @@
 import type {
   BabyConfig, Feeding, Rest, DiaperChange, Walk, MedicationLog,
-  VitaminDLog, ProbioticLog, MassageLog, WeightEntry, TimelineItem, Bath, Extraction,
+  VitaminDLog, ProbioticLog, MassageLog, WeightEntry, TimelineItem, Bath, NoteEntry, Extraction,
 } from '../types';
 import { buildTimeline, getRestDurationMinutes, getWalkDurationMinutes, restMinutesOnDay, formatDose } from './feedingUtils';
 import { formatTime, formatMinutes, localDateOf, getCurrentDaysOfLife, getBirthDate, formatBabyAge } from './dateUtils';
@@ -25,6 +25,8 @@ export interface DatosExportacion {
   weights: WeightEntry[];
   baths: Bath[];
   extractions: Extraction[];
+  /** Opcional para no romper exportaciones montadas sin notas. */
+  notes?: NoteEntry[];
 }
 
 export interface OpcionesExportacion {
@@ -239,7 +241,10 @@ function describirRegistro(item: TimelineItem, vigiliaPrevia: number | null, eti
     case 'extraction':
       return `${formatTime(item.data.timestamp)}  ${describirExtraccion(item.data)}`;
     case 'care':
-      return `${formatTime(item.data.timestamp)}  ${item.data.label}`;
+      // La nota se marca como tal: si no, «ha vomitado» parecería un cuidado.
+      return item.data.kind === 'note'
+        ? `${formatTime(item.data.timestamp)}  Nota: ${item.data.label}${item.data.note?.forPediatrician ? ' [para el pediatra]' : ''}`
+        : `${formatTime(item.data.timestamp)}  ${item.data.label}`;
   }
 }
 
@@ -302,6 +307,7 @@ export function construirTexto(datos: DatosExportacion, op: OpcionesExportacion)
         massageLogs: datos.massageLogs,
         medications: datos.medications,
         baths: datos.baths,
+        notes: datos.notes,
       },
       datos.walks,
       dia,
@@ -404,6 +410,7 @@ export function construirCsv(datos: DatosExportacion, op: OpcionesExportacion): 
         massageLogs: datos.massageLogs,
         medications: datos.medications,
         baths: datos.baths,
+        notes: datos.notes,
       },
       datos.walks,
       dia,
@@ -460,11 +467,11 @@ export function construirCsv(datos: DatosExportacion, op: OpcionesExportacion): 
         case 'care': {
           const c = ev.data;
           tipo = c.kind === 'medication' ? 'medicamento' : c.kind === 'massage' ? 'masaje'
-            : c.kind === 'bath' ? 'bano' : 'suplemento';
+            : c.kind === 'bath' ? 'bano' : c.kind === 'note' ? 'nota' : 'suplemento';
           detalle = c.label;
           inicio = formatTime(c.timestamp);
           if (c.medication?.doseMl != null) ml = c.medication.doseMl;
-          notas = c.medication?.notes ?? c.bath?.notes ?? '';
+          notas = c.medication?.notes ?? c.bath?.notes ?? (c.note?.forPediatrician ? 'para el pediatra' : '');
           break;
         }
         case 'extraction': {

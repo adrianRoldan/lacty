@@ -10,7 +10,7 @@
  */
 import React, { createContext, useContext } from 'react';
 import type {
-  Feeding, Rest, RestWaking, DiaperChange, Walk, Extraction, CareEntry, MedicationLog, Bath,
+  Feeding, Rest, RestWaking, DiaperChange, Walk, Extraction, CareEntry, MedicationLog, Bath, NoteEntry,
 } from '../types';
 import { formatTime, formatMinutes, gapMinutes, isSameDay, startDayHint } from '../utils/dateUtils';
 import { buildTimeline, getRestDurationMinutes } from '../utils/feedingUtils';
@@ -18,7 +18,7 @@ import { useElapsedTime } from '../hooks/useElapsedMinutes';
 import { useConfirm } from './ConfirmDialog';
 import { despertarAbierto, textoDespertares } from '../utils/sleepUtils';
 import {
-  MedicineIcon, StrollerIcon,
+  MedicineIcon, StrollerIcon, InfoIcon,
   BottleIcon, SyringeIcon, MoonIcon, NapIcon, DropIcon, PumpIcon, NappyIcon,
 } from './CareIcons';
 import { BreastIcon } from './FeedingItem';
@@ -109,7 +109,7 @@ export function Rail({
   onWakingStart, onWakingEnd,
   onEditDiaper, onDeleteDiaper,
   onEditWalk, onDeleteWalk, onStopWalk,
-  onEditMedication, onEditBath,
+  onEditMedication, onEditBath, onEditNote,
   onEditExtraction, onDeleteExtraction, onInfoExtraction,
   variante = 'plano',
 }: {
@@ -133,6 +133,7 @@ export function Rail({
   onStopWalk: (w: Walk) => void;
   onEditMedication: (m: MedicationLog) => void;
   onEditBath: (b: Bath) => void;
+  onEditNote?: (n: NoteEntry) => void;
   onEditExtraction: (e: Extraction) => void;
   onDeleteExtraction: (id: string) => void;
   onInfoExtraction: () => void;
@@ -198,6 +199,7 @@ export function Rail({
                 onEdit={readOnly ? undefined
                   : item.data.medication ? () => onEditMedication(item.data.medication!)
                   : item.data.bath ? () => onEditBath(item.data.bath!)
+                  : item.data.note && onEditNote ? () => onEditNote(item.data.note!)
                   : undefined}
               />
             )}
@@ -587,6 +589,7 @@ function FilaPaseo({ walk, today, readOnly, onEdit, onDelete, onStop }: {
 /** Cuidados puntuales (vitamina, probiótico, masaje, medicamento, baño). */
 function FilaCuidado({ entry, onEdit }: { entry: CareEntry; onEdit?: () => void }) {
   const enCajas = useContext(VarianteCtx) === 'cajas';
+  const esNota = entry.kind === 'note';
   return (
     <div className="group flex gap-2">
       <div className="w-11 shrink-0 text-right pt-2">
@@ -598,18 +601,30 @@ function FilaCuidado({ entry, onEdit }: { entry: CareEntry; onEdit?: () => void 
       </div>
       {/* Los cuidados se quedan discretos también en cajas: son el apunte de
           que algo se dio, no un registro que se consulte. */}
-      <div className={`flex-1 min-w-0 flex items-center gap-1.5 ${
-        enCajas ? `${CAJAS.cuidado.caja} rounded-xl px-2.5 py-1.5 mb-1.5` : 'px-2 py-1'
-      }`}>
-        <span className="shrink-0 text-xs leading-none">
+      <div
+        onClick={esNota ? onEdit : undefined}
+        className={`flex-1 min-w-0 flex ${esNota ? 'items-start' : 'items-center'} gap-1.5 ${
+          enCajas ? `${CAJAS.cuidado.caja} rounded-xl px-2.5 py-1.5 mb-1.5` : 'px-2 py-1'
+        } ${esNota && onEdit ? 'cursor-pointer' : ''}`}
+      >
+        <span className={`shrink-0 text-xs leading-none ${esNota ? 'pt-0.5' : ''}`}>
           {entry.kind === 'medication'
             ? <span className="text-violet-500"><MedicineIcon size={13} /></span>
-            : entry.icon}
+            : esNota
+              ? <span className="text-gray-500"><InfoIcon size={13} /></span>
+              : entry.icon}
         </span>
-        <span className="text-xs text-gray-500 truncate">{entry.label}</span>
+        {/* La nota es texto libre: se le dejan dos líneas en vez de cortarla
+            en una, y se abre entera al tocarla. */}
+        <span className={`text-xs truncate ${esNota ? 'text-gray-600 whitespace-normal line-clamp-2' : 'text-gray-500'}`}>
+          {entry.label}
+        </span>
+        {entry.note?.forPediatrician && (
+          <span className="shrink-0 text-[11px] leading-none" title="Para comentar con el pediatra" aria-label="Para comentar con el pediatra">🩺</span>
+        )}
         {onEdit && (
           <button
-            onClick={onEdit}
+            onClick={(e) => { e.stopPropagation(); onEdit(); }}
             className="text-gray-300 hover:text-sage-600 p-1 shrink-0 touch-manipulation
               opacity-0 group-hover:opacity-100 focus:opacity-100 [@media(pointer:coarse)]:opacity-100 transition-opacity"
             aria-label="Editar"
