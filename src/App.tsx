@@ -104,6 +104,9 @@ export default function App() {
   // entonces, no sobre el que había al crear el aviso.
   const restsRef = useRef(rests);
   restsRef.current = rests;
+  // Igual para «Añadir ml», que se pulsa segundos después de cerrar la toma.
+  const feedingsRef = useRef(feedings);
+  feedingsRef.current = feedings;
   const [weights, setWeights] = useState<WeightEntry[]>([]);
   const [heights, setHeights] = useState<HeightEntry[]>([]);
   const [headCircs, setHeadCircs] = useState<HeadCircEntry[]>([]);
@@ -503,11 +506,57 @@ export default function App() {
       const estimatedMl = calcBreastEstimatedMl(daysOfLife, elapsed, feedings);
       const updated = await api.updateFeeding({
         ...feeding,
+        endTime: now,
         ...(lastWasLeft ? { breastMinRight: elapsed } : { breastMinLeft: elapsed }),
         ...(estimatedMl != null ? { breastEstimatedMl: estimatedMl } : {}),
       });
       setFeedings((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
     }
+
+    // Biberón o jeringa empezados con el botón y sin terminar: se cierran a
+    // esta hora. Antes se quedaban abiertos y la toma seguía «en curso» en el
+    // reloj aunque ya se hubiera empezado otra cosa. Los ml no se saben, así
+    // que se ofrecen en el aviso en vez de interrumpir con un diálogo.
+    const abiertas = feedings.filter((f) =>
+      !f.endTime
+      && !(f.hasBreast && f.breastMinLeft == null && f.breastMinRight == null)
+      && ((f.hasBottle && f.bottleMl == null) || (f.hasSupplement && f.supplementMl == null))
+    );
+    for (const feeding of abiertas) {
+      const updated = await api.updateFeeding({ ...feeding, endTime: now });
+      setFeedings((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
+      ofrecerMl(updated);
+    }
+  }
+
+  /** Aviso con «Añadir ml» para una toma de biberón o jeringa cerrada sin cantidad. */
+  function ofrecerMl(feeding: Feeding) {
+    const esBiberon = feeding.hasBottle && feeding.bottleMl == null;
+    toast(`${esBiberon ? 'Biberón' : 'Jeringa'} terminado a las ${new Date(feeding.endTime!).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`, {
+      actions: [{
+        label: 'Añadir ml',
+        primary: true,
+        onClick: async () => {
+          const ml = await askAmount({
+            title: '¿Cuántos ml ha tomado?',
+            hint: 'Después puedes ajustarlo editando la toma',
+            unit: 'ml',
+            quick: suggestedBottleMl(),
+            confirmLabel: 'Guardar',
+          });
+          if (ml == null) return;
+          try {
+            const actual = feedingsRef.current.find((f) => f.id === feeding.id) ?? feeding;
+            const updated = await api.updateFeeding(esBiberon ? { ...actual, bottleMl: ml } : { ...actual, supplementMl: ml });
+            setFeedings((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
+            toast(`${esBiberon ? 'Biberón' : 'Jeringa'} · ${ml} ml`);
+          } catch {
+            toast('No se pudo guardar');
+          }
+        },
+      }],
+      duration: 8000,
+    });
   }
 
   async function handleSaveFeeding(feeding: Feeding) {

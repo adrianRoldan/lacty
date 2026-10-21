@@ -3,7 +3,13 @@ import { isSameDay, todayIso, localDateOf } from './dateUtils';
 import { esSuenoNocturno, etiquetarSuenos, ventanaNocturna, despertaresPorNoche } from './sleepUtils';
 import { getReferenceForDay } from '../data/referenceTable';
 
-function isFeedingInProgress(f: Feeding): boolean {
+/**
+ * Una toma está en curso si no tiene hora de fin y le falta lo que se apunta
+ * al terminarla (minutos de pecho, ml de biberón o de jeringa). Es la única
+ * definición: todas las pantallas deben usar esta, o un biberón cerrado sin
+ * ml aparecería terminado en una y en curso en otra.
+ */
+export function isFeedingInProgress(f: Feeding): boolean {
   if (f.endTime) return false;
   return (f.hasBreast && f.breastMinLeft == null && f.breastMinRight == null) ||
          (f.hasBottle && f.bottleMl == null) ||

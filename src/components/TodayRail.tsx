@@ -22,6 +22,7 @@ import {
   buildTimeline,
   avgDailyFeeds,
   getAvgGapMinutes,
+  isFeedingInProgress,
 } from '../utils/feedingUtils';
 import { getEffectiveReference, getSleepReference, limiteSinComer } from '../data/referenceTable';
 import { etiquetarSuenos, contarPorTipo, nocheParaMostrar } from '../utils/sleepUtils';
@@ -166,11 +167,7 @@ export default function TodayRail({
   const lastFeeding = feedings.length > 0
     ? [...feedings].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
     : null;
-  const lastFeedingInProgress = lastFeeding != null && (
-    (lastFeeding.hasBreast && lastFeeding.breastMinLeft == null && lastFeeding.breastMinRight == null) ||
-    (lastFeeding.hasBottle && lastFeeding.bottleMl == null) ||
-    (lastFeeding.hasSupplement && lastFeeding.supplementMl == null)
-  );
+  const lastFeedingInProgress = lastFeeding != null && isFeedingInProgress(lastFeeding);
   const lastFeedingElapsed = lastFeeding && !lastFeedingInProgress
     ? Math.floor((Date.now() - new Date(lastFeeding.timestamp).getTime()) / 60000)
     : null;

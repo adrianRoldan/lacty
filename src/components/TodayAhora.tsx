@@ -45,6 +45,7 @@ import {
   buildTimeline,
   avgDailyFeeds,
   minutosParaExtraer,
+  isFeedingInProgress,
 } from '../utils/feedingUtils';
 import { getEffectiveReference, getSleepReference, limiteSinComer } from '../data/referenceTable';
 import { etiquetarSuenos, contarPorTipo, despertarAbierto, textoDespertares, nocheParaMostrar } from '../utils/sleepUtils';
@@ -176,11 +177,7 @@ export default function TodayAhora({
   const lastFeeding = feedings.length > 0
     ? [...feedings].sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0]
     : null;
-  const feedingInProgress = lastFeeding != null && (
-    (lastFeeding.hasBreast && lastFeeding.breastMinLeft == null && lastFeeding.breastMinRight == null) ||
-    (lastFeeding.hasBottle && lastFeeding.bottleMl == null) ||
-    (lastFeeding.hasSupplement && lastFeeding.supplementMl == null)
-  );
+  const feedingInProgress = lastFeeding != null && isFeedingInProgress(lastFeeding);
   // Math.max: una toma apuntada con hora futura (un dedazo en el formulario)
   // daría un número negativo, y el número grande es toda la pantalla.
   const lastFeedingElapsed = lastFeeding && !feedingInProgress
