@@ -4,7 +4,7 @@ import type {
 } from '../types';
 import { buildTimeline, getRestDurationMinutes, getWalkDurationMinutes, restMinutesOnDay, formatDose } from './feedingUtils';
 import { formatTime, formatMinutes, localDateOf, getCurrentDaysOfLife, getBirthDate, formatBabyAge } from './dateUtils';
-import { etiquetarSuenos, textoMicrodespertares, minutosDespierto, ETIQUETA_CALMA } from './sleepUtils';
+import { etiquetarSuenos, textoMicrodespertares, minutosDespierto, ETIQUETA_CALMA, calmasDe } from './sleepUtils';
 
 /**
  * Exportación del historial para compartirlo con un profesional o pegarlo en
@@ -208,7 +208,7 @@ function describirDespertares(r: Rest): string {
   const ws = r.wakings ?? [];
   if (ws.length === 0) return '';
   const partes = ws.map((w) => {
-    const extra = [minutosDespierto(w) != null ? `${minutosDespierto(w)} min` : null, w.soothe ? ETIQUETA_CALMA[w.soothe] : null]
+    const extra = [minutosDespierto(w) != null ? `${minutosDespierto(w)} min` : null, calmasDe(w).length > 0 ? calmasDe(w).map((c) => ETIQUETA_CALMA[c]).join(' + ') : null]
       .filter(Boolean).join(', ');
     return extra ? `${formatTime(w.at)} ${extra}` : formatTime(w.at);
   });

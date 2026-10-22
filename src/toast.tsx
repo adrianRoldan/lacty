@@ -8,12 +8,20 @@ export interface ToastAction {
   onClick: () => void;
   /** Resaltada: la acción principal (por ejemplo «Deshacer»). */
   primary?: boolean;
+  /**
+   * Ficha que se marca y desmarca sin cerrar el aviso (para elegir varias
+   * opciones). Cada toque alarga el aviso para dar tiempo a la siguiente.
+   */
+  toggle?: boolean;
+  active?: boolean;
 }
 
 export type ToastItem = { id: number; message: string; actions?: ToastAction[] };
 
 let items: ToastItem[] = [];
 const listeners = new Set<() => void>();
+const temporizadores = new Map<number, ReturnType<typeof setTimeout>>();
+const duraciones = new Map<number, number>();
 let nextId = 1;
 
 function emit() {
@@ -21,7 +29,25 @@ function emit() {
 }
 
 function cerrar(id: number) {
+  clearTimeout(temporizadores.get(id));
+  temporizadores.delete(id);
+  duraciones.delete(id);
   items = items.filter((t) => t.id !== id);
+  emit();
+}
+
+function programarCierre(id: number) {
+  clearTimeout(temporizadores.get(id));
+  temporizadores.set(id, setTimeout(() => cerrar(id), duraciones.get(id) ?? 2500));
+}
+
+/** Marca o desmarca una ficha del aviso y le da más tiempo antes de cerrarse. */
+function alternar(id: number, label: string) {
+  items = items.map((t) => t.id !== id ? t : {
+    ...t,
+    actions: t.actions?.map((a) => (a.label === label ? { ...a, active: !a.active } : a)),
+  });
+  programarCierre(id);
   emit();
 }
 
@@ -29,8 +55,9 @@ export function toast(message: string, options?: { actions?: ToastAction[]; dura
   const id = nextId++;
   const actions = options?.actions;
   items = [...items, { id, message, actions }];
+  duraciones.set(id, options?.duration ?? (actions?.length ? 6000 : 2500));
+  programarCierre(id);
   emit();
-  setTimeout(() => cerrar(id), options?.duration ?? (actions?.length ? 6000 : 2500));
 }
 
 export function Toaster() {
@@ -59,12 +86,17 @@ export function Toaster() {
               {t.actions!.map((a) => (
                 <button
                   key={a.label}
-                  onClick={() => { a.onClick(); cerrar(t.id); }}
+                  onClick={() => {
+                    a.onClick();
+                    if (a.toggle) alternar(t.id, a.label);
+                    else cerrar(t.id);
+                  }}
+                  aria-pressed={a.toggle ? !!a.active : undefined}
                   className={`h-9 px-3 rounded-full text-[13px] font-semibold touch-manipulation active:scale-95 transition-transform ${
-                    a.primary ? 'bg-white text-gray-900' : 'bg-white/15 text-white'
+                    a.primary || a.active ? 'bg-white text-gray-900' : 'bg-white/15 text-white'
                   }`}
                 >
-                  {a.label}
+                  {a.toggle && a.active ? `✓ ${a.label}` : a.label}
                 </button>
               ))}
             </div>

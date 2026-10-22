@@ -121,6 +121,29 @@ function nocheDeHora(iso: string, minFin: number): string {
  */
 export const DESPERTAR_ABIERTO_MAX_MIN = 30;
 
+/** Las opciones de «cómo se ha dormido», en el orden en que se muestran. */
+export const OPCIONES_CALMA: [WakingSoothe, string][] = [
+  ['solo', 'Solo'],
+  ['chupete', 'Chupete'],
+  ['manita', 'Manita'],
+  ['brazos', 'Brazos'],
+  ['pecho', 'Pecho'],
+];
+
+/** Cómo se volvió a dormir, venga del formato nuevo (lista) o del antiguo (una). */
+export function calmasDe(w: RestWaking): WakingSoothe[] {
+  return w.soothes ?? (w.soothe ? [w.soothe] : []);
+}
+
+/** Copia del microdespertar con estas calmas, ya en el formato nuevo. */
+export function conCalmas(w: RestWaking, calmas: WakingSoothe[]): RestWaking {
+  const { soothe: _antiguo, soothes: _lista, ...resto } = w;
+  void _antiguo; void _lista;
+  // Se guardan en el orden de las opciones, no en el que se tocaron.
+  const ordenadas = OPCIONES_CALMA.map(([v]) => v).filter((v) => calmas.includes(v));
+  return ordenadas.length > 0 ? { ...resto, soothes: ordenadas } : resto;
+}
+
 export const ETIQUETA_CALMA: Record<WakingSoothe, string> = {
   solo: 'solo',
   chupete: 'chupete',

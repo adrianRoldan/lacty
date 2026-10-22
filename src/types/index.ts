@@ -81,6 +81,9 @@ export interface RestWaking {
   id: string;
   at: string;          // ISO — cuándo se despertó
   endAt?: string;      // ISO — cuándo volvió a dormirse (opcional)
+  /** Cómo volvió a dormirse: puede ser más de una cosa (chupete + manita). */
+  soothes?: WakingSoothe[];
+  /** Formato antiguo, de una sola opción: se sigue leyendo, ya no se escribe. */
   soothe?: WakingSoothe;
 }
 

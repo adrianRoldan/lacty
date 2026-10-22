@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import type { BabyConfig, Feeding, Rest, RestWaking, WakingSoothe, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, Extraction, NoteEntry } from './types';
+import type { BabyConfig, Feeding, Rest, RestWaking, WeightEntry, HeightEntry, HeadCircEntry, VitaminDLog, ProbioticLog, MassageLog, MilestoneLog, VaccineLog, Consultation, CalendarEvent, DiaperChange, MedicationLog, MedicationPlan, Walk, Bath, Extraction, NoteEntry } from './types';
 import { getCurrentDaysOfLife, getBirthDate, todayIso, localDateOf } from './utils/dateUtils';
 import { calcBreastEstimatedMl, generateId } from './utils/feedingUtils';
-import { esSuenoNocturno } from './utils/sleepUtils';
+import { esSuenoNocturno, OPCIONES_CALMA, calmasDe, conCalmas } from './utils/sleepUtils';
 import { useTheme } from './theme';
 import * as api from './api';
 import BabyConfigScreen from './components/BabyConfig';
@@ -48,7 +48,7 @@ import PediatraSummary from './components/PediatraSummary';
 import AdminView, { ActivityDashboard, PushBroadcastView, BabiesAdminView } from './components/AdminView';
 import GuiasAdminView from './components/GuiasAdminView';
 import ThemeSelector from './components/ThemeSelector';
-import { Toaster, toast } from './toast';
+import { Toaster, toast, type ToastAction } from './toast';
 import { OfflineBanner } from './offline';
 import { useTimelineDesign } from './timelineDesign';
 import { useModoMadrugada } from './hooks/useModoMadrugada';
@@ -104,6 +104,11 @@ export default function App() {
   // entonces, no sobre el que había al crear el aviso.
   const restsRef = useRef(rests);
   restsRef.current = rests;
+  // Cola de guardados de microdespertares: dos fichas tocadas seguidas
+  // («chupete» y «manita») no deben leer el mismo estado de partida, o la
+  // segunda pisaría a la primera. Aquí arriba y no junto a su función: los
+  // hooks no pueden ir después de los return tempranos de App.
+  const colaDespertares = useRef<Promise<unknown>>(Promise.resolve());
   // Igual para «Añadir ml», que se pulsa segundos después de cerrar la toma.
   const feedingsRef = useRef(feedings);
   feedingsRef.current = feedings;
@@ -706,23 +711,37 @@ export default function App() {
   // Un despertar no termina el sueño: se apunta dentro de él, para poder contar
   // cuántas veces se despierta en una siesta o en toda la noche.
 
-  async function guardarDespertares(restId: string, cambiar: (w: RestWaking[]) => RestWaking[]) {
-    const actual = restsRef.current.find((r) => r.id === restId);
-    if (!actual) return;
-    const updated = await api.updateRest({ ...actual, wakings: cambiar(actual.wakings ?? []) });
-    setRests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+  function guardarDespertares(restId: string, cambiar: (w: RestWaking[]) => RestWaking[]): Promise<void> {
+    const tarea = colaDespertares.current.catch(() => {}).then(async () => {
+      const actual = restsRef.current.find((r) => r.id === restId);
+      if (!actual) return;
+      const updated = await api.updateRest({ ...actual, wakings: cambiar(actual.wakings ?? []) });
+      // Al momento, sin esperar al render: la siguiente de la cola parte de aquí.
+      restsRef.current = restsRef.current.map((r) => (r.id === updated.id ? updated : r));
+      setRests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+    });
+    colaDespertares.current = tarea;
+    return tarea;
   }
 
-  /** Las fichas de «cómo se ha dormido», para el aviso de un despertar. */
-  function accionesDeCalma(restId: string, wakingId: string) {
-    const opciones: [WakingSoothe, string][] = [['solo', 'Solo'], ['chupete', 'Chupete'], ['manita', 'Manita'], ['brazos', 'Brazos'], ['pecho', 'Pecho']];
-    return opciones.map(([valor, label]) => ({
+  /**
+   * Las fichas de «cómo se ha dormido», para el aviso de un microdespertar.
+   * Se pueden marcar varias (chupete + manita): cada toque añade o quita esa
+   * opción y el aviso sigue abierto hasta «Listo».
+   */
+  function accionesDeCalma(restId: string, wakingId: string): ToastAction[] {
+    const fichas: ToastAction[] = OPCIONES_CALMA.map(([valor, label]) => ({
       label,
+      toggle: true,
       onClick: () => {
-        guardarDespertares(restId, (ws) => ws.map((w) => (w.id === wakingId ? { ...w, soothe: valor } : w)))
-          .catch(() => toast('No se pudo guardar'));
+        guardarDespertares(restId, (ws) => ws.map((w) => {
+          if (w.id !== wakingId) return w;
+          const actuales = calmasDe(w);
+          return conCalmas(w, actuales.includes(valor) ? actuales.filter((c) => c !== valor) : [...actuales, valor]);
+        })).catch(() => toast('No se pudo guardar'));
       },
     }));
+    return [...fichas, { label: 'Listo', primary: true, onClick: () => {} }];
   }
 
   const handleWakingStart = onceInFlight(async (rest: Rest) => {

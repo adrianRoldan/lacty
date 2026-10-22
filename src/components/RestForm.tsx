@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Rest, RestWaking, WakingSoothe } from '../types';
 import { generateId } from '../utils/feedingUtils';
 import { toLocalDatetimeInputValue } from '../utils/dateUtils';
+import { OPCIONES_CALMA, calmasDe } from '../utils/sleepUtils';
 
 interface Props {
   onSave: (rest: Rest) => Promise<void>;
@@ -30,7 +31,7 @@ export default function RestForm({ onSave, onCancel, existing }: Props) {
       id: w.id,
       at: toLocalDatetimeInputValue(new Date(w.at)),
       endAt: w.endAt ? toLocalDatetimeInputValue(new Date(w.endAt)) : '',
-      soothe: w.soothe ?? '',
+      soothes: calmasDe(w),
     })),
   );
   const [error, setError] = useState('');
@@ -40,7 +41,7 @@ export default function RestForm({ onSave, onCancel, existing }: Props) {
     const ini = new Date(startTime).getTime();
     const fin = hasEnd ? new Date(endTime).getTime() : Date.now();
     const at = new Date(ini + Math.max(0, fin - ini) / 2);
-    setWakings((ws) => [...ws, { id: generateId(), at: toLocalDatetimeInputValue(at), endAt: '', soothe: '' }]);
+    setWakings((ws) => [...ws, { id: generateId(), at: toLocalDatetimeInputValue(at), endAt: '', soothes: [] }]);
   }
   function cambiarDespertar(id: string, cambio: Partial<FilaDespertar>) {
     setWakings((ws) => ws.map((w) => (w.id === id ? { ...w, ...cambio } : w)));
@@ -75,7 +76,7 @@ export default function RestForm({ onSave, onCancel, existing }: Props) {
         id: w.id,
         at: new Date(w.at).toISOString(),
         ...(w.endAt ? { endAt: new Date(w.endAt).toISOString() } : {}),
-        ...(w.soothe ? { soothe: w.soothe } : {}),
+        ...(w.soothes.length > 0 ? { soothes: OPCIONES_CALMA.map(([v]) => v).filter((v) => w.soothes.includes(v)) } : {}),
       }))
       .sort((a, b) => a.at.localeCompare(b.at));
 
@@ -204,16 +205,17 @@ export default function RestForm({ onSave, onCancel, existing }: Props) {
                     />
                   </label>
                 </div>
-                <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Cómo se volvió a dormir">
-                  {CALMAS.map(([valor, texto]) => (
+                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Cómo se volvió a dormir (puedes marcar varias)">
+                  {OPCIONES_CALMA.map(([valor, texto]) => (
                     <button
                       key={valor}
                       type="button"
-                      role="radio"
-                      aria-checked={w.soothe === valor}
-                      onClick={() => cambiarDespertar(w.id, { soothe: w.soothe === valor ? '' : valor })}
+                      aria-pressed={w.soothes.includes(valor)}
+                      onClick={() => cambiarDespertar(w.id, {
+                        soothes: w.soothes.includes(valor) ? w.soothes.filter((c) => c !== valor) : [...w.soothes, valor],
+                      })}
                       className={`h-8 px-3 rounded-full text-xs font-semibold touch-manipulation ${
-                        w.soothe === valor ? 'bg-lagoon-700 text-white' : 'bg-gray-100 text-gray-600'
+                        w.soothes.includes(valor) ? 'bg-lagoon-700 text-white' : 'bg-gray-100 text-gray-600'
                       }`}
                     >
                       {texto}
@@ -255,13 +257,6 @@ interface FilaDespertar {
   id: string;
   at: string;
   endAt: string;
-  soothe: WakingSoothe | '';
+  soothes: WakingSoothe[];
 }
 
-const CALMAS: [WakingSoothe, string][] = [
-  ['solo', 'Solo'],
-  ['chupete', 'Chupete'],
-  ['manita', 'Manita'],
-  ['brazos', 'Brazos'],
-  ['pecho', 'Pecho'],
-];
