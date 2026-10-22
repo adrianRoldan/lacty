@@ -48,7 +48,7 @@ import {
   isFeedingInProgress,
 } from '../utils/feedingUtils';
 import { getEffectiveReference, getSleepReference, limiteSinComer } from '../data/referenceTable';
-import { etiquetarSuenos, contarPorTipo, despertarAbierto, textoDespertares, nocheParaMostrar } from '../utils/sleepUtils';
+import { etiquetarSuenos, contarPorTipo, despertarAbierto, textoMicrodespertares, nocheParaMostrar } from '../utils/sleepUtils';
 import { cuidadosConAcciones, CareSheet, type CareItem } from './CareToday';
 import { useElapsedTime } from '../hooks/useElapsedMinutes';
 import { useModoMadrugada, MADRUGADA_DESDE } from '../hooks/useModoMadrugada';
@@ -518,7 +518,7 @@ function TarjetaEnCurso({ enCurso, readOnly }: { enCurso: EnCurso; readOnly?: bo
         <p className="text-sm text-gray-500 mt-1.5">{enCurso.detalle}</p>
       )}
       {enCurso.sueno && (enCurso.sueno.rest.wakings?.length ?? 0) > 0 && (
-        <p className="text-sm text-gray-500 mt-1.5">{textoDespertares(enCurso.sueno.rest.wakings!.length)}</p>
+        <p className="text-sm text-gray-500 mt-1.5">{textoMicrodespertares(enCurso.sueno.rest.wakings!.length)}</p>
       )}
 
       {!readOnly && (enCurso.sueno ? (() => {
@@ -534,7 +534,7 @@ function TarjetaEnCurso({ enCurso, readOnly }: { enCurso: EnCurso; readOnly?: bo
                 abierto ? 'bg-lagoon-700 text-white' : 'bg-lagoon-100 text-lagoon-700'
               }`}
             >
-              {abierto ? 'Ya duerme' : 'Se despierta'}
+              {abierto ? 'Ya duerme' : 'Microdespertar'}
             </button>
             <button
               onClick={enCurso.onTerminar}
@@ -734,7 +734,7 @@ function RelojSueno({ durmiendo, minutos, limite, nivel, hay, sexo, despertar }:
         : <Duracion minutos={minutos} nivel={nivel} vacio={!hay} />}
       <Barra tono="sueno" nivel={nivel} ratio={durmiendo ? 0 : razon(minutos, limite)} />
       <p className={`text-[11px] leading-4 mt-1 truncate ${NIVEL[nivel].pista}`}>
-        {durmiendo ? ((durmiendo.wakings?.length ?? 0) > 0 ? textoDespertares(durmiendo.wakings!.length) : 'en curso')
+        {durmiendo ? ((durmiendo.wakings?.length ?? 0) > 0 ? textoMicrodespertares(durmiendo.wakings!.length) : 'en curso')
           : !hay ? 'sin sueños aún'
           : nivel === 'alerta' ? `pasada la ventana de ${formatElapsed(limite)}`
           : `ventana de ${formatElapsed(limite)} a su edad`}

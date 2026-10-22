@@ -39,7 +39,7 @@ import {
   isFeedingInProgress,
 } from '../utils/feedingUtils';
 import { getEffectiveReference, getSleepReference, limiteSinComer } from '../data/referenceTable';
-import { etiquetarSuenos, contarPorTipo, esSuenoNocturno, despertarAbierto, textoDespertares, nocheParaMostrar } from '../utils/sleepUtils';
+import { etiquetarSuenos, contarPorTipo, esSuenoNocturno, despertarAbierto, textoDespertares, textoMicrodespertares, nocheParaMostrar } from '../utils/sleepUtils';
 import { cuidadosConAcciones } from './CareToday';
 import { useElapsedTime } from '../hooks/useElapsedMinutes';
 import { useModoMadrugada } from '../hooks/useModoMadrugada';
@@ -690,9 +690,9 @@ function CentroDelReloj({
     if (abierto) {
       return (
         <>
-          <Etiqueta>Se ha despertado</Etiqueta>
+          <Etiqueta>Microdespertar</Etiqueta>
           <CronometroGrande inicio={abierto.at} />
-          <p className="text-sm text-gray-700 mt-1">despertar n.º {n}</p>
+          <p className="text-sm text-gray-700 mt-1">n.º {n} de este sueño</p>
         </>
       );
     }
@@ -701,7 +701,7 @@ function CentroDelReloj({
         <Etiqueta>{nocturno ? 'Durmiendo' : 'Siesta'}</Etiqueta>
         <NumeroGrande className="text-[var(--orb-sueno-texto)]">{formatCorto(min)}</NumeroGrande>
         <p className="text-sm text-gray-700 mt-1">desde las {formatTime(restInProgress.startTime)}</p>
-        {n > 0 && <p className="text-xs text-gray-500 mt-0.5">{textoDespertares(n)}</p>}
+        {n > 0 && <p className="text-xs text-gray-500 mt-0.5">{textoMicrodespertares(n)}</p>}
       </>
     );
   }
@@ -869,11 +869,12 @@ function Dock({
         {restInProgress ? (
           <button
             onClick={() => (abierto ? onWakingEnd(restInProgress, abierto) : onWakingStart(restInProgress))}
-            className={`flex-1 min-w-0 h-14 rounded-[20px] flex flex-col items-center justify-center leading-tight touch-manipulation active:brightness-95 bg-[var(--orb-sueno)] text-[var(--orb-sueno-tinta)] ${
+            // Más ancho que «Terminar»: «Microdespertar» no cabía en la mitad.
+            className={`flex-[1.4] min-w-0 h-14 rounded-[20px] flex flex-col items-center justify-center leading-tight touch-manipulation active:brightness-95 bg-[var(--orb-sueno)] text-[var(--orb-sueno-tinta)] ${
               abierto ? 'ring-2 ring-offset-2 ring-[var(--orb-sueno)] ring-offset-white' : ''
             }`}
           >
-            <span className="text-[15px] font-extrabold truncate max-w-full px-2">{abierto ? 'Ya duerme' : 'Despertar'}</span>
+            <span className="text-[14px] font-extrabold truncate max-w-full px-1.5">{abierto ? 'Ya duerme' : 'Microdespertar'}</span>
             <span className="text-xs opacity-80 truncate max-w-full px-2">
               {abierto ? <MiniCronometroTinta inicio={abierto.at} /> : 'y vuelve a dormir'}
             </span>

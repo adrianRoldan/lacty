@@ -16,7 +16,7 @@ import { formatTime, formatMinutes, gapMinutes, isSameDay, startDayHint } from '
 import { buildTimeline, getRestDurationMinutes } from '../utils/feedingUtils';
 import { useElapsedTime } from '../hooks/useElapsedMinutes';
 import { useConfirm } from './ConfirmDialog';
-import { despertarAbierto, textoDespertares } from '../utils/sleepUtils';
+import { despertarAbierto, textoMicrodespertares } from '../utils/sleepUtils';
 import {
   MedicineIcon, StrollerIcon, InfoIcon,
   BottleIcon, SyringeIcon, MoonIcon, NapIcon, DropIcon, PumpIcon, NappyIcon,
@@ -448,7 +448,7 @@ function FilaSueno({ rest, today, etiqueta, readOnly, onEdit, onDelete, onStop, 
         {duracion != null
           ? <Chip tono="sueno">{formatMinutes(duracion)}</Chip>
           : <Chip tono="sueno">En curso…</Chip>}
-        {despertares.length > 0 && <Chip tono="sueno">{textoDespertares(despertares.length)}</Chip>}
+        {despertares.length > 0 && <Chip tono="sueno">{textoMicrodespertares(despertares.length)}</Chip>}
       </>}
       detalle={[
         despertares.length > 0 ? despertares.map((w) => formatTime(w.at)).join(' · ') : null,
@@ -715,7 +715,7 @@ export function BotonDespertar({ abierto, onStart, onEnd, grande }: {
       // con ese fondo el botón no se distinguía.
       className={`shrink-0 self-center rounded-full font-semibold bg-white text-lagoon-700 ring-1 ring-lagoon-300 touch-manipulation active:brightness-95 ${tamano}`}
     >
-      Se despierta
+      Microdespertar
     </button>
   );
 }

@@ -215,9 +215,17 @@ export function despertaresPorNoche(
   return [...noches].sort().map((n) => resumenNoche(rests, config, n)!).filter(Boolean);
 }
 
-/** «1 despertar», «3 despertares». */
+/** «1 despertar», «3 despertares»: los de toda una noche, cortes incluidos. */
 export function textoDespertares(n: number): string {
   return n === 1 ? '1 despertar' : `${n} despertares`;
+}
+
+/**
+ * «1 microdespertar», «3 microdespertares»: los apuntados dentro de un sueño,
+ * entre ciclo y ciclo, sin que el sueño terminara.
+ */
+export function textoMicrodespertares(n: number): string {
+  return n === 1 ? '1 microdespertar' : `${n} microdespertares`;
 }
 
 /**

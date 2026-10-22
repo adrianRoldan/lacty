@@ -4,7 +4,7 @@ import type {
 } from '../types';
 import { buildTimeline, getRestDurationMinutes, getWalkDurationMinutes, restMinutesOnDay, formatDose } from './feedingUtils';
 import { formatTime, formatMinutes, localDateOf, getCurrentDaysOfLife, getBirthDate, formatBabyAge } from './dateUtils';
-import { etiquetarSuenos, textoDespertares, minutosDespierto, ETIQUETA_CALMA } from './sleepUtils';
+import { etiquetarSuenos, textoMicrodespertares, minutosDespierto, ETIQUETA_CALMA } from './sleepUtils';
 
 /**
  * Exportación del historial para compartirlo con un profesional o pegarlo en
@@ -212,7 +212,7 @@ function describirDespertares(r: Rest): string {
       .filter(Boolean).join(', ');
     return extra ? `${formatTime(w.at)} ${extra}` : formatTime(w.at);
   });
-  return `  · ${textoDespertares(ws.length)} (${partes.join('; ')})`;
+  return `  · ${textoMicrodespertares(ws.length)} (${partes.join('; ')})`;
 }
 
 function describirRegistro(item: TimelineItem, vigiliaPrevia: number | null, etiquetaSueno?: string): string {
@@ -445,7 +445,7 @@ export function construirCsv(datos: DatosExportacion, op: OpcionesExportacion): 
           duracion = getRestDurationMinutes(r);
           vigilia = siestas.find((s) => s.inicio === r.startTime)?.vigiliaPreviaMin ?? null;
           notas = [
-            r.wakings?.length ? `${textoDespertares(r.wakings.length)} (${r.wakings.map((w) => formatTime(w.at)).join(', ')})` : '',
+            r.wakings?.length ? `${textoMicrodespertares(r.wakings.length)} (${r.wakings.map((w) => formatTime(w.at)).join(', ')})` : '',
             r.notes ?? '',
           ].filter(Boolean).join(' · ');
           break;

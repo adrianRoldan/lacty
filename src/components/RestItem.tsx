@@ -3,7 +3,7 @@ import { formatTime, formatMinutes, startDayHint } from '../utils/dateUtils';
 import { getRestDurationMinutes } from '../utils/feedingUtils';
 import { useElapsedTime } from '../hooks/useElapsedMinutes';
 import { useConfirm } from './ConfirmDialog';
-import { despertarAbierto, textoDespertares } from '../utils/sleepUtils';
+import { despertarAbierto, textoMicrodespertares } from '../utils/sleepUtils';
 import { BotonDespertar } from './TimelineRail';
 
 interface Props {
@@ -69,7 +69,7 @@ export default function RestItem({ rest, onEdit, onDelete, onStop, onWakingStart
             )}
             {despertares.length > 0 && (
               <span className="bg-lagoon-100 text-lagoon-700 text-xs font-semibold px-2 py-0.5 rounded-full">
-                {textoDespertares(despertares.length)}
+                {textoMicrodespertares(despertares.length)}
               </span>
             )}
           </div>

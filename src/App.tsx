@@ -729,7 +729,7 @@ export default function App() {
     const waking: RestWaking = { id: generateId(), at: new Date().toISOString() };
     await guardarDespertares(rest.id, (ws) => [...ws, waking]);
     const numero = (rest.wakings?.length ?? 0) + 1;
-    toast(`Despertar n.º ${numero} apuntado`, {
+    toast(`Microdespertar n.º ${numero} apuntado`, {
       actions: [{
         label: 'Deshacer',
         primary: true,

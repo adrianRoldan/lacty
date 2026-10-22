@@ -60,11 +60,11 @@ export default function RestForm({ onSave, onCancel, existing }: Props) {
     for (const w of wakings) {
       const at = new Date(w.at);
       if (at < start || (fin && at > fin)) {
-        setError('Cada despertar tiene que caer dentro del sueño.');
+        setError('Cada microdespertar tiene que caer dentro del sueño.');
         return;
       }
       if (w.endAt && new Date(w.endAt) < at) {
-        setError('Un despertar no puede terminar antes de empezar.');
+        setError('Un microdespertar no puede terminar antes de empezar.');
         return;
       }
     }
@@ -157,7 +157,7 @@ export default function RestForm({ onSave, onCancel, existing }: Props) {
         <div className="bg-white rounded-2xl p-4 shadow-sm">
           <div className="flex items-center justify-between mb-1">
             <label className="text-sm font-medium text-gray-600">
-              Despertares {wakings.length > 0 && <span className="text-gray-400">({wakings.length})</span>}
+              Microdespertares {wakings.length > 0 && <span className="text-gray-400">({wakings.length})</span>}
             </label>
             <button
               type="button"
@@ -168,13 +168,13 @@ export default function RestForm({ onSave, onCancel, existing }: Props) {
             </button>
           </div>
           <p className="text-xs text-gray-400 mb-3">
-            Veces que se despertó y volvió a dormirse sin que el sueño terminara.
+            Veces que se despertó entre ciclos y volvió a dormirse sin que el sueño terminara.
           </p>
           <div className="space-y-3">
             {wakings.map((w, i) => (
               <div key={w.id} className="rounded-xl border border-gray-100 p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-gray-500">Despertar n.º {i + 1}</span>
+                  <span className="text-xs font-semibold text-gray-500">Microdespertar n.º {i + 1}</span>
                   <button
                     type="button"
                     onClick={() => setWakings((ws) => ws.filter((x) => x.id !== w.id))}
