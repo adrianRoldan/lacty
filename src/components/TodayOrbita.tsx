@@ -322,7 +322,6 @@ export default function TodayOrbita({
         subtitulo={[
           formatBabyAge(daysOfLife),
           currentWeightKg ? `${currentWeightKg.toLocaleString('es-ES')} kg` : null,
-          ahora.toLocaleDateString('es-ES', { weekday: 'long' }),
         ].filter(Boolean).join(' · ')}
         onSwitchBaby={onSwitchBaby}
         onGoToBaby={onGoToBaby}
@@ -545,11 +544,11 @@ function Cabecera({ config, babies, subtitulo, onSwitchBaby, onGoToBaby, onOpenD
 
   return (
     <div className="flex items-center justify-between gap-3">
-      <div className="relative min-w-0">
+      <div className="relative min-w-0 flex-1">
         <button
           onClick={() => (varios ? setAbierto((o) => !o) : onGoToBaby())}
           aria-expanded={varios ? abierto : undefined}
-          className="block min-w-0 text-left touch-manipulation"
+          className="block w-full min-w-0 text-left touch-manipulation"
         >
           <span className="flex items-center gap-1.5">
             <span className="text-[26px] font-extrabold tracking-tight text-gray-900 leading-tight truncate">
@@ -894,7 +893,9 @@ function Dock({
           <span className="text-xs opacity-80 truncate max-w-full px-2">{principal.nota}</span>
         </button>
         {restInProgress ? (
-          <BotonLateral etiqueta={`Empezar toma (${textoSiguiente})`} color="var(--orb-toma)" onClick={onEmpezarToma}>
+          // En móviles estrechos se oculta (la toma sigue en «⋯»): si no,
+          // «Microdespertar» y «Terminar» no caben y se cortan.
+          <BotonLateral etiqueta={`Empezar toma (${textoSiguiente})`} color="var(--orb-toma)" onClick={onEmpezarToma} className="hidden min-[380px]:flex">
             <BreastPath />
           </BotonLateral>
         ) : (
@@ -910,15 +911,17 @@ function Dock({
   );
 }
 
-function BotonLateral({ etiqueta, color, onClick, children }: {
+function BotonLateral({ etiqueta, color, onClick, children, className = 'flex' }: {
   etiqueta: string; color: string; onClick: () => void; children: React.ReactNode;
+  /** Visibilidad (por defecto, siempre `flex`). */
+  className?: string;
 }) {
   return (
     <button
       onClick={onClick}
       aria-label={etiqueta}
       title={etiqueta}
-      className="w-12 h-14 shrink-0 rounded-[18px] bg-gray-100 flex items-center justify-center touch-manipulation active:brightness-95"
+      className={`w-12 h-14 shrink-0 rounded-[18px] bg-gray-100 ${className} items-center justify-center touch-manipulation active:brightness-95`}
       style={{ color }}
     >
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
