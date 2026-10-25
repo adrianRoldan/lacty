@@ -87,7 +87,7 @@ export default function ExtractionForm({ onSave, onCancel, onDelete, existing, c
             type="datetime-local"
             value={timestamp}
             onChange={(e) => setTimestamp(e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-600"
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-600"
             required
           />
         </div>
@@ -103,7 +103,7 @@ export default function ExtractionForm({ onSave, onCancel, onDelete, existing, c
                 onClick={() => setSide(l.valor)}
                 className={`px-3 py-2 rounded-xl text-sm font-semibold touch-manipulation transition-colors ${
                   side === l.valor
-                    ? 'bg-cyan-100 text-cyan-700 ring-2 ring-cyan-300'
+                    ? 'bg-pink-100 text-pink-700 ring-2 ring-pink-200'
                     : 'bg-gray-100 text-gray-500'
                 }`}
               >
@@ -128,7 +128,7 @@ export default function ExtractionForm({ onSave, onCancel, onDelete, existing, c
                 placeholder="0"
                 onChange={(e) => setMl(e.target.value === '' ? '' : Number(e.target.value))}
                 onFocus={(e) => e.target.select()}
-                className="w-full border border-gray-200 rounded-xl px-3 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-600"
+                className="w-full border border-gray-200 rounded-xl px-3 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-600"
               />
               <span className="text-sm font-medium text-gray-500 shrink-0">ml</span>
             </div>
@@ -146,7 +146,7 @@ export default function ExtractionForm({ onSave, onCancel, onDelete, existing, c
                 placeholder="0"
                 onChange={(e) => setDurationMin(e.target.value === '' ? '' : Number(e.target.value))}
                 onFocus={(e) => e.target.select()}
-                className="w-full border border-gray-200 rounded-xl px-3 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-600"
+                className="w-full border border-gray-200 rounded-xl px-3 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-600"
               />
               <span className="text-sm font-medium text-gray-500 shrink-0">min</span>
             </div>
@@ -166,7 +166,7 @@ export default function ExtractionForm({ onSave, onCancel, onDelete, existing, c
               onClick={() => setPurpose('replace')}
               className={`flex-1 py-2.5 rounded-xl text-sm font-semibold touch-manipulation transition-colors ${
                 purpose === 'replace'
-                  ? 'bg-cyan-100 text-cyan-700 ring-2 ring-cyan-300'
+                  ? 'bg-pink-100 text-pink-700 ring-2 ring-pink-200'
                   : 'bg-gray-100 text-gray-500'
               }`}
             >
@@ -177,7 +177,7 @@ export default function ExtractionForm({ onSave, onCancel, onDelete, existing, c
               onClick={() => setPurpose('extra')}
               className={`flex-1 py-2.5 rounded-xl text-sm font-semibold touch-manipulation transition-colors ${
                 purpose === 'extra'
-                  ? 'bg-cyan-100 text-cyan-700 ring-2 ring-cyan-300'
+                  ? 'bg-pink-100 text-pink-700 ring-2 ring-pink-200'
                   : 'bg-gray-100 text-gray-500'
               }`}
             >
@@ -194,7 +194,7 @@ export default function ExtractionForm({ onSave, onCancel, onDelete, existing, c
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
             placeholder="Ej: costó más de lo normal, se ha usado el sacaleches doble..."
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-600 resize-none"
+            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-600 resize-none"
           />
         </div>
 
@@ -203,7 +203,7 @@ export default function ExtractionForm({ onSave, onCancel, onDelete, existing, c
         <button
           type="submit"
           disabled={saving}
-          className="w-full bg-cyan-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-cyan-700 touch-manipulation disabled:opacity-60"
+          className="w-full bg-sage-600 text-white font-semibold py-4 rounded-xl text-lg active:bg-sage-700 touch-manipulation disabled:opacity-60"
         >
           {saving ? 'Guardando…' : existing ? 'Guardar cambios' : 'Guardar extracción'}
         </button>

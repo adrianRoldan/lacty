@@ -27,7 +27,7 @@ export default function ExtractionItem({ extraction, onEdit, onDelete, onShowInf
   return (
     <div
       onClick={readOnly ? undefined : () => onEdit(extraction)}
-      className={`bg-cyan-50 border-l-4 border-cyan-200 rounded-r-xl px-3 py-2.5 select-none ${readOnly ? '' : 'active:brightness-95 cursor-pointer'}`}
+      className={`bg-pink-50 border-l-4 border-pink-200 rounded-r-xl px-3 py-2.5 select-none ${readOnly ? '' : 'active:brightness-95 cursor-pointer'}`}
     >
       <div className={`flex ${extraction.notes ? 'items-start' : 'items-center'} justify-between gap-2`}>
         <div className="flex-1 min-w-0">
@@ -37,7 +37,7 @@ export default function ExtractionItem({ extraction, onEdit, onDelete, onShowInf
               <span className="text-gray-500"> · {LADO_LABEL[extraction.side]}</span>
             </span>
             {extraction.ml != null && (
-              <span className="bg-cyan-100 text-cyan-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+              <span className="bg-pink-100 text-pink-700 text-xs font-semibold px-2 py-0.5 rounded-full">
                 {extraction.ml} ml
               </span>
             )}
@@ -55,7 +55,7 @@ export default function ExtractionItem({ extraction, onEdit, onDelete, onShowInf
         {onShowInfo && (
           <button
             onClick={(e) => { e.stopPropagation(); onShowInfo(); }}
-            className="text-cyan-400 hover:text-cyan-600 active:text-cyan-700 p-2 shrink-0 touch-manipulation"
+            className="text-pink-600 hover:text-pink-700 active:text-pink-800 p-2 shrink-0 touch-manipulation"
             aria-label="Ver información de extracciones"
             title="Ver información de extracciones"
           >

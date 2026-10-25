@@ -170,6 +170,30 @@
   --color-lagoon-300: #1a6b6b;
   --color-lagoon-700: #67e0e8;
 
+  /* Sky (pañal), teal (baño), violet (medicamento) y slate (medidas): sin
+     esto sus tintes -50/-100 salían CLAROS de noche con el texto ya aclarado
+     encima, ilegible. Los -500/-600 de los botones se dejan intactos. */
+  --color-sky-50:  #142433;
+  --color-sky-100: #172b3d;
+  --color-sky-200: #1d3a52;
+  --color-sky-300: #2a5578;
+  --color-sky-700: #7dd3fc;
+
+  --color-teal-100: #0f2a27;
+  --color-teal-300: #1d5f57;
+  --color-teal-700: #5eead4;
+
+  --color-violet-50:  #1f1733;
+  --color-violet-100: #291d45;
+  --color-violet-200: #36275a;
+  --color-violet-300: #5b3fa0;
+  --color-violet-700: #c4b5fd;
+  --color-violet-800: #ddd6fe;
+  --color-violet-900: #ede9fe;
+
+  --color-slate-100: #232833;
+  --color-slate-700: #cbd5e1;
+
   --color-cyan-100: #0f2d30;
   --color-cyan-300: #1a6b6b;
   --color-cyan-600: #22d3ee;

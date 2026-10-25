@@ -48,7 +48,9 @@ const ACENTO = {
   sueno:   { nodo: 'bg-lagoon-300',  chip: 'bg-lagoon-100 text-lagoon-700' },
   panal:   { nodo: 'bg-sky-500',     chip: 'bg-sky-100 text-sky-700' },
   paseo:   { nodo: 'bg-coral-300',   chip: 'bg-coral-100 text-coral-700' },
-  extraccion: { nodo: 'bg-cyan-600', chip: 'bg-cyan-100 text-cyan-700' },
+  // Morado y no rosa (el de «Ahora»): aquí el rosa ya es el pecho. Tampoco
+  // cian: de noche su -600 es neón y era lo único que deslumbraba.
+  extraccion: { nodo: 'bg-purple-300', chip: 'bg-purple-100 text-purple-700' },
   cuidado: { nodo: 'bg-gray-300',    chip: 'bg-gray-100 text-gray-500' },
 } as const;
 
@@ -310,7 +312,7 @@ function Fila({
           <button
             onClick={(e) => { e.stopPropagation(); onInfo(); }}
             className={`p-1.5 shrink-0 self-center touch-manipulation ${
-              enCajas ? 'text-gray-400 hover:text-gray-600' : 'text-cyan-400 hover:text-cyan-600'
+              enCajas ? 'text-gray-400 hover:text-gray-600' : 'text-purple-300 hover:text-purple-700'
             }`}
             aria-label="Ver información de extracciones"
             title="Ver información de extracciones"

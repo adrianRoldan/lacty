@@ -35,11 +35,11 @@ interface Opcion {
 const DIA_A_DIA: Opcion[] = [
   { tipo: 'toma',        etiqueta: 'Toma',        color: 'bg-mustard-100 text-mustard-700', icono: <span className="text-xl">🤱</span> },
   { tipo: 'sueno',       etiqueta: 'Sueño',       color: 'bg-lagoon-100 text-lagoon-700',   icono: <span className="text-xl">🌙</span> },
-  { tipo: 'panal',       etiqueta: 'Pañal',       color: 'bg-rose-100 text-rose-600',       icono: <DiaperIcon size={22} /> },
+  { tipo: 'panal',       etiqueta: 'Pañal',       color: 'bg-sky-100 text-sky-700',         icono: <DiaperIcon size={22} /> },
   { tipo: 'bano',        etiqueta: 'Baño',        color: 'bg-teal-100 text-teal-700',       icono: <span className="text-xl">🛁</span> },
   { tipo: 'paseo',       etiqueta: 'Paseo',       color: 'bg-coral-100 text-coral-700',     icono: <StrollerIcon size={22} /> },
   { tipo: 'medicamento', etiqueta: 'Medicamento', color: 'bg-violet-100 text-violet-700',   icono: <MedicineIcon size={21} /> },
-  { tipo: 'extraccion',  etiqueta: 'Extracción',  color: 'bg-cyan-100 text-cyan-700',       icono: <span className="text-xl">🥛</span> },
+  { tipo: 'extraccion',  etiqueta: 'Extracción',  color: 'bg-pink-100 text-pink-700',       icono: <span className="text-xl">🥛</span> },
   { tipo: 'nota',        etiqueta: 'Nota',        color: 'bg-gray-100 text-gray-700',       icono: <InfoIcon size={22} /> },
 ];
 
