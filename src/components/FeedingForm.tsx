@@ -25,7 +25,8 @@ export default function FeedingForm({ onSave, onCancel, existing }: Props) {
   const [hasBreast, setHasBreast] = useState(existing?.hasBreast ?? false);
   const [breastMinLeft, setBreastMinLeft] = useState<NumField>(existing?.breastMinLeft ?? '');
   const [breastMinRight, setBreastMinRight] = useState<NumField>(existing?.breastMinRight ?? '');
-  const [hasBottle, setHasBottle] = useState(existing?.hasBottle ?? false);
+  // Una toma nueva es, por defecto, de biberón (al editar se respeta lo que ya tenía).
+  const [hasBottle, setHasBottle] = useState(existing ? (existing.hasBottle ?? false) : true);
   const [bottleMl, setBottleMl] = useState<NumField>(existing?.bottleMl ?? '');
   const [bottleType, setBottleType] = useState<'breast' | 'formula'>(existing?.bottleType ?? 'breast');
   const [hasSupplement, setHasSupplement] = useState(existing?.hasSupplement ?? false);

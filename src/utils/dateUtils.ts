@@ -74,6 +74,13 @@ export function todayIso(): string {
   return localDateString(new Date().toISOString());
 }
 
+/** Primer día de los últimos `dias` días, contando hoy. */
+export function inicioDeUltimosDias(dias: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - (dias - 1));
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 /**
  * Etiqueta del día de inicio relativa al día bajo el que se lista un registro.
  * Devuelve null si empezó el mismo día (no hay nada que indicar), "ayer" si fue

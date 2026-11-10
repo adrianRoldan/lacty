@@ -45,6 +45,7 @@ import AppSettings from './components/AppSettings';
 import MilestonesView from './components/MilestonesView';
 import VaccinesView from './components/VaccinesView';
 import PediatraSummary from './components/PediatraSummary';
+import SleepAgendaView from './components/SleepAgendaView';
 import AdminView, { ActivityDashboard, PushBroadcastView, BabiesAdminView } from './components/AdminView';
 import GuiasAdminView from './components/GuiasAdminView';
 import ThemeSelector from './components/ThemeSelector';
@@ -80,6 +81,7 @@ type Screen =
   | 'ajustes'
   | 'mis-datos'
   | 'resumen-pediatra'
+  | 'agenda-sueno'
   | 'exportar'
   | 'nuevo-pañal'
   | 'editar-pañal'
@@ -383,6 +385,18 @@ export default function App() {
   );
   const restInProgress = rests.some((r) => r.endTime == null);
   const walkInProgress = walks.find((w) => w.endTime == null) ?? null;
+
+  // El par de botones principales (sueño / biberón) se mantiene, pero se
+  // destaca el que toca según lo último registrado: tras un sueño apetece una
+  // toma (biberón) y tras una toma, dormir. Comparamos la hora del último
+  // sueño (su inicio) con la de la última toma; sin datos, empezamos por la
+  // toma, que por defecto es biberón.
+  const ultimoSueno  = rests.reduce((max, r) => (r.startTime > max ? r.startTime : max), '');
+  const ultimaToma   = feedings.reduce((max, f) => (f.timestamp > max ? f.timestamp : max), '');
+  const fabSugerido: 'biberon' | 'sueno' =
+    !ultimoSueno && !ultimaToma ? 'biberon'   // sin datos: se empieza por la toma (biberón)
+    : ultimoSueno > ultimaToma ? 'biberon'    // lo último fue un sueño → toca biberón
+    : 'sueno';                                // lo último fue una toma → toca dormir
 
   // ── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -1267,6 +1281,7 @@ export default function App() {
     'nueva-nota', 'editar-nota',
     'nueva-extraccion', 'editar-extraccion',
     'resumen-pediatra',
+    'agenda-sueno',
     'exportar',
     'admin',
   ].includes(screen);
@@ -1630,6 +1645,7 @@ export default function App() {
             onOpenVaccines={() => navigate('vacunas')}
             onOpenPediatraSummary={() => setScreen('resumen-pediatra')}
             onOpenExport={() => setScreen('exportar')}
+            onOpenSleepAgenda={() => setScreen('agenda-sueno')}
             onUpdateConfig={handleUpdateConfig}
             readOnly={isViewer}
           />
@@ -1699,6 +1715,16 @@ export default function App() {
               config, feedings, rests, diapers, walks, medications,
               vitaminDLogs, probioticLogs, massageLogs, weights, baths, extractions, notes,
             }}
+            onBack={() => setScreen(activeTab)}
+          />
+        )}
+
+        {screen === 'agenda-sueno' && config && (
+          <SleepAgendaView
+            config={config}
+            rests={rests}
+            notes={notes}
+            feedings={feedings}
             onBack={() => setScreen(activeTab)}
           />
         )}
@@ -1834,8 +1860,15 @@ export default function App() {
               </ExtraFab>
             </div>
           )}
-          {/* FABs principales */}
-          {!restInProgress && config && (() => {
+          {/* FABs principales: se mantienen los dos (sueño y biberón), pero se
+              destaca el que toca según lo último registrado (ver `fabSugerido`).
+              El destacado va más grande y abajo —al alcance del pulgar, junto al
+              «⋯»— y el otro queda más pequeño encima. */}
+          {config && (() => {
+            const sueñoPrincipal = fabSugerido === 'sueno';
+            const grande  = 'w-16 h-16 text-3xl';
+            const pequeño = 'w-12 h-12 text-xl';
+
             const nocturno = esSuenoNocturno(new Date().toISOString(), config);
             // El emoji 💤 se dibuja en azul sin fondo propio: sobre el teal de la
             // luna quedaba casi ilegible. Para la siesta el botón usa un taupe
@@ -1845,11 +1878,13 @@ export default function App() {
             const siestaBg = theme === 'dark'
               ? 'bg-taupe-700 shadow-taupe-700/40 active:bg-taupe-600'
               : 'bg-taupe-200 shadow-taupe-200/40 active:bg-taupe-600';
-            return (
+
+            const restFab = !restInProgress ? (
               <button
+                key="rest"
                 onClick={handleQuickRest}
                 aria-label="Iniciar sueño"
-                className={`w-14 h-14 rounded-full text-white shadow-lg flex items-center justify-center text-2xl active:scale-95 transition-transform touch-manipulation ${
+                className={`${sueñoPrincipal ? grande : pequeño} rounded-full text-white shadow-lg flex items-center justify-center active:scale-95 transition-transform touch-manipulation ${
                   nocturno
                     ? 'bg-lagoon-600 shadow-lagoon-600/30 active:bg-lagoon-700'
                     : siestaBg
@@ -1857,17 +1892,24 @@ export default function App() {
               >
                 {nocturno ? '🌙' : '💤'}
               </button>
-            );
+            ) : null;
+
+            const bottleFab = !bottleInProgress ? (
+              <button
+                key="bottle"
+                onClick={handleQuickBottle}
+                aria-label="Iniciar biberón"
+                className={`${sueñoPrincipal ? pequeño : grande} rounded-full bg-sky-500 text-white shadow-lg shadow-sky-500/30 flex items-center justify-center active:scale-95 active:bg-sky-600 transition-transform touch-manipulation`}
+              >
+                🍼
+              </button>
+            ) : null;
+
+            // El destacado (principal) va el último → más abajo, pegado al «⋯».
+            const principal = sueñoPrincipal ? restFab : bottleFab;
+            const secundario = sueñoPrincipal ? bottleFab : restFab;
+            return <>{secundario}{principal}</>;
           })()}
-          {!bottleInProgress && (
-            <button
-              onClick={handleQuickBottle}
-              aria-label="Iniciar biberón"
-              className="w-14 h-14 rounded-full bg-sky-500 text-white shadow-lg shadow-sky-500/30 flex items-center justify-center text-2xl active:scale-95 active:bg-sky-600 transition-transform touch-manipulation"
-            >
-              🍼
-            </button>
-          )}
           {/* Botón toggle "más" */}
           <button
             onClick={() => setShowExtraFabs(v => !v)}

@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import type { DatosExportacion } from '../utils/exportUtils';
 import { construirTexto, construirCsv, diasDelRango, PREGUNTA_POR_DEFECTO } from '../utils/exportUtils';
-import { todayIso } from '../utils/dateUtils';
+import { todayIso, inicioDeUltimosDias } from '../utils/dateUtils';
+import PeriodoSelector from './PeriodoSelector';
 
 interface Props {
   datos: DatosExportacion;
@@ -10,22 +11,9 @@ interface Props {
 
 type Formato = 'texto' | 'csv';
 
-const PRESETS: { etiqueta: string; dias: number }[] = [
-  { etiqueta: '7 días', dias: 7 },
-  { etiqueta: '14 días', dias: 14 },
-  { etiqueta: '30 días', dias: 30 },
-];
-
-function hace(dias: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - (dias - 1));
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
 export default function ExportView({ datos, onBack }: Props) {
-  const hoy = todayIso();
-  const [desde, setDesde] = useState(hace(7));
-  const [hasta, setHasta] = useState(hoy);
+  const [desde, setDesde] = useState(inicioDeUltimosDias(7));
+  const [hasta, setHasta] = useState(todayIso());
   const [formato, setFormato] = useState<Formato>('texto');
   const [ocultarNombre, setOcultarNombre] = useState(false);
   const [conPregunta, setConPregunta] = useState(true);
@@ -89,41 +77,7 @@ export default function ExportView({ datos, onBack }: Props) {
         o para pegarlo en una IA y que analice los patrones de tomas y siestas.
       </p>
 
-      {/* Fechas */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm mb-3">
-        <p className="text-sm font-medium text-gray-600 mb-3">Periodo</p>
-        <div className="flex gap-2 mb-4">
-          {PRESETS.map((p) => {
-            const activo = desde === hace(p.dias) && hasta === hoy;
-            return (
-              <button
-                key={p.dias}
-                onClick={() => { setDesde(hace(p.dias)); setHasta(hoy); }}
-                className={`flex-1 py-2 rounded-xl text-xs font-semibold touch-manipulation transition-colors ${
-                  activo ? 'bg-sage-600 text-white' : 'bg-gray-100 text-gray-500'
-                }`}
-              >
-                {p.etiqueta}
-              </button>
-            );
-          })}
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Desde</label>
-            <input type="date" value={desde} max={hoy} onChange={(e) => setDesde(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-600" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Hasta</label>
-            <input type="date" value={hasta} max={hoy} min={desde} onChange={(e) => setHasta(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sage-600" />
-          </div>
-        </div>
-        {!rangoValido && (
-          <p className="text-xs text-red-500 mt-2">La fecha de inicio debe ser anterior a la de fin.</p>
-        )}
-      </div>
+      <PeriodoSelector desde={desde} hasta={hasta} onChange={(d, h) => { setDesde(d); setHasta(h); }} />
 
       {/* Formato */}
       <div className="bg-white rounded-2xl p-4 shadow-sm mb-3">

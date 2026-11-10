@@ -15,6 +15,7 @@ interface Props {
   onOpenVaccines: () => void;
   onOpenPediatraSummary: () => void;
   onOpenExport: () => void;
+  onOpenSleepAgenda: () => void;
   readOnly?: boolean;
   onUpdateConfig: (partial: Partial<Omit<BabyConfig, 'id'>>) => Promise<void>;
 }
@@ -22,7 +23,7 @@ interface Props {
 export default function BabyProfile({
   config, weights, heights, headCircs,
   onOpenGrowth, onOpenCare, onOpenFamily, onOpenReference,
-  onOpenMilestones, onOpenVaccines, onOpenPediatraSummary, onOpenExport,
+  onOpenMilestones, onOpenVaccines, onOpenPediatraSummary, onOpenExport, onOpenSleepAgenda,
   onUpdateConfig, readOnly,
 }: Props) {
   const daysOfLife = getCurrentDaysOfLife(config);
@@ -182,6 +183,7 @@ export default function BabyProfile({
       <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 mt-6">Informes</h2>
       <Grupo>
         <Fila emoji="📄" titulo="Resumen para el pediatra" subtitulo="Últimos 14 días, listo para imprimir" onClick={onOpenPediatraSummary} />
+        <Fila emoji="😴" titulo="Agenda de sueño" subtitulo="La hoja del pediatra en PDF, entre dos fechas" onClick={onOpenSleepAgenda} />
         <Fila emoji="📤" titulo="Exportar registros" subtitulo="El día a día entre dos fechas, para compartir o analizar" onClick={onOpenExport} />
       </Grupo>
 
